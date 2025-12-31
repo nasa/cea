@@ -1,1 +1,1 @@
-include "python/cea.pyx"
+include "python/CEA.pyx"
