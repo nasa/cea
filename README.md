@@ -1,6 +1,9 @@
+[![Build and docs](https://github.com/nasa/cea/actions/workflows/docs.yml/badge.svg)](https://github.com/nasa/cea/actions/workflows/docs.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 # CEA (Chemical Equilibrium with Applications)
+![CEA logo](docs/source/images/logo.png)
+
 A modernized version of NASA's Chemical Equilibrium with Applications.
 
 Online documentation and examples are located at <https://nasa.github.io/cea/>
