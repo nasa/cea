@@ -1298,7 +1298,8 @@ contains
                 write(ioout, '(A, 14F9.4)') ' Cp, kJ/kg-K     ', ((solutions(i, j, k)%eq_soln%cp_eq,         j=1,n), i=1,m)
                 write(ioout, '(A, 14F9.4)') ' Gamma_s         ', ((solutions(i, j, k)%eq_partials%gamma_s,   j=1,n), i=1,m)
                 write(ioout, '(A, 14F9.3)') ' Son. Vel., m/s  ', &
-                    ((sqrt(solutions(i, j, k)%eq_soln%n*R*solutions(i, j, k)%eq_partials%gamma_s*solutions(i, j, k)%eq_soln%T), j=1,n), i=1,m)
+                    ((sqrt(solutions(i, j, k)%eq_soln%n*R*solutions(i, j, k)%eq_partials%gamma_s*solutions(i, j, k)%eq_soln%T),&
+                     j=1,n), i=1,m)
 
             else
 
@@ -1317,7 +1318,8 @@ contains
                 write(ioout, '(A, 14F9.4)') ' Cp, cal/g-K     ', ((solutions(i, j, k)%eq_soln%cp_eq/4.184d0, j=1,n), i=1,m)
                 write(ioout, '(A, 14F9.4)') ' Gamma_s         ', ((solutions(i, j, k)%eq_partials%gamma_s,   j=1,n), i=1,m)
                 write(ioout, '(A, 14F9.3)') ' Son. Vel., m/s  ', &
-                    ((sqrt(solutions(i, j, k)%eq_soln%n*R*solutions(i, j, k)%eq_partials%gamma_s*solutions(i, j, k)%eq_soln%T), j=1,n), i=1,m)
+                    ((sqrt(solutions(i, j, k)%eq_soln%n*R*solutions(i, j, k)%eq_partials%gamma_s*solutions(i, j, k)%eq_soln%T),&
+                     j=1,n), i=1,m)
 
             end if
 
@@ -2284,18 +2286,22 @@ contains
                             write(ioout, ffmt) (solutions(i,j,k)%eq_soln(idx)%entropy, idx=x,y)
 
                             write(ioout, *) ""
-                            write(ioout, thermo_fmt, advance="no") 'M, (1/n)        ', (1.0/solutions(i, j, k)%eq_soln(idx)%n, idx=1,nc)
+                            write(ioout, thermo_fmt, advance="no") 'M, (1/n)        ', &
+                                (1.0/solutions(i, j, k)%eq_soln(idx)%n, idx=1,nc)
                             write(ioout, ffmt) (1.0/solutions(i, j, k)%eq_soln(idx)%n, idx=x,y)
 
                             if (frozen .eqv. .false.) then
-                                write(ioout, thermo_fmt, advance="no") '(dln(V)/dln(P))t', (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnP, idx=1,nc)
+                                write(ioout, thermo_fmt, advance="no") '(dln(V)/dln(P))t', &
+                                    (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnP, idx=1,nc)
                                 write(ioout, ffmt) (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnP, idx=x,y)
 
-                                write(ioout, thermo_fmt, advance="no") '(dln(V)/dln(T))p', (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnT, idx=1,nc)
+                                write(ioout, thermo_fmt, advance="no") '(dln(V)/dln(T))p', &
+                                    (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnT, idx=1,nc)
                                 write(ioout, ffmt) (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnT, idx=x,y)
                             end if
 
-                            write(ioout, thermo_fmt, advance="no") 'Cp, kJ/(kg-K)   ', (solutions(i, j, k)%eq_soln(idx)%cp_eq, idx=1,nc)
+                            write(ioout, thermo_fmt, advance="no") 'Cp, kJ/(kg-K)   ', &
+                                (solutions(i, j, k)%eq_soln(idx)%cp_eq, idx=1,nc)
                             write(ioout, ffmt) (solutions(i, j, k)%eq_soln(idx)%cp_eq, idx=x,y)
                         else
                             write(ioout, p_fmt, advance="no") (solutions(i,j,k)%pressure(idx)/1.01325d0, idx=1,nc)
@@ -2481,7 +2487,8 @@ contains
                                     if (frozen) then
                                         if (solutions(i, j, k)%eq_soln(nfrz)%mole_fractions(ii) > trace) then
                                             write(ioout, '(1x, A15, 2x, F13.5)') &
-                                                solver%eq_solver%products%species_names(ii), solutions(i, j, k)%eq_soln(nfrz)%mole_fractions(ii)
+                                                solver%eq_solver%products%species_names(ii), &
+                                                solutions(i, j, k)%eq_soln(nfrz)%mole_fractions(ii)
                                         end if
                                     else
                                         write(ioout, '(1x, A15, 2x, 3(F13.5))', advance="no") &
