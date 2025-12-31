@@ -3,7 +3,7 @@
 # CEA (Chemical Equilibrium with Applications)
 A modernized version of NASA's Chemical Equilibrium with Applications.
 
-Online documentation and examples at located at <https://nasa.github.io/cea/>
+Online documentation and examples are located at <https://nasa.github.io/cea/>
 
 ## Overview
 The NASA software package CEA (Chemical Equilibrium with Applications) enables
