@@ -22,6 +22,11 @@ module cea_fits
         procedure :: calc_enthalpy
         procedure :: calc_entropy
         procedure :: calc_gibbs_energy
+        procedure :: calc_dcv_dT
+        procedure :: calc_dcp_dT
+        procedure :: calc_denergy_dT
+        procedure :: calc_denthalpy_dT
+        procedure :: calc_dentropy_dT
     end type
 
     type :: TransportFit
@@ -105,6 +110,62 @@ contains
         g = T*g + self%a2 + self%b1
         g = T*g - self%a1/2.0d0
         g = g/T + (self%a2 - T*self%a3)*logT
+    end function
+
+    elemental function calc_dcv_dT(self,T) result(cv)
+        class(ThermoFit), intent(in) :: self
+        real(dp), intent(in) :: T
+        real(dp) :: cv
+        cv = self%calc_cp(T) - 1.0d0
+    end function
+
+    elemental function calc_dcp_dT(self,T) result(dcp_dT)
+        class(ThermoFit), intent(in) :: self
+        real(dp), intent(in) :: T
+        real(dp) :: dcp_dT
+        dcp_dT = 4.0d0 * self%a7
+        dcp_dT = T*dcp_dT + 3.0d0 * self%a6
+        dcp_dT = T*dcp_dT + 2.0d0 * self%a5
+        dcp_dT = T*dcp_dT + self%a4
+        dcp_dT = T*dcp_dT
+        dcp_dT = T*dcp_dT - self%a2
+        dcp_dT = T*dcp_dT - 2.0d0 * self%a1
+        dcp_dT = dcp_dT/(T*T*T)
+    end function
+
+    elemental function calc_denergy_dT(self,T) result(de_dT)
+        class(ThermoFit), intent(in) :: self
+        real(dp), intent(in) :: T
+        real(dp) :: de_dT
+        de_dT = self%calc_denthalpy_dT(T) - 1.0d0
+    end function
+
+    elemental function calc_denthalpy_dT(self,T) result(dh_dT)
+        class(ThermoFit), intent(in) :: self
+        real(dp), intent(in) :: T
+        real(dp) :: dh_dT  ! h/R
+        dh_dT = self%a7
+        dh_dT = T*dh_dT + self%a6
+        dh_dT = T*dh_dT + self%a5
+        dh_dT = T*dh_dT + self%a4
+        dh_dT = T*dh_dT + self%a3
+        dh_dT = T*dh_dT + self%a2
+        dh_dT = T*dh_dT + 2.0*self%a1
+        dh_dT = dh_dT/(T*T)
+    end function
+
+    elemental function calc_dentropy_dT(self,T) result(ds_dT)
+        class(ThermoFit), intent(in) :: self
+        real(dp), intent(in) :: T
+        real(dp) :: ds_dT
+        ds_dT = self%a7
+        ds_dT = T*ds_dT + self%a6
+        ds_dT = T*ds_dT + self%a5
+        ds_dT = T*ds_dT + self%a4
+        ds_dT = T*ds_dT + self%a3
+        ds_dT = T*ds_dT - self%a2
+        ds_dT = T*ds_dT - self%a1
+        ds_dT = ds_dT/(T*T*T)
     end function
 
     elemental function calc_transport_value(self,T) result(value)

@@ -56,6 +56,11 @@ module cea_thermo
         procedure :: calc_entropy => st_calc_entropy
         procedure :: calc_gibbs_energy => st_calc_gibbs_energy
         procedure :: calc_potential => st_calc_potential
+        procedure :: calc_dcv_dT => st_calc_dcv_dT
+        procedure :: calc_dcp_dT => st_calc_dcp_dT
+        procedure :: calc_denergy_dT => st_calc_denergy_dT
+        procedure :: calc_denthalpy_dT => st_calc_denthalpy_dT
+        procedure :: calc_dentropy_dT => st_calc_dentropy_dT
     end type
 
     type :: ThermoDB
@@ -279,6 +284,101 @@ contains
         if (self%i_phase <= 0) then
             mu = mu + log_nj_ + log(P_/n_)
         end if
+
+    end function
+
+    elemental function st_calc_dcv_dT(self, T) result(dcv_dT)
+        class(SpeciesThermo), intent(in) :: self
+        real(dp), intent(in) :: T
+        real(dp) :: dcv_dT
+        integer :: i, idx
+
+        ! Select temperature range
+        idx = 1
+        do i = 1,self%num_intervals
+            if (T > self%T_fit(i, 1)) then
+                idx = i
+            end if
+        end do
+
+        ! Evaluate selected fit
+        dcv_dT = self%fits(idx)%calc_dcv_dT(T)
+
+    end function
+
+    elemental function st_calc_dcp_dT(self, T) result(dcp_dT)
+        class(SpeciesThermo), intent(in) :: self
+        real(dp), intent(in) :: T
+        real(dp) :: dcp_dT
+        integer :: i, idx
+
+        ! Select temperature range
+        idx = 1
+        do i = 1,self%num_intervals
+            if (T > self%T_fit(i, 1)) then
+                idx = i
+            end if
+        end do
+
+        ! Evaluate selected fit
+        dcp_dT = self%fits(idx)%calc_dcp_dT(T)
+
+    end function
+
+    elemental function st_calc_denergy_dT(self, T) result(du_dT)
+        class(SpeciesThermo), intent(in) :: self
+        real(dp), intent(in) :: T
+        real(dp) :: du_dT
+        integer :: i, idx
+
+        ! Select temperature range
+        idx = 1
+        do i = 1,self%num_intervals
+            if (T > self%T_fit(i, 1)) then
+                idx = i
+            end if
+        end do
+
+        ! Evaluate selected fit
+        du_dT = self%fits(idx)%calc_denergy_dT(T)
+
+    end function
+
+    elemental function st_calc_denthalpy_dT(self, T) result(dh_dT)
+        class(SpeciesThermo), intent(in) :: self
+        real(dp), intent(in) :: T
+        real(dp) :: dh_dT
+        integer :: i, idx
+
+        ! Select temperature range
+        idx = 1
+        do i = 1,self%num_intervals
+            if (T > self%T_fit(i, 1)) then
+                idx = i
+            end if
+        end do
+
+        ! Evaluate selected fit
+        dh_dT = self%fits(idx)%calc_denthalpy_dT(T)
+
+    end function
+
+    elemental function st_calc_dentropy_dT(self, T) result(ds_dT)
+        class(SpeciesThermo), intent(in) :: self
+        real(dp), intent(in) :: T
+        real(dp) :: ds_dT
+        integer :: i, idx
+
+        ! Select temperature range
+        idx = 1
+        do i = 1,self%num_intervals
+            if (T > self%T_fit(i, 1)) then
+                idx = i
+            end if
+        end do
+
+        ! Evaluate selected fit
+        ds_dT = self%fits(idx)%calc_dentropy_dT(T)
 
     end function
 

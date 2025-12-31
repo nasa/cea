@@ -2553,7 +2553,7 @@ contains
                  stcf(ng, ng), stcoef(ng), tmp(max_tr), gmat(ng, ng), &
                  stx(ng), stxij(ng, ng))
 
-        ! cond can be used without being initialized, and uninitialized elements 
+        ! cond can be used without being initialized, and uninitialized elements
         ! could be used later if all of the species aren't found in the transport database
         cond = 0.0d0
 
