@@ -46,7 +46,7 @@ for i in range(len(phi)):
         h0 = reac.calc_property(cea.ENTHALPY, weights, T0[j])/cea.R
 
         # Equilibrium solve
-        solver.solve(soln, cea.HP, p0, h0, weights)
+        solver.solve(soln, cea.HP, h0, p0, weights)
 
         convg_vals[i,j] = soln.converged
         if soln.converged:
