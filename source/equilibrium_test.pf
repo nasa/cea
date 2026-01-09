@@ -50,7 +50,7 @@ contains
 
         ! Get the constraint values
         h_reac = reactants%calc_enthalpy(weights, 2000.0d0)/R
-        p_reac = 1.01325d0  ! TODO: Appears to be p/pstd. Make SI?
+        p_reac = 1.01325d0
         b_reac = reactants%element_amounts_from_weights(weights)
 
         solution%constraints = EqConstraints('hp', h_reac, p_reac, b_reac)
@@ -707,5 +707,48 @@ contains
     !     @assertRelativelyEqual(-5.4697759938827026, solution%ln_nj(160), tol)
 
     ! end subroutine
+
+    @test
+    subroutine test_hp_derivatives
+        type(Mixture) :: products
+        type(Mixture) :: reactants
+        type(EqSolver) :: solver
+        type(EqSolution) :: solution
+        type(EqDerivatives) :: totals
+        real(dp) :: h_reac, p_reac, b_reac(2), weights(2)
+        real(dp), parameter :: tol = 1.0d-6
+        integer :: i, j
+
+        reactants = Mixture(all_thermo, ['H2', 'O2'])
+        products  = Mixture(all_thermo, ['H  ', 'H2 ', 'H2O', 'O  ', 'O2 ', 'OH '])
+
+        solver = EqSolver(products, reactants)
+        solution = EqSolution(solver)
+
+        ! Get the species weights
+        weights = reactants%weights_from_moles([1.0d0, 1.0d0])
+        weights = reactants%weights_from_of([0.0d0, 1.0d0], [1.0d0, 0.0d0], 15.87336d0)
+
+        ! Get the constraint values
+        h_reac = reactants%calc_enthalpy(weights, 2000.0d0)/R
+        p_reac = 1.01325d0
+
+        call solver%solve(solution, 'hp', h_reac, p_reac, weights)
+
+        write(*,*) "converged? ", solution%converged
+
+        totals = EqDerivatives(solver, solution)
+        call totals%compute_derivatives(solver, solution, check_closure_defect=.true.)
+
+        write(*,*) "Rx:"
+        do i = 1, totals%m
+            write(*,*) (totals%Rx(i, j), j=1,totals%n)
+        end do
+
+        ! do i = 1, totals%m
+        !     @assertLessThan(tol, abs(totals%delta_check(i)))
+        ! end do
+
+    end subroutine
 
 end module

@@ -296,6 +296,42 @@ module cea_equilibrium
         module procedure :: EqPartials_init
     end interface
 
+        type :: EqDerivatives
+        !! Equilibrium Total Derivatives Type
+
+        !! Size variables
+        integer :: m = 0
+            !! Number of equations in the matrix system
+        integer :: n = 0
+            !! Number of variables in the solution vector
+
+        !! Solver workspace
+        real(dp), allocatable :: J(:, :)
+            !! Jacobian matrix of the nonlinear residuals
+        ! real(dp), allocatable :: R(:)
+        !     !! Nonlinear residual vector
+        real(dp), allocatable :: Rx(:, :)
+            !! Partial derivatives of the nonlinear residuals wrt inputs
+        real(dp), allocatable :: dudx(:, :)
+            !! Total derivatives of the solution variables wrt inputs
+        real(dp), allocatable :: delta_check(:, :)
+            !! Delta = J*dudx + Rx = 0, used to check the correctness of the computed derivatives
+
+        !! Final unpacked derivatives
+
+    contains
+
+        procedure :: assemble_jacobian => EqDerivatives_assemble_jacobian
+        procedure :: assemble_Rx => EqDerivatives_assemble_Rx
+        procedure :: check_closure_defect => EqDerivatives_check_closure_defect
+        procedure :: unpack_values => EqDerivatives_unpack_values
+        procedure :: compute_derivatives => EqDerivatives_compute_derivatives
+
+    end type
+    interface EqDerivatives
+        module procedure :: EqDerivatives_init
+    end interface
+
 contains
 
     !-----------------------------------------------------------------------
@@ -1667,6 +1703,308 @@ contains
 
     end subroutine
 
+    !-----------------------------------------------------------------------
+    ! EqDerivatives
+    !-----------------------------------------------------------------------
+    function EqDerivatives_init(solver, solution) result(self)
+
+        ! Arguments
+        type(EqSolver), intent(in) :: solver
+        type(EqSolution), intent(in) :: solution
+        type(EqDerivatives) :: self
+
+        ! Locals
+        integer :: m, n
+
+        m = solution%num_equations(solver)
+        n = solver%num_elements + 2
+        self%m = m
+        self%n = n
+
+        allocate(self%J(m, m), source=empty_dp)
+        ! allocate(self%R(m), source=empty_dp)
+        allocate(self%Rx(m, n), source=empty_dp)
+        allocate(self%dudx(m, n), source=empty_dp)
+        allocate(self%delta_check(m, n), source=empty_dp)
+    end function
+
+    subroutine EqDerivatives_assemble_jacobian(self, solver, solution)
+
+        ! Arguments
+        class(EqDerivatives), intent(inout) :: self
+        type(EqSolver), intent(in) :: solver
+        type(EqSolution), intent(inout) :: solution
+
+        call solver%assemble_matrix(solution)
+        self%J = solution%G(:self%m, :self%m)
+    end subroutine
+
+    subroutine EqDerivatives_assemble_Rx(self, solver, solution)
+
+        ! Arguments
+        class(EqDerivatives), intent(inout), target :: self
+        type(EqSolver), intent(in), target :: solver
+        type(EqSolution), intent(in), target :: solution
+
+        ! Locals
+        integer  :: ng                          ! Number of gas species
+        integer  :: nc                          ! Number of condensed species
+        integer  :: ne                          ! Number of elements
+        integer  :: num_eqn                     ! Active number of equations
+        real(dp) :: tmp(solver%num_gas)         ! Common sub-expression storage
+        real(dp) :: dtmp_dP(solver%num_gas)     ! d/dP of common sub-expression storage
+        real(dp) :: mu_g(solver%num_gas)        ! Gas phase chemical potentials [unitless]
+        real(dp) :: dhsu_delta_dP               ! d/dP of residual for enthalpy / entropy constraint
+        real(dp) :: n                           ! Total moles of mixture
+        real(dp) :: P                           ! Pressure of mixture (bar)
+        real(dp) :: T                           ! Temperature of mixture (K)
+        real(dp), pointer :: nj(:), nj_g(:)     ! Total/gas species concentrations [kmol-per-kg]
+        real(dp), pointer :: ln_nj(:)           ! Log of gas species concentrations [kmol-per-kg]
+        real(dp), pointer :: h_g(:)             ! Gas enthalpies [unitless]
+        real(dp), pointer :: s_g(:)             ! Gas entropies [unitless]
+        real(dp), pointer :: u_g(:)             ! Gas energies [unitless]
+        real(dp) :: dh_g_dT(solver%num_gas)     ! d/dT of gas enthalpies [unitless]
+        real(dp) :: ds_g_dT(solver%num_gas)     ! d/dT of gas entropies [unitless]
+        real(dp) :: dh_c_dT(solver%num_condensed)  ! d/dT of condensed enthalpies [unitless]
+        real(dp) :: ds_c_dT(solver%num_condensed)  ! d/dT of condensed entropies [unitless]
+        real(dp), pointer :: A_g(:,:), A_c(:,:) ! Gas/condensed stoichiometric matrices
+        integer :: r, c                         ! Iteration matrix row/column indices
+        integer :: i, j                         ! Loop counters
+        logical :: const_p, const_t, const_s, const_h, const_u  ! Flags enabling/disabling matrix equations
+        type(EqConstraints), pointer :: cons    ! Abbreviation for soln%constraints
+
+        ! Define shorthand
+        ng = solver%num_gas
+        nc = solver%num_condensed
+        ne = solver%num_elements
+        num_eqn = solution%num_equations(solver)
+        cons => solution%constraints
+        const_p = cons%is_constant_pressure()
+        const_t = cons%is_constant_temperature()
+        const_s = cons%is_constant_entropy()
+        const_h = cons%is_constant_enthalpy()
+        const_u = cons%is_constant_energy()
+
+        ! Associate subarray pointers
+        A_g => solver%products%stoich_matrix(:ng,:) ! NOTE: A is transpose of a_ij in RP-1311
+        A_c => solver%products%stoich_matrix(ng+1:,:)
+        n = solution%n
+        nj  => solution%nj
+        nj_g => solution%nj(:ng)
+        ln_nj => solution%ln_nj
+        h_g => solution%thermo%enthalpy(:ng)
+        s_g => solution%thermo%entropy(:ng)
+        u_g => solution%thermo%energy(:ng)
+
+        ! Get the mixture pressure and temperature
+        P = solution%calc_pressure()
+        T = solution%T
+
+        ! Compute gas phase chemical potentials
+        mu_g = h_g - s_g + ln_nj + log(P/n)
+
+        ! Evalutate constraint residuals
+        dhsu_delta_dP = 0.0d0
+        if (const_s) then
+            dhsu_delta_dP = sum(nj_g)/P
+        end if
+
+        ! Compute intermediate derivatives
+        do i = 1, ng
+            dh_g_dT(i) = solver%products%species(i)%calc_denthalpy_dT(T)
+            ds_g_dT(i) = solver%products%species(i)%calc_dentropy_dT(T)
+        end do
+        do i = 1, nc
+            dh_c_dT(i) = solver%products%species(ng+i)%calc_denthalpy_dT(T)
+            ds_c_dT(i) = solver%products%species(ng+i)%calc_dentropy_dT(T)
+        end do
+
+        ! Initialize the iteration matrix
+        self%Rx = 0.0d0
+        r = 0
+        c = 0
+
+        !-------------------------------------------------------
+        ! Equation (2.24/2.45): Element constraints
+        !-------------------------------------------------------
+        do i = 1,ne
+            tmp = nj_g*A_g(:,i)
+            r = r+1
+            c = 0
+
+            ! dR/dx1 (x1: fixed pressure or volume)
+            c = c+1
+            self%Rx(r, c) = -sum(tmp)/P
+            if (.not. const_p) then
+                self%Rx(r, c) = self%Rx(r, c)*(-P/cons%state2)
+            end if
+
+            ! dR/dx2 (x2: fixed temperature/enthalpy/entropy/energy)
+            c = c+1
+            if (const_t) then
+                self%Rx(r, c) = -dot_product(tmp, dh_g_dT-ds_g_dT)
+            else
+                self%Rx(r, c) = 0.0d0
+            end if
+
+            ! dR/dx3...n (x3...n: element amounts)
+            c = i+2
+            self%Rx(r, c) = 1.0d0 ! Other contributions = 0
+        end do
+
+        !-------------------------------------------------------
+        ! Equation (2.25/2.46): Condensed phase constraints
+        !-------------------------------------------------------
+        do i = 1,nc
+            if (.not. solution%is_active(i)) cycle
+            r = r+1
+            c = 0
+
+            ! dR/dx1 (x1: fixed pressure or volume) are 0
+
+            ! dR/dx2 (x2: fixed temperature/enthalpy/entropy/energy)
+            if (const_t) then
+                self%Rx(r, 2) = -dh_c_dT(i) + ds_c_dT(i)
+            end if
+
+            ! dR/dx3...n (x3...n: element amounts) are 0
+
+        end do
+
+        !-------------------------------------------------------
+        ! Equation (2.26)
+        !-------------------------------------------------------
+        if (const_p) then
+            r = r+1
+            c = 0
+
+            ! dR/dx1 (x1: fixed pressure or volume)
+            c = c+1
+            self%Rx(r, c) = -sum(nj_g)/P
+            if (.not. const_p) then
+                self%Rx(r, c) = self%Rx(r, c)*(-P/cons%state2)
+            end if
+
+            ! dR/dx2 (x2: fixed temperature/enthalpy/entropy/energy)
+            c = c+1
+            if (const_t) then
+                self%Rx(r, c) = -dot_product(nj_g, dh_g_dT-ds_g_dT)
+            else
+                self%Rx(r, c) = 0.0d0
+            end if
+
+            ! dR/dx3...n (x3...n: element amounts) are 0
+
+        end if
+
+        !---------------------------------------------------------
+        ! Equation (2.27)/(2.28)/(2.47)/(2.48): Energy constraints
+        !---------------------------------------------------------
+        if (.not. const_t) then
+            r = r+1
+            c = 0
+
+            ! Select entropy/enthalpy constraint
+            if (const_s) then
+                tmp = nj_g*(h_g-mu_g)
+                dtmp_dP = -nj_g/P
+            else if (const_h) then
+                tmp = nj_g*h_g
+                dtmp_dP = 0.0d0
+            else if (const_u) then
+                tmp = nj_g*u_g
+                dtmp_dP = 0.0d0
+            end if
+
+            ! dR/dx1 (x1: fixed pressure or volume)
+            c = c+1
+            self%Rx(r, c) = -dhsu_delta_dP - dot_product(dtmp_dP, mu_g) - sum(tmp)/P
+            if (.not. const_p) then
+                self%Rx(r, c) = self%Rx(r, c)*(-P/cons%state2)
+            end if
+
+            ! dR/dx2 (x2: fixed temperature/enthalpy/entropy/energy)
+            c = c+1
+            if (const_s) then
+                self%Rx(r, c) = -1.0d0
+            else
+                self%Rx(r, c) = -1.0d0/T
+            end if
+
+            ! dR/dx3...n (x3...n: element amounts) are 0
+
+        end if
+
+    end subroutine
+
+    subroutine EqDerivatives_check_closure_defect(self)
+        ! Arguments
+        class(EqDerivatives), intent(inout) :: self
+
+        ! Locals
+        integer :: i
+
+        do i = 1, self%n
+            self%delta_check(:, i) = matmul(self%J, self%dudx(:, i)) + self%Rx(:, i)
+            write(*,*) "max|delta| row=", maxloc(abs(self%delta_check(:, i))), " val=", maxval(abs(self%delta_check(:, i)))
+            write(*,*) "delta_check(:, ", i, ") = ", self%delta_check(:, i)
+        end do
+
+    end subroutine
+
+    subroutine EqDerivatives_unpack_values(self)
+        ! Arguments
+        class(EqDerivatives), intent(in) :: self
+
+        write(*,*) "unpack_values not implemented yet"
+    end subroutine
+
+    subroutine EqDerivatives_compute_derivatives(self, solver, solution, check_closure_defect)
+
+        ! Arguments
+        class(EqDerivatives), intent(inout) :: self
+        class(EqSolver), intent(in) :: solver
+        class(EqSolution), intent(inout) :: solution
+        logical, intent(in), optional :: check_closure_defect
+
+        ! Locals
+        integer :: i, ierr
+        real(dp) :: G(self%m, self%m+1)
+
+        call log_debug("Starting compute_derivatives")
+
+        ! Check if the solution is converged; raise a warning if not
+        if (.not. solution%converged) then
+            call log_warning("Computing derivatives for a non-converged solution.")
+        end if
+
+        ! Compute the Jacobian and Rx matrices
+        call self%assemble_jacobian(solver, solution)
+        call self%assemble_Rx(solver, solution)
+
+        ! Compute the derivatives: du/dx = -J^-1 * Rx
+        do i = 1, self%n
+            ierr = 0
+            G(:, :self%m) = self%J
+            G(:, self%m+1) = -self%Rx(:, i)
+            call gauss(G, ierr)
+            if (ierr /= 0) then
+                call log_warning("Singular matrix in total derivatives")
+                self%dudx(:, i) = 0.0d0
+                cycle
+            end if
+            self%dudx(:, i) = G(:, self%m+1)
+        end do
+
+        ! Check output for closure defect: delta = J*du/dx + Rx = 0
+        if (present(check_closure_defect)) then
+            if (check_closure_defect) then
+                 call log_debug("Checking closure defect: ||J*du/dx + Rx|| should be close to 0.")
+                 call self%check_closure_defect()
+            end if
+        end if
+
+    end subroutine
 
     !-----------------------------------------------------------------------
     !  EqConstraint Implementation
