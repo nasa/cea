@@ -307,15 +307,15 @@ module cea_equilibrium
 
         !! Solver workspace
         real(dp), allocatable :: J(:, :)
-            !! Jacobian matrix of the nonlinear residuals
+            !! Jacobian matrix of the nonlinear residuals (m x m)
         ! real(dp), allocatable :: R(:)
         !     !! Nonlinear residual vector
         real(dp), allocatable :: Rx(:, :)
-            !! Partial derivatives of the nonlinear residuals wrt inputs
+            !! Partial derivatives of the nonlinear residuals wrt inputs (m x n)
         real(dp), allocatable :: dudx(:, :)
-            !! Total derivatives of the solution variables wrt inputs
+            !! Total derivatives of the solution variables wrt inputs (m x n)
         real(dp), allocatable :: delta_check(:, :)
-            !! Delta = J*dudx + Rx = 0, used to check the correctness of the computed derivatives
+            !! Delta = J*dudx + Rx = 0, used to check the correctness of the computed derivatives (m x n)
 
         !! Final unpacked derivatives
 

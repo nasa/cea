@@ -659,54 +659,43 @@ contains
 
     end subroutine
 
-    ! @test
-    ! subroutine test_inert_reactant
-    !     type(Mixture) :: products
-    !     type(Mixture) :: reactants
-    !     type(EqSolver) :: solver
-    !     type(EqSolution) :: solution
-    !     character(snl), allocatable :: product_names(:)
-    !     real(dp) :: t_reac, p_reac, weights(3)
-    !     real(dp), parameter :: tol = 1.0d-3
+    @test
+    subroutine test_inert_reactant
+        type(Mixture) :: products
+        type(Mixture) :: reactants
+        type(EqSolver) :: solver
+        type(EqSolution) :: solution
+        character(snl), allocatable :: product_names(:)
+        real(dp) :: t_reac, p_reac, weights(3)
+        real(dp), parameter :: tol = 1.0d-3
 
-    !     ! NOTE: set thermo to thermo-inert.lib before running this test
+        ! NOTE: set thermo to thermo-inert.lib before running this test
 
-    !     reactants = Mixture(all_thermo, ['Air      ', 'JP-4     ', 'InertJP-4'])
-    !     product_names = reactants%get_products(all_thermo)
-    !     products = Mixture(all_thermo, product_names)
+        reactants = Mixture(all_thermo, ['Air      ', 'JP-4     ', 'InertJP-4'])
+        product_names = reactants%get_products(all_thermo)
+        products = Mixture(all_thermo, product_names)
 
-    !     solver = EqSolver(products, reactants)
-    !     solution = EqSolution(solver)
+        solver = EqSolver(products, reactants)
+        solution = EqSolution(solver)
 
-    !     weights = [0.95d0, 0.025d0, 0.025d0]
-    !     t_reac = 555.56d0
-    !     p_reac = convert_units_to_si(68.046d0, "atm")
+        weights = [0.95d0, 0.025d0, 0.025d0]
+        t_reac = 555.56d0
+        p_reac = convert_units_to_si(68.046d0, "atm")
 
-    !     call solver%solve(solution, 'tp', t_reac, p_reac, weights)
+        call solver%solve(solution, 'tp', t_reac, p_reac, weights)
 
-    !     ! Products:
-    !     ! write(*,*) "INERT REACTANTS"
-    !     ! write(*,*) "Ar = ", solution%ln_nj(3), abs(-8.0881614446139025-solution%ln_nj(3))/8.0881614446139025
-    !     ! write(*,*) "CO2 = ", solution%ln_nj(114), abs(-6.3196848293817531-solution%ln_nj(114))/6.3196848293817531
-    !     ! write(*,*) "H2O = ", solution%ln_nj(118), abs(-6.3559720462738909-solution%ln_nj(118))/6.3559720462738909
-    !     ! write(*,*) "InertCH4 = ", solution%ln_nj(135), abs(-7.3579377957440624-solution%ln_nj(135))/7.3579377957440624
-    !     ! write(*,*) "InertC10H8 = ", solution%ln_nj(133), abs(-9.0683751932082703-solution%ln_nj(133))/9.0683751932082703
-    !     ! write(*,*) "InertH2 = ", solution%ln_nj(137), abs(-14.990974766155743-solution%ln_nj(137))/14.990974766155743
-    !     ! write(*,*) "N2 = ", solution%ln_nj(139), abs(-3.6647707468791499-solution%ln_nj(139))/3.6647707468791499
-    !     ! write(*,*) "O2 = ", solution%ln_nj(160), abs(-5.4697759938827026-solution%ln_nj(160))/5.4697759938827026
+        ! Products: Ar, CO2, H2O, InertCH4, InertC10H8, N2, O2
+        @assertRelativelyEqual(1.0d0/29.053d0, solution%n, tol)
+        @assertRelativelyEqual(-8.0881614446139025, solution%ln_nj(3), tol)
+        @assertRelativelyEqual(-6.3196848293817531, solution%ln_nj(114), tol)
+        @assertRelativelyEqual(-6.3559720462738909, solution%ln_nj(118), tol)
+        @assertRelativelyEqual(-7.3579377957440624, solution%ln_nj(135), tol)
+        @assertRelativelyEqual(-9.0683751932082703, solution%ln_nj(133), tol)
+        @assertRelativelyEqual(-14.990974766155743, solution%ln_nj(137), tol)
+        @assertRelativelyEqual(-3.6647707468791499, solution%ln_nj(139), tol)
+        @assertRelativelyEqual(-5.4697759938827026, solution%ln_nj(160), tol)
 
-    !     ! Products: Ar, CO2, H2O, InertCH4, InertC10H8, N2, O2
-    !     @assertRelativelyEqual(1.0d0/29.053d0, solution%n, tol)
-    !     @assertRelativelyEqual(-8.0881614446139025, solution%ln_nj(3), tol)
-    !     @assertRelativelyEqual(-6.3196848293817531, solution%ln_nj(114), tol)
-    !     @assertRelativelyEqual(-6.3559720462738909, solution%ln_nj(118), tol)
-    !     @assertRelativelyEqual(-7.3579377957440624, solution%ln_nj(135), tol)
-    !     @assertRelativelyEqual(-9.0683751932082703, solution%ln_nj(133), tol)
-    !     @assertRelativelyEqual(-14.990974766155743, solution%ln_nj(137), tol)
-    !     @assertRelativelyEqual(-3.6647707468791499, solution%ln_nj(139), tol)
-    !     @assertRelativelyEqual(-5.4697759938827026, solution%ln_nj(160), tol)
-
-    ! end subroutine
+    end subroutine
 
     @test
     subroutine test_hp_derivatives
@@ -735,19 +724,217 @@ contains
 
         call solver%solve(solution, 'hp', h_reac, p_reac, weights)
 
-        write(*,*) "converged? ", solution%converged
+        totals = EqDerivatives(solver, solution)
+        call totals%compute_derivatives(solver, solution, check_closure_defect=.true.)
+
+        do i = 1, totals%m
+            @assertLessThan(maxval(abs(totals%delta_check(:, i))), tol)
+        end do
+
+    end subroutine
+
+    @test
+    subroutine test_tp_derivatives
+        type(Mixture) :: products
+        type(Mixture) :: reactants
+        type(EqSolver) :: solver
+        type(EqSolution) :: solution
+        type(EqDerivatives) :: totals
+        real(dp) :: p_reac, b_reac(2), weights(2)
+        real(dp), parameter :: tol = 1.0d-6
+        integer :: i, j
+
+        reactants = Mixture(all_thermo, ['H2', 'O2'])
+        products  = Mixture(all_thermo, ['H  ', 'H2 ', 'H2O', 'O  ', 'O2 ', 'OH '])
+
+        solver = EqSolver(products, reactants)
+        solution = EqSolution(solver)
+
+        ! Get the species weights
+        weights = reactants%weights_from_moles([1.0d0, 1.0d0])
+        weights = reactants%weights_from_of([0.0d0, 1.0d0], [1.0d0, 0.0d0], 15.87336d0)
+
+        ! Get the constraint values
+        p_reac = 1.01325d0
+
+        call solver%solve(solution, 'tp', 3200.0d0, p_reac, weights)
 
         totals = EqDerivatives(solver, solution)
         call totals%compute_derivatives(solver, solution, check_closure_defect=.true.)
 
-        write(*,*) "Rx:"
         do i = 1, totals%m
-            write(*,*) (totals%Rx(i, j), j=1,totals%n)
+            @assertLessThan(maxval(abs(totals%delta_check(:, i))), tol)
         end do
 
-        ! do i = 1, totals%m
-        !     @assertLessThan(tol, abs(totals%delta_check(i)))
-        ! end do
+    end subroutine
+
+    @test
+    subroutine test_sp_derivatives
+        type(Mixture) :: products
+        type(Mixture) :: reactants
+        type(EqSolver) :: solver
+        type(EqSolution) :: solution
+        type(EqDerivatives) :: totals
+        real(dp) :: s_reac, p_reac, b_reac(2), weights(2)
+        real(dp), parameter :: tol = 1.0d-6
+        integer :: i, j
+
+        reactants = Mixture(all_thermo, ['H2', 'O2'])
+        products  = Mixture(all_thermo, ['H  ', 'H2 ', 'H2O', 'O  ', 'O2 ', 'OH '])
+
+        solver = EqSolver(products, reactants)
+        solution = EqSolution(solver)
+
+        ! Get the species weights
+        weights = reactants%weights_from_moles([1.0d0, 1.0d0])
+        weights = reactants%weights_from_of([0.0d0, 1.0d0], [1.0d0, 0.0d0], 15.87336d0)
+
+        ! Get the constraint values
+        p_reac = 1.01325d0
+        s_reac = reactants%calc_entropy(weights, 3000.0d0, p_reac)/R
+
+        call solver%solve(solution, 'sp', s_reac, p_reac, weights)
+
+        totals = EqDerivatives(solver, solution)
+        call totals%compute_derivatives(solver, solution, check_closure_defect=.true.)
+
+        do i = 1, totals%m
+            @assertLessThan(maxval(abs(totals%delta_check(:, i))), tol)
+        end do
+
+    end subroutine
+
+    @test
+    subroutine test_tv_derivatives
+        type(Mixture) :: products
+        type(Mixture) :: reactants
+        type(EqSolver) :: solver
+        type(EqSolution) :: solution
+        type(EqDerivatives) :: totals
+        real(dp) :: v_reac, of_ratio, b_reac(2), weights(2)
+        real(dp), parameter :: tol = 1.0d-6
+        integer :: i, j
+
+        reactants = Mixture(all_thermo, ['H2 ', 'Air'])
+        products = Mixture(all_thermo, [ &
+            'Ar  ', 'C   ', 'CO  ', 'CO2 ', 'H   ', &
+            'H2  ', 'H2O ', 'HNO ', 'HO2 ', 'HNO2', &
+            'HNO3', 'N   ', 'NH  ', 'NO  ', 'N2  ', &
+            'N2O3', 'O   ', 'O2  ', 'OH  ', 'O3  '  &
+        ])
+
+        solver = EqSolver(products, reactants)
+        solution = EqSolution(solver)
+
+        ! Get the species weights
+        of_ratio = reactants%of_from_equivalence([0.0d0, 1.0d0], [1.0d0, 0.0d0], 1.0d0)
+        weights = reactants%weights_from_of([0.0d0, 1.0d0], [1.0d0, 0.0d0], of_ratio)
+
+        ! Get the constraint values
+        v_reac = convert_units_to_si(1.0d0/9.1864d-05, "cm**3/g")
+
+        call solver%solve(solution, 'tv', 3000.0d0, v_reac, weights)
+
+        totals = EqDerivatives(solver, solution)
+        call totals%compute_derivatives(solver, solution, check_closure_defect=.true.)
+
+        do i = 1, totals%m
+            @assertLessThan(maxval(abs(totals%delta_check(:, i))), tol)
+        end do
+
+    end subroutine
+
+    @test
+    subroutine test_uv_derivatives
+        type(EqSolver) :: solver
+        type(EqSolution) :: solution
+        type(Mixture) :: reactants, products
+        type(EqDerivatives) :: totals
+        real(dp) :: v_reac, u_reac, weights(3)
+        real(dp), parameter :: tol = 1.0d-6
+        integer :: i
+
+        reactants = Mixture(all_thermo, ['Air            ', 'C7H8(L)        ', 'C8H18(L),n-octa'])
+        products = Mixture(all_thermo, [character(15) :: &
+            '(HCOOH)2',        'Ar',              'C',               'C2',              'CH', &
+            'CN',              'CO',              'CO2',             'H',               'H2', &
+            'N',               'N2',              'NH',              'NO',              'O',  &
+            'O2',              'OH',              'C10H8,naphthale', 'C2H',             'C2H2,acetylene', &
+            'C2H2,vinylidene', 'C2H3,vinyl',      'C2H4',            'C2H4O,ethylen-o', 'C2H5', &
+            'C2H5OH',          'C2H6',            'C3H3,1-propynl',  'C3H3,2-propynl',  'C3H6O,acetone', &
+            'C3H6O,propanal',  'C3H6O,propylox',  'C4H2,butadiyne',  'C4H6,1butyne',    'C4H6,2butyne', &
+            'C6H14,n-hexane',  'C7H16,2-methylh', 'CH2',             'CH2CO,ketene',    'CH2OH', &
+            'CH3',             'CH3CHO,ethanal',  'CH3CN',           'CH3CO,acetyl',    'CH3COOH', &
+            'CH3N2CH3',        'CH3O',            'CH3O2CH3',        'CH3OCH3',         'CH3OH', &
+            'CH3OOH',          'CH4',             'CNCOCN',          'CNN',             'COOH', &
+            'H2O',             'H2O2',            'HCCN',            'HCCO',            'HCHO,formaldehy', &
+            'HCN',             'HCO',             'HCOOH',           'HNC',             'HNCO', &
+            'HNO',             'HNO2',            'HNO3',            'HO(CO)2OH',       'HO2', &
+            'N2H2',            'N2H4',            'N2O',             'N2O3',            'N2O4', &
+            'N2O5',            'N3',              'N3H',             'NCN',             'NCO', &
+            'NH2',             'NH2NO2',          'NH2OH',           'NH3',             'NO2', &
+            'NO3',             'O(CH)2O',         'O3',              'OCCN',            'OHCH2COOH', &
+            'C(gr)',           'H2O(cr)'  &
+        ])
+
+        solver = EqSolver(products, reactants, 1d-15)
+        solution = EqSolution(solver)
+
+        ! Get the reactant weights
+        weights = reactants%weights_from_of([1.0d0, 0.0d0, 0.0d0], [0.0d0, 0.4d0, 0.6d0], 17.0d0)
+        v_reac = 1.0d0/14.428d0
+        u_reac = -45.1343d0
+
+        ! Test the full solve
+        call solver%solve(solution, 'uv', u_reac, v_reac, weights)
+
+        totals = EqDerivatives(solver, solution)
+        call totals%compute_derivatives(solver, solution, check_closure_defect=.true.)
+
+        do i = 1, totals%m
+            @assertLessThan(maxval(abs(totals%delta_check(:, i))), tol)
+        end do
+
+    end subroutine
+
+    @test
+    subroutine test_sv_derivatives
+        type(Mixture) :: products
+        type(Mixture) :: reactants
+        type(EqSolver) :: solver
+        type(EqSolution) :: solution
+        type(EqDerivatives) :: totals
+        real(dp) :: s_reac, v_reac, of_ratio, b_reac(2), weights(2)
+        real(dp), parameter :: tol = 1.0d-6
+        integer :: i, j
+
+        reactants = Mixture(all_thermo, ['H2 ', 'Air'])
+        products = Mixture(all_thermo, [ &
+            'Ar  ', 'C   ', 'CO  ', 'CO2 ', 'H   ', &
+            'H2  ', 'H2O ', 'HNO ', 'HO2 ', 'HNO2', &
+            'HNO3', 'N   ', 'NH  ', 'NO  ', 'N2  ', &
+            'N2O3', 'O   ', 'O2  ', 'OH  ', 'O3  '  &
+        ])
+
+        solver = EqSolver(products, reactants)
+        solution = EqSolution(solver)
+
+        ! Get the species weights
+        of_ratio = reactants%of_from_equivalence([0.0d0, 1.0d0], [1.0d0, 0.0d0], 1.0d0)
+        weights = reactants%weights_from_of([0.0d0, 1.0d0], [1.0d0, 0.0d0], of_ratio)
+
+        ! Get the constraint values
+        v_reac = convert_units_to_si(1.0d0/9.1864d-05, "cm**3/g")
+        s_reac = reactants%calc_entropy(weights, 3000.0d0, 1.01325d0)/R
+
+        call solver%solve(solution, 'sv', s_reac, v_reac, weights)
+
+        totals = EqDerivatives(solver, solution)
+        call totals%compute_derivatives(solver, solution, check_closure_defect=.true.)
+
+        do i = 1, totals%m
+            @assertLessThan(maxval(abs(totals%delta_check(:, i))), tol)
+        end do
 
     end subroutine
 
