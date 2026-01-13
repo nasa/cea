@@ -118,6 +118,10 @@ module cea_equilibrium
     type :: EqSolution
         !! Equilibrium Solution Type
 
+        ! Inputs
+        real(dp), allocatable :: w0(:)
+            !! Reactant weights
+
         ! Mixture data
         real(dp) :: T
             !! Mixture temperautre
@@ -298,18 +302,21 @@ module cea_equilibrium
 
         type :: EqDerivatives
         !! Equilibrium Total Derivatives Type
+        !!
+        !! Computes the total derivatives of the solution variables x with
+        !! respect to the input variables u using the direct method, where
+        !! x: [P0/V0, T0/H0/S0/U0, b0] \in R^n
+        !! u: [𝛑, nc, ln(n), ln(T)] \in R^m,(ln(T) ommitted for const T, ln(n) ommitted for const V)
 
         !! Size variables
         integer :: m = 0
-            !! Number of equations in the matrix system
+            !! Number of equations in the matrix system = number of equations in the active set
         integer :: n = 0
-            !! Number of variables in the solution vector
+            !! Number of variables in the solution vector = number of elements + 2
 
         !! Solver workspace
         real(dp), allocatable :: J(:, :)
             !! Jacobian matrix of the nonlinear residuals (m x m)
-        ! real(dp), allocatable :: R(:)
-        !     !! Nonlinear residual vector
         real(dp), allocatable :: Rx(:, :)
             !! Partial derivatives of the nonlinear residuals wrt inputs (m x n)
         real(dp), allocatable :: dudx(:, :)
@@ -318,6 +325,61 @@ module cea_equilibrium
             !! Delta = J*dudx + Rx = 0, used to check the correctness of the computed derivatives (m x n)
 
         !! Final unpacked derivatives
+        real(dp) :: dT_dstate1
+            !! Total derivative of T wrt state1 (T0/H0/S0/U0)
+        real(dp) :: dT_dstate2
+            !! Total derivative of T wrt state2 (P0/V0)
+        real(dp), allocatable :: dT_dw0(:)
+            !! Total derivative of T wrt input weights
+
+        real(dp) :: dn_dstate1
+            !! Total derivative of n wrt state1 (T0/H0/S0/U0)
+        real(dp) :: dn_dstate2
+            !! Total derivative of n wrt state2 (P0/V0)
+        real(dp), allocatable :: dn_dw0(:)
+            !! Total derivative of n wrt input weights
+
+        real(dp), allocatable :: dnj_dstate1(:)
+            !! Total derivative of species concentrations wrt state1 (T0/H0/S0/U0)
+        real(dp), allocatable :: dnj_dstate2(:)
+            !! Total derivative of species concentrations wrt state2 (P0/V0)
+        real(dp), allocatable :: dnj_dw0(:,:)
+            !! Total derivative of species concentrations wrt input weights
+
+        real(dp) :: dH_dstate1
+            !! Total derivative of enthalpy wrt state1 (T0/H0/S0/U0)
+        real(dp) :: dH_dstate2
+            !! Total derivative of enthalpy wrt state2 (P0/V0)
+        real(dp), allocatable :: dH_dw0(:)
+            !! Total derivative of enthalpy wrt input weights
+
+        real(dp) :: dU_dstate1
+            !! Total derivative of energy wrt state1 (T0/H0/S0/U0)
+        real(dp) :: dU_dstate2
+            !! Total derivative of energy wrt state2 (P0/V0)
+        real(dp), allocatable :: dU_dw0(:)
+            !! Total derivative of energy wrt input weights
+
+        real(dp) :: dG_dstate1
+            !! Total derivative of Gibbs free energy wrt state1 (T0/H0/S0/U0)
+        real(dp) :: dG_dstate2
+            !! Total derivative of Gibbs free energy wrt state2 (P0/V0)
+        real(dp), allocatable :: dG_dw0(:)
+            !! Total derivative of Gibbs free energy wrt input weights
+
+        real(dp) :: dS_dstate1
+            !! Total derivative of entropy wrt state1 (T0/H0/S0/U0)
+        real(dp) :: dS_dstate2
+            !! Total derivative of entropy wrt state2 (P0/V0)
+        real(dp), allocatable :: dS_dw0(:)
+            !! Total derivative of entropy wrt input weights
+
+        real(dp) :: dCp_fr_dstate1
+            !! Total derivative of frozen heat capacity wrt state1 (T0/H0/S0/U0)
+        real(dp) :: dCp_fr_dstate2
+            !! Total derivative of frozen heat capacity wrt state2 (P0/V0)
+        real(dp), allocatable :: dCp_fr_dw0(:)
+            !! Total derivative of frozen heat capacity wrt input weights
 
     contains
 
@@ -906,7 +968,7 @@ contains
         real(dp) :: hsu_delta                   ! Residual for enthalpy / entropy constraint
         real(dp) :: n                           ! Total moles of mixture
         real(dp) :: P                           ! Pressure of mixture (bar)
-        real(dp), pointer :: nj(:), nj_g(:)     ! Total/gas species concentrations [kmol-per-kg]
+        real(dp), pointer :: nj(:), nj_g(:), nj_c(:)  ! Total/gas/condensed species concentrations [kmol-per-kg]
         real(dp), pointer :: ln_nj(:)           ! Log of gas species concentrations [kmol-per-kg]
         real(dp), pointer :: cp(:), cv(:)       ! Species heat capacities [unitless]
         real(dp), pointer :: h_g(:), h_c(:)     ! Gas/condensed enthalpies [unitless]
@@ -1586,6 +1648,7 @@ contains
         call log_debug("Starting Eq. Solve.")
 
         ! Set problem type, fixed-state values, and element amounts
+        soln%w0 = reactant_weights
         call soln%constraints%set( &
             type, state1, state2, &
             self%reactants%element_amounts_from_weights(reactant_weights) &
@@ -1714,18 +1777,28 @@ contains
         type(EqDerivatives) :: self
 
         ! Locals
-        integer :: m, n
+        integer :: m, n, nr, ns
 
         m = solution%num_equations(solver)
         n = solver%num_elements + 2
+        nr = solver%num_reactants
+        ns = solver%num_gas + count(solution%is_active)  ! Number of species (gas + active condensed)
         self%m = m
         self%n = n
 
         allocate(self%J(m, m), source=empty_dp)
-        ! allocate(self%R(m), source=empty_dp)
         allocate(self%Rx(m, n), source=empty_dp)
         allocate(self%dudx(m, n), source=empty_dp)
         allocate(self%delta_check(m, n), source=empty_dp)
+        allocate(self%dnj_dstate1(ns), source=empty_dp)
+        allocate(self%dnj_dstate2(ns), source=empty_dp)
+        allocate(self%dnj_dw0(ns, nr), source=empty_dp)
+        allocate(self%dH_dw0(nr), source=empty_dp)
+        allocate(self%dU_dw0(nr), source=empty_dp)
+        allocate(self%dG_dw0(nr), source=empty_dp)
+        allocate(self%dS_dw0(nr), source=empty_dp)
+        allocate(self%dCp_fr_dw0(nr), source=empty_dp)
+
     end function
 
     subroutine EqDerivatives_assemble_jacobian(self, solver, solution)
@@ -1791,10 +1864,14 @@ contains
         n = solution%n
         nj  => solution%nj
         nj_g => solution%nj(:ng)
+        ! nj_c => solution%nj(ng+1:)
         ln_nj => solution%ln_nj
         h_g => solution%thermo%enthalpy(:ng)
+        ! h_c => solution%thermo%enthalpy(ng+1:)
         s_g => solution%thermo%entropy(:ng)
+        ! s_c => solution%thermo%entropy(ng+1:)
         u_g => solution%thermo%energy(:ng)
+        ! cp => solution%thermo%cp
 
         ! Get the mixture pressure and temperature
         P = solution%calc_pressure()
@@ -1813,10 +1890,12 @@ contains
         do i = 1, ng
             dh_g_dT(i) = solver%products%species(i)%calc_denthalpy_dT(T)
             ds_g_dT(i) = solver%products%species(i)%calc_dentropy_dT(T)
+            ! dcp_g_dT(i) = solver%products%species(i)%calc_dcp_dT(T)
         end do
         do i = 1, nc
             dh_c_dT(i) = solver%products%species(ng+i)%calc_denthalpy_dT(T)
             ds_c_dT(i) = solver%products%species(ng+i)%calc_dentropy_dT(T)
+            ! dcp_c_dT(i) = solver%products%species(ng+i)%calc_dcp_dT(T)
         end do
 
         ! Initialize the iteration matrix
@@ -1952,11 +2031,457 @@ contains
 
     end subroutine
 
-    subroutine EqDerivatives_unpack_values(self)
-        ! Arguments
-        class(EqDerivatives), intent(in) :: self
+    subroutine EqDerivatives_unpack_values(self, solver, solution)
 
-        write(*,*) "unpack_values not implemented yet"
+        ! Arguments
+        class(EqDerivatives), intent(inout), target :: self
+        type(EqSolver), intent(in), target :: solver
+        type(EqSolution), intent(in), target :: solution
+
+        ! Locals
+        integer  :: ng                          ! Number of gas species
+        integer  :: nc                          ! Number of condensed species
+        integer  :: na                          ! Number of active condensed species
+        integer  :: ne                          ! Number of elements
+        integer  :: nr                          ! Number of reactant species
+        integer  :: num_eqn                     ! Active number of equations
+        real(dp) :: mu_g(solver%num_gas)        ! Gas phase chemical potentials [unitless]
+        real(dp) :: n                           ! Total moles of mixture
+        real(dp) :: P                           ! Pressure of mixture (bar)
+        real(dp) :: T                           ! Temperature of mixture (K)
+        real(dp), pointer :: nj(:), nj_g(:)     ! Total/gas species concentrations [kmol-per-kg]
+        real(dp), pointer :: nj_c(:)            ! Condensed species concentrations [kmol-per-kg]
+        real(dp), pointer :: ln_nj(:)           ! Log of gas species concentrations [kmol-per-kg]
+        real(dp), pointer :: h_g(:)             ! Gas enthalpies [unitless]
+        real(dp), pointer :: s_g(:)             ! Gas entropies [unitless]
+        real(dp), pointer :: u_g(:)             ! Gas energies [unitless]
+        real(dp), pointer :: h_c(:)             ! Condensed enthalpies [unitless]
+        real(dp), pointer :: s_c(:)             ! Condensed entropies [unitless]
+        real(dp), pointer :: cp(:)              ! Species heat capacities [unitless]
+        real(dp) :: dh_g_dT(solver%num_gas)     ! d/dT of gas enthalpies [unitless]
+        real(dp) :: ds_g_dT(solver%num_gas)     ! d/dT of gas entropies [unitless]
+        real(dp) :: dh_c_dT(solver%num_condensed)  ! d/dT of condensed enthalpies [unitless]
+        real(dp) :: ds_c_dT(solver%num_condensed)  ! d/dT of condensed entropies [unitless]
+        real(dp) :: dcp_g_dT(solver%num_gas)    ! d/dT of gas heat capacities [unitless]
+        real(dp) :: dcp_c_dT(solver%num_condensed)  ! d/dT of condensed heat capacities [unitless]
+        real(dp) :: s_g_minus(solver%num_gas)   ! s_g - ln(nj) - log(P/n)
+        real(dp) :: db0_dw0(solver%num_elements, solver%num_reactants)
+        real(dp) :: inv_w_sum, w_sum
+        real(dp), pointer :: A_g(:,:), A_c(:,:) ! Gas/condensed stoichiometric matrices
+        integer :: i, j, idx_c                  ! Loop counter
+        integer :: lnT_idx, lnn_idx             ! Indices for ln(T) and ln(n) derivatives in du/dx
+        integer, allocatable :: active_cond_idx(:)
+        real(dp) :: ln_n
+        real(dp) :: log_p_over_n
+        real(dp) :: dlogP_over_n_state1
+        real(dp) :: dlogP_over_n_state2
+        real(dp), allocatable :: dlogP_over_n_db0(:)
+        real(dp), allocatable :: dlogP_over_n_dw0(:)
+        real(dp), allocatable :: dT_db0(:)
+        real(dp), allocatable :: dn_db0(:)
+        real(dp), allocatable :: dln_nj_dstate1(:)
+        real(dp), allocatable :: dln_nj_dstate2(:)
+        real(dp), allocatable :: dln_nj_db0(:,:)
+        real(dp), allocatable :: dln_nj_dw0(:,:)
+        real(dp), allocatable :: dnj_db0(:,:)
+        real(dp), allocatable :: dS_sum_dw0(:)
+        real(dp) :: sum_h
+        real(dp) :: sum_dh_dT
+        real(dp) :: sum_dcp_dT
+        real(dp) :: sum_h_dnj
+        real(dp) :: sum_cp_dnj
+        real(dp) :: dS_sum_state1
+        real(dp) :: dS_sum_state2
+        real(dp) :: entropy_sum
+        real(dp) :: entropy_dim
+        real(dp) :: temp_dT
+        real(dp) :: threshold_value
+        real(dp) :: threshold_margin
+        real(dp) :: fac
+        logical :: const_p, const_t, const_s, const_h, const_u  ! Flags enabling/disabling matrix equations
+        type(EqConstraints), pointer :: cons    ! Abbreviation for soln%constraints
+
+        ! Define shorthand
+        ng = solver%num_gas
+        nc = solver%num_condensed
+        ne = solver%num_elements
+        nr = solver%num_reactants
+        na = count(solution%is_active)
+        num_eqn = solution%num_equations(solver)
+        cons => solution%constraints
+        const_p = cons%is_constant_pressure()
+        const_t = cons%is_constant_temperature()
+        const_s = cons%is_constant_entropy()
+        const_h = cons%is_constant_enthalpy()
+        const_u = cons%is_constant_energy()
+
+        ! Associate subarray pointers
+        A_g => solver%products%stoich_matrix(:ng,:) ! NOTE: A is transpose of a_ij in RP-1311
+        A_c => solver%products%stoich_matrix(ng+1:,:)
+        n = solution%n
+        nj  => solution%nj
+        nj_g => solution%nj(:ng)
+        nj_c => solution%nj(ng+1:)
+        ln_nj => solution%ln_nj
+        h_g => solution%thermo%enthalpy(:ng)
+        s_g => solution%thermo%entropy(:ng)
+        u_g => solution%thermo%energy(:ng)
+
+        ! Get the mixture pressure and temperature
+        P = solution%calc_pressure()
+        T = solution%T
+
+        ! Compute gas phase chemical potentials
+        mu_g = h_g - s_g + ln_nj + log(P/n)
+
+        ! Compute intermediate derivatives
+        do i = 1, ng
+            dh_g_dT(i) = solver%products%species(i)%calc_denthalpy_dT(T)
+            ds_g_dT(i) = solver%products%species(i)%calc_dentropy_dT(T)
+        end do
+        do i = 1, nc
+            dh_c_dT(i) = solver%products%species(ng+i)%calc_denthalpy_dT(T)
+            ds_c_dT(i) = solver%products%species(ng+i)%calc_dentropy_dT(T)
+        end do
+
+        ! Set indices for ln(T) and ln(n) derivatives in du/dx
+        if (const_t) then
+            lnT_idx = 0
+        else
+            if (const_p) then
+                lnT_idx = ne+na+2
+            else
+                lnT_idx = ne+na+1
+            end if
+        end if
+
+        if (const_p) then
+            lnn_idx = ne+na+1
+        else
+            lnn_idx = 0
+        end if
+
+        ! Pre-compute db0/dw0 as a common term
+        w_sum = sum(solution%w0)
+        inv_w_sum = 1.0d0 / w_sum
+        do j = 1, nr
+            db0_dw0(:, j) = solver%reactants%stoich_matrix(j, :) / &
+                solver%reactants%species(j)%molecular_weight
+            db0_dw0(:, j) = (db0_dw0(:, j) - cons%b0) * inv_w_sum
+        end do
+
+        fac = R / 1.d3
+        ln_n = log(n)
+        log_p_over_n = log(P/n)
+
+        if (na > 0) then
+            allocate(active_cond_idx(na))
+            idx_c = 0
+            do i = 1, nc
+                if (.not. solution%is_active(i)) cycle
+                idx_c = idx_c + 1
+                active_cond_idx(idx_c) = i
+            end do
+        else
+            allocate(active_cond_idx(0))
+        end if
+
+        ! ---------------------------------------------------------
+        ! dT/dx
+        ! ---------------------------------------------------------
+
+        ! dT/dstate1:
+        if (const_t) then
+            self%dT_dstate1 = 1.0d0
+        else
+            self%dT_dstate1 = T*self%dudx(lnT_idx, 1)  ! dT/dstate1 = T*d(ln(T))/dstate1
+        end if
+
+        ! dT/dstate2:
+        if (const_t) then
+            self%dT_dstate2 = 0.0d0
+        else
+            self%dT_dstate2 = T*self%dudx(lnT_idx, 2)  ! dT/dstate2 = T*d(ln(T))/dstate2
+        end if
+
+        ! dT/dw0:
+        if (const_t) then
+            self%dT_dw0 = 0.0d0
+        else
+            self%dT_dw0 = T*matmul(self%dudx(lnT_idx, :ne), db0_dw0)
+        end if
+
+        ! ---------------------------------------------------------
+        ! dn/dx
+        ! ---------------------------------------------------------
+        ! TODO: ∆ln(n) not included in derivative matrix du/dx for volume-based problems,
+        !       but may be non-zero due to changes in species amounts.
+
+        ! dn/dstate1:
+        if (const_p) then
+            self%dn_dstate1 = n*self%dudx(lnn_idx, 1)  ! dn/dstate1 = n*d(ln(n))/dstate1
+        else
+            self%dn_dstate1 = 0.0d0
+        end if
+
+        ! dn/dstate2:
+        if (const_p) then
+            self%dn_dstate2 = n*self%dudx(lnn_idx, 2)  ! dn/dstate2 = n*d(ln(n))/dstate2
+        else
+            self%dn_dstate2 = 0.0d0
+        end if
+
+        ! dn/dw0:
+        if (const_p) then
+            self%dn_dw0 = n*matmul(self%dudx(lnn_idx, :ne), db0_dw0)  ! dn/dw0 = n*d(ln(n))/dw0
+        else
+            self%dn_dw0 = 0.0d0
+        end if
+
+        ! ---------------------------------------------------------
+        ! dnj/dx
+        ! ---------------------------------------------------------
+
+        allocate(dT_db0(ne), dn_db0(ne))
+        allocate(dlogP_over_n_db0(ne), dlogP_over_n_dw0(nr))
+        allocate(dln_nj_dstate1(ng), dln_nj_dstate2(ng))
+        allocate(dln_nj_db0(ng, ne), dln_nj_dw0(ng, nr))
+        allocate(dnj_db0(ng+na, ne))
+        allocate(dS_sum_dw0(nr))
+
+        if (const_t) then
+            dT_db0 = 0.0d0
+        else
+            dT_db0 = T*self%dudx(lnT_idx, 3:ne+2)
+        end if
+
+        if (const_p) then
+            dn_db0 = n*self%dudx(lnn_idx, 3:ne+2)
+        else
+            dn_db0 = 0.0d0
+        end if
+
+        if (const_p) then
+            dlogP_over_n_state1 = -self%dn_dstate1 / n
+            dlogP_over_n_state2 = 1.0d0/P - self%dn_dstate2 / n
+            dlogP_over_n_db0 = -dn_db0 / n
+            dlogP_over_n_dw0 = -self%dn_dw0 / n
+        else
+            dlogP_over_n_state1 = self%dT_dstate1 / T
+            dlogP_over_n_state2 = self%dT_dstate2 / T - 1.0d0/cons%state2
+            dlogP_over_n_db0 = dT_db0 / T
+            dlogP_over_n_dw0 = self%dT_dw0 / T
+        end if
+
+        dln_nj_dstate1 = 0.0d0
+        dln_nj_dstate2 = 0.0d0
+        dln_nj_db0 = 0.0d0
+        dnj_db0 = 0.0d0
+        self%dnj_dstate1 = 0.0d0
+        self%dnj_dstate2 = 0.0d0
+
+        ! ln(nj) = dot(A_g, pi) - h_g + s_g - log(P/n) [+ A_g(i, ne)*pi_e if ions]
+        ! pi_e is treated as constant in the total derivatives.
+        do i = 1, ng
+            temp_dT = ds_g_dT(i) - dh_g_dT(i)
+
+            dln_nj_dstate1(i) = dot_product(A_g(i, :), self%dudx(1:ne, 1)) &
+                + temp_dT*self%dT_dstate1 - dlogP_over_n_state1
+            dln_nj_dstate2(i) = dot_product(A_g(i, :), self%dudx(1:ne, 2)) &
+                + temp_dT*self%dT_dstate2 - dlogP_over_n_state2
+
+            do j = 1, ne
+                dln_nj_db0(i, j) = dot_product(A_g(i, :), self%dudx(1:ne, j+2)) &
+                    + temp_dT*dT_db0(j) - dlogP_over_n_db0(j)
+            end do
+        end do
+
+        dln_nj_dw0 = matmul(dln_nj_db0, db0_dw0)
+
+        threshold_margin = 0.05d0*solver%tsize
+        do i = 1, ng
+            threshold_value = ln_nj(i) - ln_n + solver%tsize
+            if (threshold_value > 0.0d0) then
+                self%dnj_dstate1(i) = nj_g(i)*dln_nj_dstate1(i)
+                self%dnj_dstate2(i) = nj_g(i)*dln_nj_dstate2(i)
+                dnj_db0(i, :) = nj_g(i)*dln_nj_db0(i, :)
+            else
+                if (threshold_value >= -threshold_margin) then
+                    call log_warning("EqDerivatives_unpack_values: "// &
+                        trim(solver%products%species_names(i))// &
+                        " not in the active-set so derivatives are 0, but they are close to the threshold")
+                end if
+            end if
+        end do
+
+        do idx_c = 1, na
+            i = active_cond_idx(idx_c)
+            self%dnj_dstate1(ng+idx_c) = self%dudx(ne+idx_c, 1)
+            self%dnj_dstate2(ng+idx_c) = self%dudx(ne+idx_c, 2)
+            dnj_db0(ng+idx_c, :) = self%dudx(ne+idx_c, 3:ne+2)
+        end do
+
+        self%dnj_dw0 = matmul(dnj_db0, db0_dw0)
+
+        sum_h = dot_product(nj, solution%thermo%enthalpy)
+        sum_dh_dT = dot_product(nj_g, dh_g_dT)
+        if (nc > 0) sum_dh_dT = sum_dh_dT + dot_product(nj_c, dh_c_dT)
+
+        sum_dcp_dT = dot_product(nj_g, dcp_g_dT)
+        if (nc > 0) sum_dcp_dT = sum_dcp_dT + dot_product(nj_c, dcp_c_dT)
+
+        do i = 1, ng
+            s_g_minus(i) = s_g(i) - ln_nj(i) - log_p_over_n
+        end do
+
+        entropy_sum = dot_product(nj_g, s_g_minus)
+        if (nc > 0) entropy_sum = entropy_sum + dot_product(nj_c, s_c)
+        entropy_dim = fac*entropy_sum
+
+
+        ! ---------------------------------------------------------
+        ! dH/dx
+        ! ---------------------------------------------------------
+
+        ! dH/dstate1:
+        sum_h_dnj = dot_product(h_g, self%dnj_dstate1(:ng))
+        do idx_c = 1, na
+            i = active_cond_idx(idx_c)
+            sum_h_dnj = sum_h_dnj + h_c(i)*self%dnj_dstate1(ng+idx_c)
+        end do
+        self%dH_dstate1 = fac*(T*sum_h_dnj + (sum_h + T*sum_dh_dT)*self%dT_dstate1)
+
+        ! dH/dstate2:
+        sum_h_dnj = dot_product(h_g, self%dnj_dstate2(:ng))
+        do idx_c = 1, na
+            i = active_cond_idx(idx_c)
+            sum_h_dnj = sum_h_dnj + h_c(i)*self%dnj_dstate2(ng+idx_c)
+        end do
+        self%dH_dstate2 = fac*(T*sum_h_dnj + (sum_h + T*sum_dh_dT)*self%dT_dstate2)
+
+        ! dH/dw0:
+        do j = 1, nr
+            sum_h_dnj = dot_product(h_g, self%dnj_dw0(:ng, j))
+            do idx_c = 1, na
+                i = active_cond_idx(idx_c)
+                sum_h_dnj = sum_h_dnj + h_c(i)*self%dnj_dw0(ng+idx_c, j)
+            end do
+            self%dH_dw0(j) = fac*(T*sum_h_dnj + (sum_h + T*sum_dh_dT)*self%dT_dw0(j))
+        end do
+
+
+        ! ---------------------------------------------------------
+        ! dU/dx
+        ! ---------------------------------------------------------
+
+        ! dU/dstate1:
+        self%dU_dstate1 = self%dH_dstate1 - fac*(n*self%dT_dstate1 + T*self%dn_dstate1)
+
+        ! dU/dstate2:
+        self%dU_dstate2 = self%dH_dstate2 - fac*(n*self%dT_dstate2 + T*self%dn_dstate2)
+
+        ! dU/dw0:
+        do j = 1, nr
+            self%dU_dw0(j) = self%dH_dw0(j) - fac*(n*self%dT_dw0(j) + T*self%dn_dw0(j))
+        end do
+
+
+        ! ---------------------------------------------------------
+        ! dS/dx
+        ! ---------------------------------------------------------
+
+        ! dS/dstate1:
+        dS_sum_state1 = 0.0d0
+        do i = 1, ng
+            dS_sum_state1 = dS_sum_state1 + self%dnj_dstate1(i)*s_g_minus(i)
+            dS_sum_state1 = dS_sum_state1 + nj_g(i)* &
+                (ds_g_dT(i)*self%dT_dstate1 - dln_nj_dstate1(i) - dlogP_over_n_state1)
+        end do
+        do idx_c = 1, na
+            i = active_cond_idx(idx_c)
+            dS_sum_state1 = dS_sum_state1 + self%dnj_dstate1(ng+idx_c)*s_c(i)
+            dS_sum_state1 = dS_sum_state1 + nj_c(i)*ds_c_dT(i)*self%dT_dstate1
+        end do
+        self%dS_dstate1 = fac*dS_sum_state1
+
+        ! dS/dstate2:
+        dS_sum_state2 = 0.0d0
+        do i = 1, ng
+            dS_sum_state2 = dS_sum_state2 + self%dnj_dstate2(i)*s_g_minus(i)
+            dS_sum_state2 = dS_sum_state2 + nj_g(i)* &
+                (ds_g_dT(i)*self%dT_dstate2 - dln_nj_dstate2(i) - dlogP_over_n_state2)
+        end do
+        do idx_c = 1, na
+            i = active_cond_idx(idx_c)
+            dS_sum_state2 = dS_sum_state2 + self%dnj_dstate2(ng+idx_c)*s_c(i)
+            dS_sum_state2 = dS_sum_state2 + nj_c(i)*ds_c_dT(i)*self%dT_dstate2
+        end do
+        self%dS_dstate2 = fac*dS_sum_state2
+
+        ! dS/dw0:
+        do j = 1, nr
+            dS_sum_dw0(j) = 0.0d0
+            do i = 1, ng
+                dS_sum_dw0(j) = dS_sum_dw0(j) + self%dnj_dw0(i, j)*s_g_minus(i)
+                dS_sum_dw0(j) = dS_sum_dw0(j) + nj_g(i)* &
+                    (ds_g_dT(i)*self%dT_dw0(j) - dln_nj_dw0(i, j) - dlogP_over_n_dw0(j))
+            end do
+            do idx_c = 1, na
+                i = active_cond_idx(idx_c)
+                dS_sum_dw0(j) = dS_sum_dw0(j) + self%dnj_dw0(ng+idx_c, j)*s_c(i)
+                dS_sum_dw0(j) = dS_sum_dw0(j) + nj_c(i)*ds_c_dT(i)*self%dT_dw0(j)
+            end do
+            self%dS_dw0(j) = fac*dS_sum_dw0(j)
+        end do
+
+
+        ! ---------------------------------------------------------
+        ! dG/dx
+        ! ---------------------------------------------------------
+
+        ! dG/dstate1:
+        self%dG_dstate1 = self%dH_dstate1 - entropy_dim*self%dT_dstate1 - T*self%dS_dstate1
+
+        ! dG/dstate2:
+        self%dG_dstate2 = self%dH_dstate2 - entropy_dim*self%dT_dstate2 - T*self%dS_dstate2
+
+        ! dG/dw0:
+        do j = 1, nr
+            self%dG_dw0(j) = self%dH_dw0(j) - entropy_dim*self%dT_dw0(j) - T*self%dS_dw0(j)
+        end do
+
+
+        ! ---------------------------------------------------------
+        ! dCp_fr/dx
+        ! ---------------------------------------------------------
+
+        ! dCp_fr/dstate1:
+        sum_cp_dnj = dot_product(cp(:ng), self%dnj_dstate1(:ng))
+        do idx_c = 1, na
+            i = active_cond_idx(idx_c)
+            sum_cp_dnj = sum_cp_dnj + cp(ng+i)*self%dnj_dstate1(ng+idx_c)
+        end do
+        self%dCp_fr_dstate1 = fac*(sum_cp_dnj + sum_dcp_dT*self%dT_dstate1)
+
+        ! dCp_fr/dstate2:
+        sum_cp_dnj = dot_product(cp(:ng), self%dnj_dstate2(:ng))
+        do idx_c = 1, na
+            i = active_cond_idx(idx_c)
+            sum_cp_dnj = sum_cp_dnj + cp(ng+i)*self%dnj_dstate2(ng+idx_c)
+        end do
+        self%dCp_fr_dstate2 = fac*(sum_cp_dnj + sum_dcp_dT*self%dT_dstate2)
+
+        ! dCp_fr/dw0:
+        do j = 1, nr
+            sum_cp_dnj = dot_product(cp(:ng), self%dnj_dw0(:ng, j))
+            do idx_c = 1, na
+                i = active_cond_idx(idx_c)
+                sum_cp_dnj = sum_cp_dnj + cp(ng+i)*self%dnj_dw0(ng+idx_c, j)
+            end do
+            self%dCp_fr_dw0(j) = fac*(sum_cp_dnj + sum_dcp_dT*self%dT_dw0(j))
+        end do
+
+
     end subroutine
 
     subroutine EqDerivatives_compute_derivatives(self, solver, solution, check_closure_defect)
@@ -2117,6 +2642,7 @@ contains
         allocate(self%ln_nj(solver%num_gas), source=0.0d0)
         allocate(self%G(solver%max_equations, solver%max_equations+1), source=empty_dp)
         allocate(self%is_active(solver%num_condensed), source=.false.)
+        allocate(self%w0(solver%num_reactants), source=0.0d0)
         self%constraints = EqConstraints(solver%num_elements)
 
         ! Set initial guess
