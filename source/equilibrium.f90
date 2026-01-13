@@ -381,6 +381,39 @@ module cea_equilibrium
         real(dp), allocatable :: dCp_fr_dw0(:)
             !! Total derivative of frozen heat capacity wrt input weights
 
+        !! Finite-difference derivatives (for verification)
+        real(dp) :: dT_dstate1_fd
+        real(dp) :: dT_dstate2_fd
+        real(dp), allocatable :: dT_dw0_fd(:)
+
+        real(dp) :: dn_dstate1_fd
+        real(dp) :: dn_dstate2_fd
+        real(dp), allocatable :: dn_dw0_fd(:)
+
+        real(dp), allocatable :: dnj_dstate1_fd(:)
+        real(dp), allocatable :: dnj_dstate2_fd(:)
+        real(dp), allocatable :: dnj_dw0_fd(:,:)
+
+        real(dp) :: dH_dstate1_fd
+        real(dp) :: dH_dstate2_fd
+        real(dp), allocatable :: dH_dw0_fd(:)
+
+        real(dp) :: dU_dstate1_fd
+        real(dp) :: dU_dstate2_fd
+        real(dp), allocatable :: dU_dw0_fd(:)
+
+        real(dp) :: dG_dstate1_fd
+        real(dp) :: dG_dstate2_fd
+        real(dp), allocatable :: dG_dw0_fd(:)
+
+        real(dp) :: dS_dstate1_fd
+        real(dp) :: dS_dstate2_fd
+        real(dp), allocatable :: dS_dw0_fd(:)
+
+        real(dp) :: dCp_fr_dstate1_fd
+        real(dp) :: dCp_fr_dstate2_fd
+        real(dp), allocatable :: dCp_fr_dw0_fd(:)
+
     contains
 
         procedure :: assemble_jacobian => EqDerivatives_assemble_jacobian
@@ -388,6 +421,7 @@ module cea_equilibrium
         procedure :: check_closure_defect => EqDerivatives_check_closure_defect
         procedure :: unpack_values => EqDerivatives_unpack_values
         procedure :: compute_derivatives => EqDerivatives_compute_derivatives
+        procedure :: compute_fd => EqDerivatives_compute_fd
 
     end type
     interface EqDerivatives
@@ -1798,6 +1832,16 @@ contains
         allocate(self%dG_dw0(nr), source=empty_dp)
         allocate(self%dS_dw0(nr), source=empty_dp)
         allocate(self%dCp_fr_dw0(nr), source=empty_dp)
+        allocate(self%dT_dw0_fd(nr), source=empty_dp)
+        allocate(self%dn_dw0_fd(nr), source=empty_dp)
+        allocate(self%dnj_dstate1_fd(ns), source=empty_dp)
+        allocate(self%dnj_dstate2_fd(ns), source=empty_dp)
+        allocate(self%dnj_dw0_fd(ns, nr), source=empty_dp)
+        allocate(self%dH_dw0_fd(nr), source=empty_dp)
+        allocate(self%dU_dw0_fd(nr), source=empty_dp)
+        allocate(self%dG_dw0_fd(nr), source=empty_dp)
+        allocate(self%dS_dw0_fd(nr), source=empty_dp)
+        allocate(self%dCp_fr_dw0_fd(nr), source=empty_dp)
 
     end function
 
@@ -1928,7 +1972,7 @@ contains
 
             ! dR/dx3...n (x3...n: element amounts)
             c = i+2
-            self%Rx(r, c) = 1.0d0 ! Other contributions = 0
+            self%Rx(r, c) = -1.0d0 ! Other contributions = 0
         end do
 
         !-------------------------------------------------------
@@ -2126,6 +2170,7 @@ contains
         h_g => solution%thermo%enthalpy(:ng)
         s_g => solution%thermo%entropy(:ng)
         u_g => solution%thermo%energy(:ng)
+        cp => solution%thermo%cp(:)
 
         ! Get the mixture pressure and temperature
         P = solution%calc_pressure()
@@ -2194,21 +2239,21 @@ contains
         if (const_t) then
             self%dT_dstate1 = 1.0d0
         else
-            self%dT_dstate1 = T*self%dudx(lnT_idx, 1)  ! dT/dstate1 = T*d(ln(T))/dstate1
+            self%dT_dstate1 = T*self%dudx(lnT_idx, 2)  ! dT/dstate1 = T*d(ln(T))/dstate1
         end if
 
         ! dT/dstate2:
         if (const_t) then
             self%dT_dstate2 = 0.0d0
         else
-            self%dT_dstate2 = T*self%dudx(lnT_idx, 2)  ! dT/dstate2 = T*d(ln(T))/dstate2
+            self%dT_dstate2 = T*self%dudx(lnT_idx, 1)  ! dT/dstate2 = T*d(ln(T))/dstate2
         end if
 
         ! dT/dw0:
         if (const_t) then
             self%dT_dw0 = 0.0d0
         else
-            self%dT_dw0 = T*matmul(self%dudx(lnT_idx, :ne), db0_dw0)
+            self%dT_dw0 = T*matmul(self%dudx(lnT_idx, 3:ne+2), db0_dw0)
         end if
 
         ! ---------------------------------------------------------
@@ -2219,21 +2264,21 @@ contains
 
         ! dn/dstate1:
         if (const_p) then
-            self%dn_dstate1 = n*self%dudx(lnn_idx, 1)  ! dn/dstate1 = n*d(ln(n))/dstate1
+            self%dn_dstate1 = n*self%dudx(lnn_idx, 2)  ! dn/dstate1 = n*d(ln(n))/dstate1
         else
             self%dn_dstate1 = 0.0d0
         end if
 
         ! dn/dstate2:
         if (const_p) then
-            self%dn_dstate2 = n*self%dudx(lnn_idx, 2)  ! dn/dstate2 = n*d(ln(n))/dstate2
+            self%dn_dstate2 = n*self%dudx(lnn_idx, 1)  ! dn/dstate2 = n*d(ln(n))/dstate2
         else
             self%dn_dstate2 = 0.0d0
         end if
 
         ! dn/dw0:
         if (const_p) then
-            self%dn_dw0 = n*matmul(self%dudx(lnn_idx, :ne), db0_dw0)  ! dn/dw0 = n*d(ln(n))/dw0
+            self%dn_dw0 = n*matmul(self%dudx(lnn_idx, 3:ne+2), db0_dw0)  ! dn/dw0 = n*d(ln(n))/dw0
         else
             self%dn_dw0 = 0.0d0
         end if
@@ -2285,9 +2330,9 @@ contains
         do i = 1, ng
             temp_dT = ds_g_dT(i) - dh_g_dT(i)
 
-            dln_nj_dstate1(i) = dot_product(A_g(i, :), self%dudx(1:ne, 1)) &
+            dln_nj_dstate1(i) = dot_product(A_g(i, :), self%dudx(1:ne, 2)) &
                 + temp_dT*self%dT_dstate1 - dlogP_over_n_state1
-            dln_nj_dstate2(i) = dot_product(A_g(i, :), self%dudx(1:ne, 2)) &
+            dln_nj_dstate2(i) = dot_product(A_g(i, :), self%dudx(1:ne, 1)) &
                 + temp_dT*self%dT_dstate2 - dlogP_over_n_state2
 
             do j = 1, ne
@@ -2316,8 +2361,8 @@ contains
 
         do idx_c = 1, na
             i = active_cond_idx(idx_c)
-            self%dnj_dstate1(ng+idx_c) = self%dudx(ne+idx_c, 1)
-            self%dnj_dstate2(ng+idx_c) = self%dudx(ne+idx_c, 2)
+            self%dnj_dstate1(ng+idx_c) = self%dudx(ne+idx_c, 2)
+            self%dnj_dstate2(ng+idx_c) = self%dudx(ne+idx_c, 1)
             dnj_db0(ng+idx_c, :) = self%dudx(ne+idx_c, 3:ne+2)
         end do
 
@@ -2526,6 +2571,255 @@ contains
             if (check_closure_defect) then
                  call log_debug("Checking closure defect: ||J*du/dx + Rx|| should be close to 0.")
                  call self%check_closure_defect()
+            end if
+        end if
+
+    end subroutine
+
+    subroutine EqDerivatives_compute_fd(self, solver, solution, h, verbose)
+
+        ! Arguments
+        class(EqDerivatives), intent(inout) :: self
+        class(EqSolver), intent(in) :: solver
+        class(EqSolution), intent(in) :: solution
+        real(dp), intent(in) :: h
+        logical, intent(in), optional :: verbose
+
+        ! Locals
+        type(EqSolution) :: pert_soln
+        real(dp), allocatable :: base_nj(:)
+        real(dp), allocatable :: pert_nj(:)
+        real(dp), allocatable :: w0(:)
+        integer, allocatable :: active_cond_idx(:)
+        integer :: ng, na, nr, ns
+        integer :: i, j, idx_c
+        real(dp) :: base_T, base_n
+        real(dp) :: base_H, base_U, base_G, base_S, base_Cp_fr
+        real(dp) :: abs_err, rel_err
+        logical :: verbose_
+        character(2) :: ctype
+        real(dp) :: state1, state2
+        real(dp) :: h_state1, h_state2, h_w
+
+        ! NOTE: EqDerivatives_compute_derivatives and EqDerivatives_unpack_values should be called first.
+
+        verbose_ = .true.
+        if (present(verbose)) verbose_ = verbose
+
+        ng = solver%num_gas
+        na = count(solution%is_active)
+        nr = solver%num_reactants
+        ns = ng + na
+
+        allocate(base_nj(ns), pert_nj(ns))
+        if (na > 0) then
+            allocate(active_cond_idx(na))
+            idx_c = 0
+            do i = 1, solver%num_condensed
+                if (.not. solution%is_active(i)) cycle
+                idx_c = idx_c + 1
+                active_cond_idx(idx_c) = i
+            end do
+        else
+            allocate(active_cond_idx(0))
+        end if
+
+        base_nj(:ng) = solution%nj(:ng)
+        do idx_c = 1, na
+            i = active_cond_idx(idx_c)
+            base_nj(ng+idx_c) = solution%nj(ng+i)
+        end do
+
+        base_T = solution%T
+        base_n = solution%n
+        base_H = solution%enthalpy
+        base_U = solution%energy
+        base_G = solution%gibbs_energy
+        base_S = solution%entropy
+        base_Cp_fr = solution%cp_fr
+
+        ctype = solution%constraints%type
+        state1 = solution%constraints%state1
+        state2 = solution%constraints%state2
+        h_state1 = h * max(1.0d0, abs(state1))
+        h_state2 = h * max(1.0d0, abs(state2))
+
+        allocate(w0(nr))
+        w0 = solution%w0
+
+        ! state1 perturbation
+        pert_soln = solution
+        call solver%solve(pert_soln, ctype, state1 + h_state1, state2, w0)
+        pert_nj(:ng) = pert_soln%nj(:ng)
+        do idx_c = 1, na
+            i = active_cond_idx(idx_c)
+            pert_nj(ng+idx_c) = pert_soln%nj(ng+i)
+        end do
+
+        self%dT_dstate1_fd = (pert_soln%T - base_T) / h_state1
+        self%dn_dstate1_fd = (pert_soln%n - base_n) / h_state1
+        self%dnj_dstate1_fd = (pert_nj - base_nj) / h_state1
+        self%dH_dstate1_fd = (pert_soln%enthalpy - base_H) / h_state1
+        self%dU_dstate1_fd = (pert_soln%energy - base_U) / h_state1
+        self%dG_dstate1_fd = (pert_soln%gibbs_energy - base_G) / h_state1
+        self%dS_dstate1_fd = (pert_soln%entropy - base_S) / h_state1
+        self%dCp_fr_dstate1_fd = (pert_soln%cp_fr - base_Cp_fr) / h_state1
+
+        ! state2 perturbation
+        pert_soln = solution
+        call solver%solve(pert_soln, ctype, state1, state2 + h_state2, w0)
+        pert_nj(:ng) = pert_soln%nj(:ng)
+        do idx_c = 1, na
+            i = active_cond_idx(idx_c)
+            pert_nj(ng+idx_c) = pert_soln%nj(ng+i)
+        end do
+
+        self%dT_dstate2_fd = (pert_soln%T - base_T) / h_state2
+        self%dn_dstate2_fd = (pert_soln%n - base_n) / h_state2
+        self%dnj_dstate2_fd = (pert_nj - base_nj) / h_state2
+        self%dH_dstate2_fd = (pert_soln%enthalpy - base_H) / h_state2
+        self%dU_dstate2_fd = (pert_soln%energy - base_U) / h_state2
+        self%dG_dstate2_fd = (pert_soln%gibbs_energy - base_G) / h_state2
+        self%dS_dstate2_fd = (pert_soln%entropy - base_S) / h_state2
+        self%dCp_fr_dstate2_fd = (pert_soln%cp_fr - base_Cp_fr) / h_state2
+
+        ! weight perturbations
+        do j = 1, nr
+            h_w = h * max(1.0d0, abs(w0(j)))
+            w0(j) = w0(j) + h_w
+            pert_soln = solution
+            call solver%solve(pert_soln, ctype, state1, state2, w0)
+            pert_nj(:ng) = pert_soln%nj(:ng)
+            do idx_c = 1, na
+                i = active_cond_idx(idx_c)
+                pert_nj(ng+idx_c) = pert_soln%nj(ng+i)
+            end do
+
+            self%dT_dw0_fd(j) = (pert_soln%T - base_T) / h_w
+            self%dn_dw0_fd(j) = (pert_soln%n - base_n) / h_w
+            self%dnj_dw0_fd(:, j) = (pert_nj - base_nj) / h_w
+            self%dH_dw0_fd(j) = (pert_soln%enthalpy - base_H) / h_w
+            self%dU_dw0_fd(j) = (pert_soln%energy - base_U) / h_w
+            self%dG_dw0_fd(j) = (pert_soln%gibbs_energy - base_G) / h_w
+            self%dS_dw0_fd(j) = (pert_soln%entropy - base_S) / h_w
+            self%dCp_fr_dw0_fd(j) = (pert_soln%cp_fr - base_Cp_fr) / h_w
+
+            w0(j) = w0(j) - h_w
+        end do
+
+        if (verbose_) then
+            write(*,*) "EqDerivatives_compute_fd: FD vs analytic derivatives"
+
+            abs_err = abs(self%dT_dstate1_fd - self%dT_dstate1)
+            rel_err = abs_err / max(abs(self%dT_dstate1), 1.0d-30)
+            write(*,*) "dT/dstate1: abs=", abs_err, " rel=", rel_err
+
+            abs_err = abs(self%dT_dstate2_fd - self%dT_dstate2)
+            rel_err = abs_err / max(abs(self%dT_dstate2), 1.0d-30)
+            write(*,*) "dT/dstate2: abs=", abs_err, " rel=", rel_err
+
+            if (nr > 0) then
+                abs_err = maxval(abs(self%dT_dw0_fd - self%dT_dw0))
+                rel_err = maxval(abs(self%dT_dw0_fd - self%dT_dw0) / max(abs(self%dT_dw0), 1.0d-30))
+                write(*,*) "dT/dw0 (max): abs=", abs_err, " rel=", rel_err
+            end if
+
+            abs_err = abs(self%dn_dstate1_fd - self%dn_dstate1)
+            rel_err = abs_err / max(abs(self%dn_dstate1), 1.0d-30)
+            write(*,*) "dn/dstate1: abs=", abs_err, " rel=", rel_err
+
+            abs_err = abs(self%dn_dstate2_fd - self%dn_dstate2)
+            rel_err = abs_err / max(abs(self%dn_dstate2), 1.0d-30)
+            write(*,*) "dn/dstate2: abs=", abs_err, " rel=", rel_err
+
+            if (nr > 0) then
+                abs_err = maxval(abs(self%dn_dw0_fd - self%dn_dw0))
+                rel_err = maxval(abs(self%dn_dw0_fd - self%dn_dw0) / max(abs(self%dn_dw0), 1.0d-30))
+                write(*,*) "dn/dw0 (max): abs=", abs_err, " rel=", rel_err
+            end if
+
+            abs_err = maxval(abs(self%dnj_dstate1_fd - self%dnj_dstate1))
+            rel_err = maxval(abs(self%dnj_dstate1_fd - self%dnj_dstate1) / max(abs(self%dnj_dstate1), 1.0d-30))
+            write(*,*) "dnj/dstate1 (max): abs=", abs_err, " rel=", rel_err
+
+            abs_err = maxval(abs(self%dnj_dstate2_fd - self%dnj_dstate2))
+            rel_err = maxval(abs(self%dnj_dstate2_fd - self%dnj_dstate2) / max(abs(self%dnj_dstate2), 1.0d-30))
+            write(*,*) "dnj/dstate2 (max): abs=", abs_err, " rel=", rel_err
+
+            if (nr > 0) then
+                abs_err = maxval(abs(self%dnj_dw0_fd - self%dnj_dw0))
+                rel_err = maxval(abs(self%dnj_dw0_fd - self%dnj_dw0) / max(abs(self%dnj_dw0), 1.0d-30))
+                write(*,*) "dnj/dw0 (max): abs=", abs_err, " rel=", rel_err
+            end if
+
+            abs_err = abs(self%dH_dstate1_fd - self%dH_dstate1)
+            rel_err = abs_err / max(abs(self%dH_dstate1), 1.0d-30)
+            write(*,*) "dH/dstate1: abs=", abs_err, " rel=", rel_err
+
+            abs_err = abs(self%dH_dstate2_fd - self%dH_dstate2)
+            rel_err = abs_err / max(abs(self%dH_dstate2), 1.0d-30)
+            write(*,*) "dH/dstate2: abs=", abs_err, " rel=", rel_err
+
+            if (nr > 0) then
+                abs_err = maxval(abs(self%dH_dw0_fd - self%dH_dw0))
+                rel_err = maxval(abs(self%dH_dw0_fd - self%dH_dw0) / max(abs(self%dH_dw0), 1.0d-30))
+                write(*,*) "dH/dw0 (max): abs=", abs_err, " rel=", rel_err
+            end if
+
+            abs_err = abs(self%dU_dstate1_fd - self%dU_dstate1)
+            rel_err = abs_err / max(abs(self%dU_dstate1), 1.0d-30)
+            write(*,*) "dU/dstate1: abs=", abs_err, " rel=", rel_err
+
+            abs_err = abs(self%dU_dstate2_fd - self%dU_dstate2)
+            rel_err = abs_err / max(abs(self%dU_dstate2), 1.0d-30)
+            write(*,*) "dU/dstate2: abs=", abs_err, " rel=", rel_err
+
+            if (nr > 0) then
+                abs_err = maxval(abs(self%dU_dw0_fd - self%dU_dw0))
+                rel_err = maxval(abs(self%dU_dw0_fd - self%dU_dw0) / max(abs(self%dU_dw0), 1.0d-30))
+                write(*,*) "dU/dw0 (max): abs=", abs_err, " rel=", rel_err
+            end if
+
+            abs_err = abs(self%dG_dstate1_fd - self%dG_dstate1)
+            rel_err = abs_err / max(abs(self%dG_dstate1), 1.0d-30)
+            write(*,*) "dG/dstate1: abs=", abs_err, " rel=", rel_err
+
+            abs_err = abs(self%dG_dstate2_fd - self%dG_dstate2)
+            rel_err = abs_err / max(abs(self%dG_dstate2), 1.0d-30)
+            write(*,*) "dG/dstate2: abs=", abs_err, " rel=", rel_err
+
+            if (nr > 0) then
+                abs_err = maxval(abs(self%dG_dw0_fd - self%dG_dw0))
+                rel_err = maxval(abs(self%dG_dw0_fd - self%dG_dw0) / max(abs(self%dG_dw0), 1.0d-30))
+                write(*,*) "dG/dw0 (max): abs=", abs_err, " rel=", rel_err
+            end if
+
+            abs_err = abs(self%dS_dstate1_fd - self%dS_dstate1)
+            rel_err = abs_err / max(abs(self%dS_dstate1), 1.0d-30)
+            write(*,*) "dS/dstate1: abs=", abs_err, " rel=", rel_err
+
+            abs_err = abs(self%dS_dstate2_fd - self%dS_dstate2)
+            rel_err = abs_err / max(abs(self%dS_dstate2), 1.0d-30)
+            write(*,*) "dS/dstate2: abs=", abs_err, " rel=", rel_err
+
+            if (nr > 0) then
+                abs_err = maxval(abs(self%dS_dw0_fd - self%dS_dw0))
+                rel_err = maxval(abs(self%dS_dw0_fd - self%dS_dw0) / max(abs(self%dS_dw0), 1.0d-30))
+                write(*,*) "dS/dw0 (max): abs=", abs_err, " rel=", rel_err
+            end if
+
+            abs_err = abs(self%dCp_fr_dstate1_fd - self%dCp_fr_dstate1)
+            rel_err = abs_err / max(abs(self%dCp_fr_dstate1), 1.0d-30)
+            write(*,*) "dCp_fr/dstate1: abs=", abs_err, " rel=", rel_err
+
+            abs_err = abs(self%dCp_fr_dstate2_fd - self%dCp_fr_dstate2)
+            rel_err = abs_err / max(abs(self%dCp_fr_dstate2), 1.0d-30)
+            write(*,*) "dCp_fr/dstate2: abs=", abs_err, " rel=", rel_err
+
+            if (nr > 0) then
+                abs_err = maxval(abs(self%dCp_fr_dw0_fd - self%dCp_fr_dw0))
+                rel_err = maxval(abs(self%dCp_fr_dw0_fd - self%dCp_fr_dw0) / max(abs(self%dCp_fr_dw0), 1.0d-30))
+                write(*,*) "dCp_fr/dw0 (max): abs=", abs_err, " rel=", rel_err
             end if
         end if
 
