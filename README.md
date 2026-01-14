@@ -71,13 +71,13 @@ dependencies, use the presets below.
 Fortran-only (no C/Python bindings):
 
     cmake --preset core
-    cmake --build --preset core
+    cmake --build build-core
     cmake --install build-core
 
 Fortran + C (no Python bindings):
 
     cmake --preset core-c
-    cmake --build --preset core-c
+    cmake --build build-core-c
     cmake --install build-core-c
 
 If you are not using presets, set `-DCEA_ENABLE_BIND_PYTHON=OFF` and also disable
