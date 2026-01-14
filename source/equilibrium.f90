@@ -1877,7 +1877,7 @@ contains
         real(dp) :: T                           ! Temperature of mixture (K)
         real(dp), pointer :: nj(:), nj_g(:)     ! Total/gas species concentrations [kmol-per-kg]
         real(dp), pointer :: ln_nj(:)           ! Log of gas species concentrations [kmol-per-kg]
-        real(dp), pointer :: h_g(:)             ! Gas enthalpies [unitless]
+        real(dp), pointer :: h_g(:), h_c(:)     ! Gas enthalpies [unitless]
         real(dp), pointer :: s_g(:)             ! Gas entropies [unitless]
         real(dp), pointer :: u_g(:)             ! Gas energies [unitless]
         real(dp) :: dh_g_dT(solver%num_gas)     ! d/dT of gas enthalpies [unitless]
@@ -1911,7 +1911,7 @@ contains
         ! nj_c => solution%nj(ng+1:)
         ln_nj => solution%ln_nj
         h_g => solution%thermo%enthalpy(:ng)
-        ! h_c => solution%thermo%enthalpy(ng+1:)
+        h_c => solution%thermo%enthalpy(ng+1:)
         s_g => solution%thermo%entropy(:ng)
         ! s_c => solution%thermo%entropy(ng+1:)
         u_g => solution%thermo%energy(:ng)
@@ -1932,12 +1932,12 @@ contains
 
         ! Compute intermediate derivatives
         do i = 1, ng
-            dh_g_dT(i) = solver%products%species(i)%calc_denthalpy_dT(T)
+            dh_g_dT(i) = solver%products%species(i)%calc_denthalpy_dT(T)/T - h_g(i)/T
             ds_g_dT(i) = solver%products%species(i)%calc_dentropy_dT(T)
             ! dcp_g_dT(i) = solver%products%species(i)%calc_dcp_dT(T)
         end do
         do i = 1, nc
-            dh_c_dT(i) = solver%products%species(ng+i)%calc_denthalpy_dT(T)
+            dh_c_dT(i) = solver%products%species(ng+i)%calc_denthalpy_dT(T)/T - h_c(i)/T
             ds_c_dT(i) = solver%products%species(ng+i)%calc_dentropy_dT(T)
             ! dcp_c_dT(i) = solver%products%species(ng+i)%calc_dcp_dT(T)
         end do
@@ -2168,6 +2168,7 @@ contains
         nj_c => solution%nj(ng+1:)
         ln_nj => solution%ln_nj
         h_g => solution%thermo%enthalpy(:ng)
+        h_c => solution%thermo%enthalpy(ng+1:)
         s_g => solution%thermo%entropy(:ng)
         u_g => solution%thermo%energy(:ng)
         cp => solution%thermo%cp(:)
@@ -2181,11 +2182,11 @@ contains
 
         ! Compute intermediate derivatives
         do i = 1, ng
-            dh_g_dT(i) = solver%products%species(i)%calc_denthalpy_dT(T)
+            dh_g_dT(i) = solver%products%species(i)%calc_denthalpy_dT(T)/T - h_g(i)/T
             ds_g_dT(i) = solver%products%species(i)%calc_dentropy_dT(T)
         end do
         do i = 1, nc
-            dh_c_dT(i) = solver%products%species(ng+i)%calc_denthalpy_dT(T)
+            dh_c_dT(i) = solver%products%species(ng+i)%calc_denthalpy_dT(T)/T - h_c(i)/T
             ds_c_dT(i) = solver%products%species(ng+i)%calc_dentropy_dT(T)
         end do
 
@@ -2383,7 +2384,6 @@ contains
         if (nc > 0) entropy_sum = entropy_sum + dot_product(nj_c, s_c)
         entropy_dim = fac*entropy_sum
 
-
         ! ---------------------------------------------------------
         ! dH/dx
         ! ---------------------------------------------------------
@@ -2414,7 +2414,6 @@ contains
             self%dH_dw0(j) = fac*(T*sum_h_dnj + (sum_h + T*sum_dh_dT)*self%dT_dw0(j))
         end do
 
-
         ! ---------------------------------------------------------
         ! dU/dx
         ! ---------------------------------------------------------
@@ -2429,7 +2428,6 @@ contains
         do j = 1, nr
             self%dU_dw0(j) = self%dH_dw0(j) - fac*(n*self%dT_dw0(j) + T*self%dn_dw0(j))
         end do
-
 
         ! ---------------------------------------------------------
         ! dS/dx
@@ -2479,7 +2477,6 @@ contains
             self%dS_dw0(j) = fac*dS_sum_dw0(j)
         end do
 
-
         ! ---------------------------------------------------------
         ! dG/dx
         ! ---------------------------------------------------------
@@ -2494,7 +2491,6 @@ contains
         do j = 1, nr
             self%dG_dw0(j) = self%dH_dw0(j) - entropy_dim*self%dT_dw0(j) - T*self%dS_dw0(j)
         end do
-
 
         ! ---------------------------------------------------------
         ! dCp_fr/dx
@@ -2525,7 +2521,6 @@ contains
             end do
             self%dCp_fr_dw0(j) = fac*(sum_cp_dnj + sum_dcp_dT*self%dT_dw0(j))
         end do
-
 
     end subroutine
 
@@ -2580,8 +2575,8 @@ contains
 
         ! Arguments
         class(EqDerivatives), intent(inout) :: self
-        class(EqSolver), intent(in) :: solver
-        class(EqSolution), intent(in) :: solution
+        class(EqSolver), intent(in), target :: solver
+        class(EqSolution), intent(in), target :: solution
         real(dp), intent(in) :: h
         logical, intent(in), optional :: verbose
 
@@ -2600,6 +2595,29 @@ contains
         character(2) :: ctype
         real(dp) :: state1, state2
         real(dp) :: h_state1, h_state2, h_w
+        integer :: ne
+        integer :: lnT_idx, lnn_idx
+        integer :: idx_max_state1, idx_max_state2, idx_max_dw0, j_max_dw0
+        real(dp) :: max_err_dw0
+        real(dp) :: base_P, base_logP_over_n, pert_logP_over_n
+        real(dp) :: dlogP_over_n_state1_fd, dlogP_over_n_state2_fd
+        real(dp) :: dlogP_over_n_dw0_fd, dlogP_over_n_dw0_fd_max
+        real(dp) :: dlogP_over_n_state1_an, dlogP_over_n_state2_an
+        real(dp) :: dlogP_over_n_dw0_an
+        real(dp) :: term_pi, term_T, term_log, dln_nj_an, dln_nj_fd, dnj_from_ln
+        real(dp) :: w_sum, inv_w_sum
+        real(dp) :: dh_g_dT(solver%num_gas), ds_g_dT(solver%num_gas)
+        real(dp) :: db0_dw0(solver%num_elements, solver%num_reactants)
+        real(dp), allocatable :: dln_nj_state1_fd(:)
+        real(dp), allocatable :: dln_nj_state2_fd(:)
+        real(dp), allocatable :: dln_nj_dw0_fd_max(:)
+        real(dp), allocatable :: dT_db0(:)
+        real(dp), allocatable :: dn_db0(:)
+        real(dp), allocatable :: dlogP_over_n_db0(:)
+        real(dp), allocatable :: dln_nj_db0(:)
+        real(dp), pointer :: A_g(:,:)
+        logical :: const_p, const_t
+        type(EqConstraints), pointer :: cons
 
         ! NOTE: EqDerivatives_compute_derivatives and EqDerivatives_unpack_values should be called first.
 
@@ -2607,9 +2625,29 @@ contains
         if (present(verbose)) verbose_ = verbose
 
         ng = solver%num_gas
+        ne = solver%num_elements
         na = count(solution%is_active)
         nr = solver%num_reactants
         ns = ng + na
+        cons => solution%constraints
+        const_p = cons%is_constant_pressure()
+        const_t = cons%is_constant_temperature()
+
+        if (const_t) then
+            lnT_idx = 0
+        else
+            if (const_p) then
+                lnT_idx = ne+na+2
+            else
+                lnT_idx = ne+na+1
+            end if
+        end if
+
+        if (const_p) then
+            lnn_idx = ne+na+1
+        else
+            lnn_idx = 0
+        end if
 
         allocate(base_nj(ns), pert_nj(ns))
         if (na > 0) then
@@ -2632,11 +2670,33 @@ contains
 
         base_T = solution%T
         base_n = solution%n
+        base_P = solution%calc_pressure()
+        base_logP_over_n = log(base_P/base_n)
         base_H = solution%enthalpy
         base_U = solution%energy
         base_G = solution%gibbs_energy
         base_S = solution%entropy
         base_Cp_fr = solution%cp_fr
+        if (verbose_) then
+            allocate(dln_nj_state1_fd(ng), dln_nj_state2_fd(ng), dln_nj_dw0_fd_max(ng))
+            dln_nj_state1_fd = 0.0d0
+            dln_nj_state2_fd = 0.0d0
+            dln_nj_dw0_fd_max = 0.0d0
+            idx_max_state1 = 1
+            idx_max_state2 = 1
+            idx_max_dw0 = 1
+            j_max_dw0 = 1
+            max_err_dw0 = -1.0d0
+            dlogP_over_n_state1_fd = 0.0d0
+            dlogP_over_n_state2_fd = 0.0d0
+            dlogP_over_n_dw0_fd_max = 0.0d0
+            A_g => solver%products%stoich_matrix(:ng,:)
+            do i = 1, ng
+                dh_g_dT(i) = solver%products%species(i)%calc_denthalpy_dT(base_T)/base_T - &
+                    solution%thermo%enthalpy(i)/base_T
+                ds_g_dT(i) = solver%products%species(i)%calc_dentropy_dT(base_T)
+            end do
+        end if
 
         ctype = solution%constraints%type
         state1 = solution%constraints%state1
@@ -2664,6 +2724,18 @@ contains
         self%dG_dstate1_fd = (pert_soln%gibbs_energy - base_G) / h_state1
         self%dS_dstate1_fd = (pert_soln%entropy - base_S) / h_state1
         self%dCp_fr_dstate1_fd = (pert_soln%cp_fr - base_Cp_fr) / h_state1
+        if (verbose_) then
+            pert_logP_over_n = log(pert_soln%calc_pressure()/pert_soln%n)
+            dlogP_over_n_state1_fd = (pert_logP_over_n - base_logP_over_n) / h_state1
+            do i = 1, ng
+                if (base_nj(i) > 0.0d0 .and. pert_nj(i) > 0.0d0) then
+                    dln_nj_state1_fd(i) = (log(pert_nj(i)) - log(base_nj(i))) / h_state1
+                else
+                    dln_nj_state1_fd(i) = 0.0d0
+                end if
+            end do
+            idx_max_state1 = maxloc(abs(self%dnj_dstate1_fd(:ng) - self%dnj_dstate1(:ng)), dim=1)
+        end if
 
         ! state2 perturbation
         pert_soln = solution
@@ -2682,6 +2754,18 @@ contains
         self%dG_dstate2_fd = (pert_soln%gibbs_energy - base_G) / h_state2
         self%dS_dstate2_fd = (pert_soln%entropy - base_S) / h_state2
         self%dCp_fr_dstate2_fd = (pert_soln%cp_fr - base_Cp_fr) / h_state2
+        if (verbose_) then
+            pert_logP_over_n = log(pert_soln%calc_pressure()/pert_soln%n)
+            dlogP_over_n_state2_fd = (pert_logP_over_n - base_logP_over_n) / h_state2
+            do i = 1, ng
+                if (base_nj(i) > 0.0d0 .and. pert_nj(i) > 0.0d0) then
+                    dln_nj_state2_fd(i) = (log(pert_nj(i)) - log(base_nj(i))) / h_state2
+                else
+                    dln_nj_state2_fd(i) = 0.0d0
+                end if
+            end do
+            idx_max_state2 = maxloc(abs(self%dnj_dstate2_fd(:ng) - self%dnj_dstate2(:ng)), dim=1)
+        end if
 
         ! weight perturbations
         do j = 1, nr
@@ -2703,6 +2787,24 @@ contains
             self%dG_dw0_fd(j) = (pert_soln%gibbs_energy - base_G) / h_w
             self%dS_dw0_fd(j) = (pert_soln%entropy - base_S) / h_w
             self%dCp_fr_dw0_fd(j) = (pert_soln%cp_fr - base_Cp_fr) / h_w
+            if (verbose_) then
+                pert_logP_over_n = log(pert_soln%calc_pressure()/pert_soln%n)
+                dlogP_over_n_dw0_fd = (pert_logP_over_n - base_logP_over_n) / h_w
+                abs_err = maxval(abs(self%dnj_dw0_fd(:ng, j) - self%dnj_dw0(:ng, j)))
+                if (abs_err > max_err_dw0) then
+                    max_err_dw0 = abs_err
+                    idx_max_dw0 = maxloc(abs(self%dnj_dw0_fd(:ng, j) - self%dnj_dw0(:ng, j)), dim=1)
+                    j_max_dw0 = j
+                    do i = 1, ng
+                        if (base_nj(i) > 0.0d0 .and. pert_nj(i) > 0.0d0) then
+                            dln_nj_dw0_fd_max(i) = (log(pert_nj(i)) - log(base_nj(i))) / h_w
+                        else
+                            dln_nj_dw0_fd_max(i) = 0.0d0
+                        end if
+                    end do
+                    dlogP_over_n_dw0_fd_max = dlogP_over_n_dw0_fd
+                end if
+            end if
 
             w0(j) = w0(j) - h_w
         end do
@@ -2738,6 +2840,24 @@ contains
                 write(*,*) "dn/dw0 (max): abs=", abs_err, " rel=", rel_err
             end if
 
+            do i = 1, ng
+                if (solution%nj(i) > 1.0d-10) then
+                    abs_err = abs(self%dnj_dstate1_fd(i) - self%dnj_dstate1(i))
+                    rel_err = abs_err / max(abs(self%dnj_dstate1(i)), 1.0d-30)
+                    write(*,*) "dnj/dstate1 (", solver%products%species_names(i), "): abs=", abs_err, " rel=", rel_err
+
+                    abs_err = abs(self%dnj_dstate2_fd(i) - self%dnj_dstate2(i))
+                    rel_err = abs_err / max(abs(self%dnj_dstate2(i)), 1.0d-30)
+                    write(*,*) "dnj/dstate2 (", solver%products%species_names(i), "): abs=", abs_err, " rel=", rel_err
+
+                    if (nr > 0) then
+                        abs_err = maxval(abs(self%dnj_dw0_fd(i, :) - self%dnj_dw0(i, :)))
+                        rel_err = maxval(abs(self%dnj_dw0_fd(i, :) - self%dnj_dw0(i, :)) / max(abs(self%dnj_dw0(i, :)), 1.0d-30))
+                        write(*,*) "dnj/dw0 (", solver%products%species_names(i), ") (max): abs=", abs_err, " rel=", rel_err
+                    end if
+                end if
+            end do
+
             abs_err = maxval(abs(self%dnj_dstate1_fd - self%dnj_dstate1))
             rel_err = maxval(abs(self%dnj_dstate1_fd - self%dnj_dstate1) / max(abs(self%dnj_dstate1), 1.0d-30))
             write(*,*) "dnj/dstate1 (max): abs=", abs_err, " rel=", rel_err
@@ -2750,6 +2870,85 @@ contains
                 abs_err = maxval(abs(self%dnj_dw0_fd - self%dnj_dw0))
                 rel_err = maxval(abs(self%dnj_dw0_fd - self%dnj_dw0) / max(abs(self%dnj_dw0), 1.0d-30))
                 write(*,*) "dnj/dw0 (max): abs=", abs_err, " rel=", rel_err
+            end if
+
+            if (const_p) then
+                dlogP_over_n_state1_an = -self%dn_dstate1 / base_n
+                dlogP_over_n_state2_an = 1.0d0/base_P - self%dn_dstate2 / base_n
+            else
+                dlogP_over_n_state1_an = self%dT_dstate1 / base_T
+                dlogP_over_n_state2_an = self%dT_dstate2 / base_T - 1.0d0/cons%state2
+            end if
+
+            i = idx_max_state1
+            term_pi = dot_product(A_g(i, :), self%dudx(1:ne, 2))
+            term_T = (ds_g_dT(i) - dh_g_dT(i))*self%dT_dstate1
+            term_log = -dlogP_over_n_state1_an
+            dln_nj_an = term_pi + term_T + term_log
+            dln_nj_fd = dln_nj_state1_fd(i)
+            dnj_from_ln = base_nj(i)*dln_nj_fd
+            write(*,*) "dln_nj/dstate1 (", solver%products%species_names(i), "): fd=", dln_nj_fd, " analytic=", dln_nj_an
+            write(*,*) "  terms: pi=", term_pi, " T=", term_T, " log=", term_log
+            write(*,*) "  dlog(P/n)/dstate1: fd=", dlogP_over_n_state1_fd, " analytic=", dlogP_over_n_state1_an
+            write(*,*) "  dnj from ln(fd)=", dnj_from_ln, " dnj fd=", self%dnj_dstate1_fd(i), " dnj analytic=", self%dnj_dstate1(i)
+
+            i = idx_max_state2
+            term_pi = dot_product(A_g(i, :), self%dudx(1:ne, 1))
+            term_T = (ds_g_dT(i) - dh_g_dT(i))*self%dT_dstate2
+            term_log = -dlogP_over_n_state2_an
+            dln_nj_an = term_pi + term_T + term_log
+            dln_nj_fd = dln_nj_state2_fd(i)
+            dnj_from_ln = base_nj(i)*dln_nj_fd
+            write(*,*) "dln_nj/dstate2 (", solver%products%species_names(i), "): fd=", dln_nj_fd, " analytic=", dln_nj_an
+            write(*,*) "  terms: pi=", term_pi, " T=", term_T, " log=", term_log
+            write(*,*) "  dlog(P/n)/dstate2: fd=", dlogP_over_n_state2_fd, " analytic=", dlogP_over_n_state2_an
+            write(*,*) "  dnj from ln(fd)=", dnj_from_ln, " dnj fd=", self%dnj_dstate2_fd(i), " dnj analytic=", self%dnj_dstate2(i)
+
+            if (nr > 0 .and. max_err_dw0 >= 0.0d0) then
+                allocate(dT_db0(ne), dn_db0(ne), dlogP_over_n_db0(ne), dln_nj_db0(ne))
+                if (const_t) then
+                    dT_db0 = 0.0d0
+                else
+                    dT_db0 = base_T*self%dudx(lnT_idx, 3:ne+2)
+                end if
+                if (const_p) then
+                    dn_db0 = base_n*self%dudx(lnn_idx, 3:ne+2)
+                else
+                    dn_db0 = 0.0d0
+                end if
+                if (const_p) then
+                    dlogP_over_n_db0 = -dn_db0 / base_n
+                else
+                    dlogP_over_n_db0 = dT_db0 / base_T
+                end if
+
+                w_sum = sum(solution%w0)
+                inv_w_sum = 1.0d0 / w_sum
+                do j = 1, nr
+                    db0_dw0(:, j) = solver%reactants%stoich_matrix(j, :) / &
+                        solver%reactants%species(j)%molecular_weight
+                    db0_dw0(:, j) = (db0_dw0(:, j) - cons%b0) * inv_w_sum
+                end do
+
+                i = idx_max_dw0
+                j = j_max_dw0
+                do idx_c = 1, ne
+                    dln_nj_db0(idx_c) = dot_product(A_g(i, :), self%dudx(1:ne, idx_c+2)) &
+                        + (ds_g_dT(i) - dh_g_dT(i))*dT_db0(idx_c) - dlogP_over_n_db0(idx_c)
+                end do
+                dln_nj_an = dot_product(dln_nj_db0, db0_dw0(:, j))
+                dln_nj_fd = dln_nj_dw0_fd_max(i)
+                dnj_from_ln = base_nj(i)*dln_nj_fd
+                if (const_p) then
+                    dlogP_over_n_dw0_an = -self%dn_dw0(j) / base_n
+                else
+                    dlogP_over_n_dw0_an = self%dT_dw0(j) / base_T
+                end if
+                write(*,*) "dln_nj/dw0 (", solver%products%species_names(i), ", w0(", j, ")): fd=", &
+                    dln_nj_fd, " analytic=", dln_nj_an
+                write(*,*) "  dlog(P/n)/dw0: fd=", dlogP_over_n_dw0_fd_max, " analytic=", dlogP_over_n_dw0_an
+                write(*,*) "  dnj from ln(fd)=", dnj_from_ln, " dnj fd=", self%dnj_dw0_fd(i, j), &
+                    " dnj analytic=", self%dnj_dw0(i, j)
             end if
 
             abs_err = abs(self%dH_dstate1_fd - self%dH_dstate1)

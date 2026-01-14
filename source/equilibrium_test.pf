@@ -742,8 +742,9 @@ contains
         type(EqDerivatives) :: totals
         real(dp) :: h_reac, p_reac, weights(2)
         real(dp), parameter :: tol = 1.0d-4
-        real(dp), parameter :: h = 1.0d-8
+        real(dp), parameter :: h = 1.0d-10
         real(dp) :: rel
+        integer :: i, j
 
         reactants = Mixture(all_thermo, ['H2', 'O2'])
         products  = Mixture(all_thermo, ['H  ', 'H2 ', 'H2O', 'O  ', 'O2 ', 'OH '])
@@ -764,7 +765,7 @@ contains
         totals = EqDerivatives(solver, solution)
         call totals%compute_derivatives(solver, solution)
         call totals%unpack_values(solver, solution)
-        call totals%compute_fd(solver, solution, h, verbose=.false.)
+        call totals%compute_fd(solver, solution, h, verbose=.true.)
 
         rel = abs(totals%dT_dstate1_fd - totals%dT_dstate1) / max(abs(totals%dT_dstate1), 1.0d-30)
         @assertLessThan(rel, tol)
