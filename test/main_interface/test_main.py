@@ -66,8 +66,8 @@ def run_tests(test_names):
     for test in test_names:
         # Execute the code on the input file
         print(f"Running {test}")
-        os.system(run_dir+"/cea"+f" {test}")
-        os.system(f"mv {test}.out {test_dir}")
+        subprocess.run(run_dir+"/cea"+f" {test}", shell=False, check=True)
+        subprocess.run(f"mv {test}.out {test_dir}", shell=False, check=True)
         print()
 
     return

@@ -7,7 +7,7 @@ def run_tests(test_names):
     for test in test_names:
         # Execute the code on the input file
         print(f"Running {test}")
-        os.system(run_dir+"/cea"+f" {test}")
+        subprocess.run(run_dir+"/cea"+f" {test}", shell=False, check=True)
         print()
 
     return
