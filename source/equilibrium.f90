@@ -1823,7 +1823,11 @@ contains
         allocate(self%J(m, m), source=empty_dp)
         allocate(self%Rx(m, n), source=empty_dp)
         allocate(self%dudx(m, n), source=empty_dp)
+
         allocate(self%delta_check(m, n), source=empty_dp)
+
+        allocate(self%dT_dw0(nr), source=empty_dp)
+        allocate(self%dn_dw0(nr), source=empty_dp)
         allocate(self%dnj_dstate1(ns), source=empty_dp)
         allocate(self%dnj_dstate2(ns), source=empty_dp)
         allocate(self%dnj_dw0(ns, nr), source=empty_dp)
@@ -1832,6 +1836,7 @@ contains
         allocate(self%dG_dw0(nr), source=empty_dp)
         allocate(self%dS_dw0(nr), source=empty_dp)
         allocate(self%dCp_fr_dw0(nr), source=empty_dp)
+
         allocate(self%dT_dw0_fd(nr), source=empty_dp)
         allocate(self%dn_dw0_fd(nr), source=empty_dp)
         allocate(self%dnj_dstate1_fd(ns), source=empty_dp)
