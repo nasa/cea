@@ -8,6 +8,7 @@ module cea_equilibrium
                          pi
     use cea_mixture, only: Mixture, MixtureThermo
     use cea_transport, only: TransportDB, get_mixture_transport
+    use fb_findloc, only: findloc
     use fb_utils
     implicit none
 

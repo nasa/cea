@@ -5,6 +5,7 @@ module cea_shock
     use cea_mixture, only: Mixture, MixtureThermo
     use cea_transport, only: TransportDB
     use cea_equilibrium, only: EqSolution, EqSolver, EqPartials
+    use fb_findloc, only: findloc
     use fb_utils
     implicit none
 

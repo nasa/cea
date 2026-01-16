@@ -8,6 +8,7 @@ module cea_mixture
     use cea_atomic_data, only: get_atom_valence, get_atom_weight
     use cea_units, only: convert_units_to_si
     use iso_c_binding
+    use fb_findloc, only: findloc
     use fb_utils, only: abort, is_empty
     implicit none
 
