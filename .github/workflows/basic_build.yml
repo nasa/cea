@@ -11,21 +11,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-22.04, macos-latest, windows-latest]
         toolchain:
           - compiler: gcc
             version: "11"
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             toolchain:
               compiler: intel
               version: "2023.1"
-          - os: ubuntu-latest
-            toolchain:
-              compiler: intel-classic
-              version: "2021.9"
-          - os: macos-latest
-            runs-on: macos-13
+          - os: ubuntu-22.04
             toolchain:
               compiler: intel-classic
               version: "2021.9"
@@ -85,8 +80,8 @@ jobs:
           ./build/source/cea.exe -h
 
   pfunit-tests:
-    name: pFUnit (ubuntu-latest / gcc 11)
-    runs-on: ubuntu-latest
+    name: pFUnit (ubuntu-22.04 / gcc 11)
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out CEA
         uses: actions/checkout@v4
@@ -116,8 +111,8 @@ jobs:
           ctest --output-on-failure --test-dir build-dev
 
   python-tests:
-    name: Python (ubuntu-latest / gcc 11)
-    runs-on: ubuntu-latest
+    name: Python (ubuntu-22.04 / gcc 11)
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out CEA
         uses: actions/checkout@v4
