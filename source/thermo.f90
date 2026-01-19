@@ -56,6 +56,11 @@ module cea_thermo
         procedure :: calc_entropy => st_calc_entropy
         procedure :: calc_gibbs_energy => st_calc_gibbs_energy
         procedure :: calc_potential => st_calc_potential
+        ! Overload assignment operator for a manual deep copy
+        ! This is a workaround for an apparent problem with the Intel
+        ! compiler suite
+        generic :: assignment(=) => assign_species
+        procedure, private, pass(self) :: assign_species
     end type
 
     type :: ThermoDB
@@ -661,4 +666,39 @@ contains
 
     end function
 
+    subroutine assign_species(self, rhs)
+        class(SpeciesThermo), intent(inout) :: self
+        class(SpeciesThermo), intent(in)    :: rhs
+
+        ! Copy all elements of rhs into self manually
+        ! Allocate memory as needed
+        self%name = rhs%name
+        if (allocated(rhs%formula)) then
+            allocate(self%formula)
+            if (allocated(rhs%formula%elements)) then
+                allocate(self%formula%elements, source=rhs%formula%elements)
+                self%formula%elements = rhs%formula%elements
+            end if
+            if (allocated(rhs%formula%coefficients)) then
+                allocate(self%formula%coefficients, source=rhs%formula%coefficients)
+                self%formula%coefficients = rhs%formula%coefficients
+            end if
+        end if
+
+        self%i_phase = rhs%i_phase
+        self%num_intervals = rhs%num_intervals
+        self%molecular_weight = rhs%molecular_weight
+
+        if (allocated(rhs%T_fit)) then
+            allocate(self%T_fit, source=rhs%T_fit)
+            self%T_fit = rhs%T_fit
+        end if
+        if (allocated(rhs%fits)) then
+            allocate(self%fits, source=rhs%fits)
+            self%fits = rhs%fits
+        end if
+
+        self%enthalpy_ref = rhs%enthalpy_ref
+        self%T_ref = rhs%T_ref
+    end subroutine
 end module
