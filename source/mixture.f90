@@ -227,9 +227,6 @@ contains
 
         ! Add the info from the ReactantInput
         if (present(input_reactants)) then
-            if (size(input_reactants) /= ns) then
-                call abort('mixture_init: input_reactants size mismatch')
-            end if
             ! Loop over each reactant, checking if any additional info is provided
             do i = 1, size(input_reactants)
                 if (.not. found_db(i) .and. .not. allocated(input_reactants(i)%formula)) then
@@ -276,8 +273,7 @@ contains
         ! Validate formulas before building the element list
         do i = 1, ns
             if (.not. allocated(self%species(i)%formula)) then
-                call abort('mixture_init: Missing formula for species '//trim(self%species_names(i))// &
-                           ' (check thermo.lib build)')
+                call abort('mixture_init: Missing formula for species '//trim(self%species_names(i)))
             end if
             if (.not. allocated(self%species(i)%formula%elements)) then
                 call abort('mixture_init: Missing formula elements for species '//trim(self%species_names(i)))
@@ -328,9 +324,6 @@ contains
 
         ! Move "E" to the end of the element list if present
         if (self%ions) then
-            if (size(self%element_names) == 0) then
-                call abort('mixture_init: empty element list for ionized problem')
-            end if
             self%element_names = [ &
                 pack(self%element_names, .not. self%element_names == 'E'), &
                 pack(self%element_names,       self%element_names == 'E')  &
@@ -458,6 +451,7 @@ contains
             ! Exclude "omit" names
             ! TODO: pop omit name every time it is found to speed up search
             if (present(omit)) then
+                call check_name_list_len(omit, snl, 'mixture_get_products omit')
                 is_omitted = .false.
                 do j = 1, size(omit)
                     if (names_match(thermo%product_name_list(i), omit(j))) then
@@ -530,7 +524,6 @@ contains
         ! Locals
         real(dp) :: vm(self%num_elements), vp(self%num_elements)  ! Valences (m = minus, p = plus)
         real(dp) :: b0_ox(self%num_elements), b0_fu(self%num_elements)
-        !real(dp) :: mw(self%num_species)  ! Molecular weights
         real(dp) :: vm_fu, vp_fu, vm_ox, vp_ox  ! Total fuel and oxidant valences (m = minus, p = plus)
 
         call check_array_len(size(oxidant_weights), self%num_species, 'mixture_chem_eq_ratio_to_of_ratio oxidant_weights')
@@ -1252,16 +1245,6 @@ contains
             candidate => thermo%product_thermo(i)
             if (names_match(name, candidate%name)) then
                 species = candidate
-                ! Ensure formula components are present even if allocatable assignment is incomplete.
-                if (allocated(candidate%formula)) then
-                    if (.not. allocated(species%formula)) allocate(species%formula)
-                    if (allocated(candidate%formula%elements)) then
-                        species%formula%elements = candidate%formula%elements
-                    end if
-                    if (allocated(candidate%formula%coefficients)) then
-                        species%formula%coefficients = candidate%formula%coefficients
-                    end if
-                end if
                 if (present(found)) found = .true.
                 return
             end if
@@ -1272,27 +1255,12 @@ contains
             candidate => thermo%reactant_thermo(i)
             if (names_match(name, candidate%name)) then
                 species = candidate
-                ! Ensure formula components are present even if allocatable assignment is incomplete.
-                if (allocated(candidate%formula)) then
-                    if (.not. allocated(species%formula)) allocate(species%formula)
-                    if (allocated(candidate%formula%elements)) then
-                        species%formula%elements = candidate%formula%elements
-                    end if
-                    if (allocated(candidate%formula%coefficients)) then
-                        species%formula%coefficients = candidate%formula%coefficients
-                    end if
-                end if
                 if (present(found)) found = .true.
                 return
             end if
         end do
 
-        species%name = name
-        species%i_phase = 0
-        species%num_intervals = 0
-        species%molecular_weight = empty_dp
-        species%enthalpy_ref = 0.0d0
-        species%T_ref = 0.0d0
+        ! call log_info('Species '//trim(name)//' not found in ThermoDB')
 
     end function
 
