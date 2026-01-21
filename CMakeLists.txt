@@ -107,7 +107,7 @@ add_custom_target(compile_databases ALL
 #-----------------------------------------------------------------------
 install(
     FILES ${CMAKE_BINARY_DIR}/thermo.lib ${CMAKE_BINARY_DIR}/trans.lib
-    DESTINATION ${CMAKE_INSTALL_PREFIX}/data
+    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/cea
 )
 install(EXPORT cea-config
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/cea
