@@ -10,7 +10,7 @@
       "name": "dev-ub-hunt",
       "inherits": "gnu",
       "displayName": "Sofware Development Config (GNU)",
-      "description": "Default configuration for software development with gfortran.",
+      "description": "Configuration for software development with gfortran and undefined behavior hunting enabled.",
       "binaryDir": "build-dev-ub-hunt",
       "cacheVariables": {
         "CEA_UB_HUNT": "ON",
