@@ -2543,6 +2543,10 @@ contains
                  stcf(ng, ng), stcoef(ng), tmp(max_tr), gmat(ng, ng), &
                  stx(ng), stxij(ng, ng))
 
+        ! cond can be used without being initialized, and uninitialized elements 
+        ! could be used later if all of the species aren't found in the transport database
+        cond = 0.0d0
+
         ! Build the list of relevant mixture species, starting with monoatomic gasses
         nm = 0
         total = 0.0d0
