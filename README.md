@@ -118,25 +118,28 @@ Python example (runs the H2/O2 case after installing the Python bindings):
     python source/bind/python/cea/samples/h2_02.py
 
 
-## Manual Database Generation
-CEA requires thermodynamic and transport property databases. When using the
-provided CMake build system, these databases are generated automatically during
-the build and installed alongside the `cea` executable.  However, in many
-applications it is necessary to perform calculations with modified versions of
-the provided databases.
+## Database Generation
 
-To generate modified databases, run the `cea` program in compilation mode with
-the modified `thermo.inp` and `trans.inp` files. See the `data` directory for
-baseline versions of these files. This will produce `thermo.lib` and
-`trans.lib` in the current directory.
+CEA requires thermodynamic and transport property databases. When using the
+provided CMake build system, these databases are automatically compiled from
+`data/thermo.inp` and `data/trans.inp` during the build process and installed
+alongside the `cea` executable.
+
+### Custom Database Generation
+
+In many applications it is necessary to perform calculations with modified
+versions of the provided databases. To generate custom databases, run the `cea`
+program in compilation mode with your modified input files:
 
     ./cea --compile-thermo path/to/thermo.inp
     ./cea --compile-trans path/to/trans.inp
 
+This will produce `thermo.lib` and `trans.lib` in the current directory.
+
 To use the customized databases, copy them into the working directory where you
 will be executing the `cea` program (usually the same directory as the `.inp`
 problem definition file). Database files in the working directory will take
-precedence over the installed database files.
+precedence over the installed database files in `<cea_install_dir>/data/`.
 
 
 ## References

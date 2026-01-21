@@ -36,11 +36,33 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Set up Fortran compiler
+      - name: Set up Fortran compiler (Unix)
+        if: runner.os != 'Windows'
         uses: fortran-lang/setup-fortran@v1
         with:
           compiler: ${{ matrix.toolchain.compiler }}
           version: ${{ matrix.toolchain.version }}
+
+      - name: Set up Fortran compiler (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          # Use pre-installed MinGW on Windows runners to avoid Chocolatey issues
+          # GitHub Actions windows-latest runners include MinGW in C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
+          $mingwPath = "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin"
+          if (Test-Path $mingwPath) {
+            echo "$mingwPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+            echo "FC=$mingwPath\gfortran.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          } else {
+            # Fallback: search for gfortran in common locations
+            $gfortran = Get-Command gfortran -ErrorAction SilentlyContinue
+            if ($gfortran) {
+              echo "FC=$($gfortran.Source)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            } else {
+              Write-Error "gfortran not found on Windows runner"
+              exit 1
+            }
+          }
+        shell: pwsh
 
       - name: Install build tools
         run: |
@@ -52,6 +74,7 @@ jobs:
           git --version
           cmake --version
           ninja --version
+          if command -v gfortran &> /dev/null; then gfortran --version; fi
           if [ -n "${FC}" ]; then "${FC}" --version; fi
 
       - name: Configure

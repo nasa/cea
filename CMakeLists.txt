@@ -79,27 +79,34 @@ add_subdirectory(extern/fbasics)
 add_subdirectory(source)
 
 # Build the thermodynamic properties database
-#configure_file(src/thermo.inp thermo.inp COPYONLY)
-#add_custom_target(thermo.lib ALL
-#    COMMAND cea thermo >/dev/null
-#    BYPRODUCTS thermo.lib thermo.out
-#    DEPENDS cea
-#)
+add_custom_command(
+    OUTPUT ${CMAKE_BINARY_DIR}/thermo.lib
+    COMMAND $<TARGET_FILE:cea> --compile-thermo ${CMAKE_SOURCE_DIR}/data/thermo.inp
+    DEPENDS cea ${CMAKE_SOURCE_DIR}/data/thermo.inp
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "Compiling thermodynamic database from thermo.inp"
+)
 
 # Build the transport properties database
-#configure_file(src/trans.inp trans.inp COPYONLY)
-#add_custom_target(trans.lib ALL
-#    COMMAND cea trans >/dev/null
-#    BYPRODUCTS trans.lib trans.out
-#    DEPENDS cea
-#)
+add_custom_command(
+    OUTPUT ${CMAKE_BINARY_DIR}/trans.lib
+    COMMAND $<TARGET_FILE:cea> --compile-trans ${CMAKE_SOURCE_DIR}/data/trans.inp
+    DEPENDS cea ${CMAKE_SOURCE_DIR}/data/trans.inp
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "Compiling transport database from trans.inp"
+)
+
+# Create a custom target that depends on both database files
+add_custom_target(compile_databases ALL
+    DEPENDS ${CMAKE_BINARY_DIR}/thermo.lib ${CMAKE_BINARY_DIR}/trans.lib
+)
 
 
 #-----------------------------------------------------------------------
 # Installation
 #-----------------------------------------------------------------------
 install(
-    FILES data/thermo.lib data/trans.lib
+    FILES ${CMAKE_BINARY_DIR}/thermo.lib ${CMAKE_BINARY_DIR}/trans.lib
     DESTINATION ${CMAKE_INSTALL_PREFIX}/data
 )
 install(EXPORT cea-config
