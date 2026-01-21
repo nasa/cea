@@ -1,33 +1,165 @@
 name: Basic Build
 run-name: "[${{ github.actor }}]: ${{ github.event_name }} to ${{ github.ref_name }}"
-on: [push]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
 jobs:
-  build-ubuntu-22:
-    runs-on: [self-hosted, linux]
-    container: ecpe4s/ubuntu22.04-runner-x86_64:2023-01-01
+  build:
+    name: Build (${{ matrix.os }} / ${{ matrix.toolchain.compiler }} ${{ matrix.toolchain.version }})
+    runs-on: ${{ matrix.runs-on || matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-latest, windows-latest]
+        toolchain:
+          - compiler: gcc
+            version: "11"
+        include:
+          - os: ubuntu-22.04
+            toolchain:
+              compiler: intel
+              version: "2023.1"
+          - os: ubuntu-22.04
+            toolchain:
+              compiler: intel-classic
+              version: "2021.9"
+    defaults:
+      run:
+        shell: bash
     steps:
+      - name: Check out CEA
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Fortran compiler
+        uses: fortran-lang/setup-fortran@v1
+        with:
+          compiler: ${{ matrix.toolchain.compiler }}
+          version: ${{ matrix.toolchain.version }}
+
       - name: Install build tools
         run: |
-          apt-get update
-          apt-get -y install cmake ninja-build
+          python -m pip install --upgrade pip
+          python -m pip install ninja setuptools numpy cython
+
       - name: Record toolchain info
         run: |
           git --version
-          gcc --version
-          g++ --version
-          gfortran --version
-          python3 --version
-          ninja --version
           cmake --version
-      - name: Check out CEA
-        uses: actions/checkout@v3
-      - name: Install Python dependencies
+          ninja --version
+          if [ -n "${FC}" ]; then "${FC}" --version; fi
+
+      - name: Configure
         run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install numpy cython
-      - name: Build CEA in developer mode
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCEA_BUILD_TESTING=OFF \
+            -DCEA_ENABLE_BIND_C=OFF \
+            -DCEA_ENABLE_BIND_CXX=OFF \
+            -DCEA_ENABLE_BIND_PYTHON=OFF \
+            -DCEA_ENABLE_BIND_MATLAB=OFF \
+            -DCEA_ENABLE_BIND_EXCEL=OFF
+
+      - name: Build
+        run: |
+          cmake --build build
+
+      - name: Run smoke test (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          ./build/source/cea -h
+
+      - name: Run smoke test (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          ./build/source/cea.exe -h
+
+  pfunit-tests:
+    name: pFUnit (ubuntu-22.04 / gcc 11)
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out CEA
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Fortran compiler
+        uses: fortran-lang/setup-fortran@v1
+        with:
+          compiler: gcc
+          version: "11"
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ninja setuptools numpy cython
+
+      - name: Build CEA + GFE (pFUnit)
         run: |
           scripts/develop.sh -G Ninja
-      - name: Run test harness
+
+      - name: Rebuild data libraries (compiler-native)
         run: |
-          ctest --output-on-failure --test-dir build-dev
+          pushd data
+          ../build-dev/source/cea --compile-thermo thermo.inp
+          ../build-dev/source/cea --compile-trans trans.inp
+          popd
+
+      - name: Run pFUnit tests
+        env:
+          GFORTRAN_ERROR_BACKTRACE: "1"
+          GFORTRAN_UNBUFFERED_ALL: "1"
+        run: |
+          ulimit -c unlimited
+          ctest --output-on-failure --test-dir build-dev -V
+
+  python-tests:
+    name: Python (ubuntu-22.04 / gcc 11)
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out CEA
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Fortran compiler
+        uses: fortran-lang/setup-fortran@v1
+        with:
+          compiler: gcc
+          version: "11"
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ninja pytest setuptools numpy cython
+
+      - name: Install CEA (editable)
+        run: |
+          python -m pip install -e .
+
+      - name: Import extension (no init)
+        env:
+          CEA_SKIP_INIT: "1"
+        run: |
+          python - <<'PY'
+          import cea
+          import cea.lib.libcea
+          print("cea import ok")
+          PY
+
+      - name: Run pytest
+        env:
+          CEA_DATA_DIR: ${{ github.workspace }}/data
+        run: |
+          pytest source/bind/python/tests

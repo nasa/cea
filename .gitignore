@@ -16,6 +16,7 @@ extern/install
 *.out
 *.csv
 *.xlsx
+*.pdf
 *.bat
 !sampleThe/*.inp
 !test/main_interface/*.inp

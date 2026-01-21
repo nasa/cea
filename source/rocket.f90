@@ -8,6 +8,7 @@ module cea_rocket
     use cea_equilibrium, only: EqSolution, EqSolver, EqPartials
     use cea_transport, only: TransportDB
     use fb_utils
+    implicit none
 
     type :: RocketSolver
         !! Rocket solver class
@@ -289,7 +290,7 @@ contains
 
     end subroutine
 
-    subroutine RocketSolver_solve_throat_frozen(self, soln, idx, n_frz, pc, h_inf, s0, weights, awt)
+    subroutine RocketSolver_solve_throat_frozen(self, soln, idx, n_frz, pc, h_inf, awt)
 
         ! Arguments
         class(RocketSolver), intent(in) :: self
@@ -298,8 +299,6 @@ contains
         integer, intent(in) :: n_frz                   ! Frozen index
         real(dp), intent(in) :: pc                     ! Chamber pressure [Pa]
         real(dp), intent(in) :: h_inf                  ! Enthalpy at infinity
-        real(dp), intent(in) :: s0                     ! Fixed entropy for equilibrium solve
-        real(dp), intent(in) :: weights(:)
         real(dp), intent(out) :: awt                   ! Mass flow per area in the throat
 
         ! Locals
@@ -356,7 +355,7 @@ contains
 
     end subroutine
 
-    subroutine RocketSolver_solve_pi_p(self, soln, idx, pc, pi_p, h_inf, s0, weights, T_idx, nj_idx)
+    subroutine RocketSolver_solve_pi_p(self, soln, idx, pc, pi_p, h_inf, s0, weights)
 
         ! Arguments
         class(RocketSolver), intent(in) :: self
@@ -367,8 +366,6 @@ contains
         real(dp), intent(in) :: h_inf                ! Enthalpy at infinity
         real(dp), intent(in) :: s0                   ! Fixed entropy for equilibrium solve
         real(dp), intent(in) :: weights(:)           ! Reactant weights for equilibrium solve
-        integer, intent(in) :: T_idx                 ! Solution index of initial temperature for equilibrium solve
-        integer, intent(in) :: nj_idx                ! Solution index of initial mole fractions for equilibrium solve
 
         ! Locals
         integer :: i                         ! Loop index
@@ -421,7 +418,7 @@ contains
 
     end subroutine
 
-    subroutine RocketSolver_solve_pi_p_frozen(self, soln, idx, n_frz, pc, pi_p, h_inf, s0, weights, T_idx)
+    subroutine RocketSolver_solve_pi_p_frozen(self, soln, idx, n_frz, pc, pi_p, h_inf, T_idx)
 
         ! Arguments
         class(RocketSolver), intent(in) :: self
@@ -431,8 +428,6 @@ contains
         real(dp), intent(in) :: pc                   ! Chamber pressure
         real(dp), intent(in) :: pi_p(:)              ! Exit pressure ratio
         real(dp), intent(in) :: h_inf                ! Enthalpy at infinity
-        real(dp), intent(in) :: s0                   ! Fixed entropy for equilibrium solve
-        real(dp), intent(in) :: weights(:)           ! Reactant weights for equilibrium solve
         integer, intent(in) :: T_idx                 ! Solution index of initial temperature for equilibrium solve
 
         ! Locals
@@ -558,7 +553,7 @@ contains
 
     end subroutine
 
-    subroutine RocketSolver_solve_supar(self, soln, idx, pc, supar, h_inf, s0, weights, T_idx, nj_idx, ln_pinf_pt, awt)
+    subroutine RocketSolver_solve_supar(self, soln, idx, pc, supar, h_inf, s0, weights, ln_pinf_pt, awt)
 
         ! Arguments
         class(RocketSolver), intent(in) :: self
@@ -569,8 +564,6 @@ contains
         real(dp), intent(in) :: h_inf                  ! Enthalpy at infinity
         real(dp), intent(in) :: s0                     ! Fixed entropy for equilibrium solve
         real(dp), intent(in) :: weights(:)             ! Reactant weights for equilibrium solve
-        integer, intent(in) :: T_idx                   ! Initial temperature for equilibrium solve
-        integer, intent(in) :: nj_idx                  ! Initial mole fractions for equilibrium solve
         real(dp), intent(in) :: ln_pinf_pt             ! ln(Pinf/Pt)
         real(dp), intent(in) :: awt                    ! Mass flow per area in the throat
 
@@ -590,7 +583,7 @@ contains
             soln%station(idx) = "exit    "
 
             ! Set the initial guess for the equilibrium solve based on throat conditions
-            soln%eq_soln(idx) = EqSolution(self%eq_solver)!, T_init=soln%eq_soln(T_idx)%T, nj_init=soln%eq_soln(nj_idx)%nj)
+            soln%eq_soln(idx) = EqSolution(self%eq_solver)
             call self%set_init_state(soln, idx)
 
             ! Check for valid area ratio
@@ -641,7 +634,7 @@ contains
 
     end subroutine
 
-    subroutine RocketSolver_solve_supar_frozen(self, soln, idx, n_frz, pc, supar, h_inf, s0, weights, T_idx, ln_pinf_pt, awt)
+    subroutine RocketSolver_solve_supar_frozen(self, soln, idx, n_frz, pc, supar, h_inf, weights, T_idx, ln_pinf_pt, awt)
 
         ! Arguments
         class(RocketSolver), intent(in) :: self
@@ -651,7 +644,6 @@ contains
         real(dp), intent(in) :: pc                     ! Chamber pressure
         real(dp), intent(in) :: supar(:)               ! Supersonic area ratio
         real(dp), intent(in) :: h_inf                  ! Enthalpy at infinity
-        real(dp), intent(in) :: s0                     ! Fixed entropy for equilibrium solve
         real(dp), intent(in) :: weights(:)             ! Reactant weights for equilibrium solve
         integer, intent(in) :: T_idx                   ! Initial temperature for equilibrium solve
         real(dp), intent(in) :: ln_pinf_pt             ! ln(Pinf/Pt)
@@ -695,7 +687,7 @@ contains
 
                 ! Compute exit properties
                 h = dot_product(soln%eq_soln(idx)%nj, soln%eq_soln(idx)%thermo%enthalpy)*soln%eq_soln(idx)%T
-                gamma_s = soln%eq_partials(idx)%gamma_s !soln%eq_soln(n_frz)%cp_fr/(soln%eq_soln(n_frz)%cp_fr-soln%eq_soln(n_frz)%n)
+                gamma_s = soln%eq_partials(idx)%gamma_s
                 asq = soln%eq_soln(idx)%n*R*gamma_s*soln%eq_soln(idx)%T
                 usq = 2.0d0*(h_inf-h)*R
                 soln%v_sonic(idx) = sqrt(asq)
@@ -825,7 +817,7 @@ contains
         idx = 2
 
         if (frozen .and. idx > n_frz_) then
-            call self%solve_throat_frozen(soln, idx, n_frz, pc, h_inf, state1, reactant_weights, awt)
+            call self%solve_throat_frozen(soln, idx, n_frz, pc, h_inf, awt)
         else
             call self%solve_throat(soln, idx, pc, h_inf, state1, reactant_weights, awt)
         end if
@@ -836,9 +828,9 @@ contains
         idx = 3
 
         if (frozen .and. idx > n_frz_) then
-            call self%solve_pi_p_frozen(soln, idx, n_frz, pc, pi_p, h_inf, state1, reactant_weights, 1)
+            call self%solve_pi_p_frozen(soln, idx, n_frz, pc, pi_p, h_inf, 1)
         else
-            call self%solve_pi_p(soln, idx, pc, pi_p, h_inf, state1, reactant_weights, 1, 2)
+            call self%solve_pi_p(soln, idx, pc, pi_p, h_inf, state1, reactant_weights)
         end if
 
         ! -----------------------------------------------
@@ -865,9 +857,9 @@ contains
         if (present(supar)) then
 
             if (frozen .and. idx > n_frz_) then
-                call self%solve_supar_frozen(soln, idx, n_frz, pc, supar, h_inf, state1, reactant_weights, idx-1, ln_pinf_pt, awt)
+                call self%solve_supar_frozen(soln, idx, n_frz, pc, supar, h_inf, reactant_weights, idx-1, ln_pinf_pt, awt)
             else
-                call self%solve_supar(soln, idx, pc, supar, h_inf, state1, reactant_weights, idx-1, 2, ln_pinf_pt, awt)
+                call self%solve_supar(soln, idx, pc, supar, h_inf, state1, reactant_weights, ln_pinf_pt, awt)
             end if
 
         end if
@@ -1132,7 +1124,7 @@ contains
         ! -----------------------------------------------
         idx = 5
 
-        call self%solve_pi_p(soln, idx, pc, pi_p, h_inj, S_ref, reactant_weights, 3, 4)
+        call self%solve_pi_p(soln, idx, pc, pi_p, h_inj, S_ref, reactant_weights)
 
         ! -----------------------------------------------
         ! Exit conditions: supersonic area ratio
@@ -1141,7 +1133,7 @@ contains
         ! Get some values for shorthand
         ln_pinf_pt = log(soln%pressure(2)/soln%pressure(4))
 
-        call self%solve_supar(soln, idx, pc, supar, h_inj, S_ref, reactant_weights, 3, 4, ln_pinf_pt, awt)
+        call self%solve_supar(soln, idx, pc, supar, h_inj, S_ref, reactant_weights, ln_pinf_pt, awt)
 
         ! Compute performance parameters
         call self%post_process(soln, .true.)

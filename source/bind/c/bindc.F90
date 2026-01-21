@@ -353,7 +353,7 @@ contains
             return
         end if
 
-        global_transdb = read_transport(transfile)
+        global_transdb = read_transport(resolved)
         trans_path = resolved
         trans_initialized = .true.
 

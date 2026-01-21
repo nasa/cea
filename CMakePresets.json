@@ -7,6 +7,21 @@
   },
   "configurePresets": [
     {
+      "name": "dev-ub-hunt",
+      "inherits": "gnu",
+      "displayName": "Sofware Development Config (GNU)",
+      "description": "Configuration for software development with gfortran and undefined behavior hunting enabled.",
+      "binaryDir": "build-dev-ub-hunt",
+      "cacheVariables": {
+        "CEA_UB_HUNT": "ON",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CEA_ENABLE_BIND_C": "TRUE",
+        "CEA_ENABLE_BIND_PYTHON": "TRUE",
+        "CEA_ENABLE_BIND_MATLAB": "TRUE",
+        "CMAKE_Fortran_FLAGS_DEBUG": "-g -O0 -Wall -Wextra -Wpedantic -Wcharacter-truncation -Werror=conversion -fcheck=all -fbacktrace -ffpe-trap=invalid,zero,overflow -finit-real=snan -finit-integer=-999999 -finit-logical=true -Wimplicit-interface -Wsurprising"
+      }
+    },
+    {
       "name": "dev",
       "inherits": "gnu",
       "displayName": "Sofware Development Config (GNU)",
@@ -17,7 +32,7 @@
         "CEA_ENABLE_BIND_C": "TRUE",
         "CEA_ENABLE_BIND_PYTHON": "TRUE",
         "CEA_ENABLE_BIND_MATLAB": "TRUE",
-        "CMAKE_Fortran_FLAGS_DEBUG": "-g -fno_underscoring -O0 -Wall -Wextra -Wpedantic -Wcharacter-truncation -Wno-maybe-uninitialized -Werror=conversion -fcheck=all -fbacktrace"
+        "CMAKE_Fortran_FLAGS_DEBUG": "-g -O0 -Wall -Wextra -Wpedantic -Wcharacter-truncation -Wno-maybe-uninitialized -fcheck=all -fbacktrace"
       }
     },
     {
@@ -30,7 +45,7 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "CEA_ENABLE_BIND_C": "TRUE",
         "CEA_ENABLE_BIND_PYTHON": "TRUE",
-        "CMAKE_Fortran_FLAGS_DEBUG": "-g -O0 -warn all -check all -traceback -fpe0"
+        "CMAKE_Fortran_FLAGS_DEBUG": "-g -O0 -warn all -check all -traceback -fpe0 -warn all -warn interfaces -assume nostd_intent_in"
       }
     },
     {
@@ -73,7 +88,7 @@
         "CMAKE_C_COMPILER": "gcc",
         "CMAKE_CXX_COMPILER": "g++",
         "CMAKE_Fortran_COMPILER": "gfortran",
-        "CMAKE_Fortran_FLAGS": "-std=f2008 -fno_underscoring -fimplicit-none -ffree-line-length-none"
+        "CMAKE_Fortran_FLAGS": "-std=f2008 -fimplicit-none -ffree-line-length-none"
       }
     },
     {

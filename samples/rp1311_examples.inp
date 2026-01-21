@@ -1,0 +1,392 @@
+
+
+
+#                               SAMPLE PROBLEMS
+
+
+#  EXAMPLE 1:
+#     (a)  Assigned-temperature-and-pressure problem (tp).
+#     (b)  Reactants are H2 and Air.  Since "exploded" formulas are not given,
+#          these formulas will be taken from the thermodynamic data library,
+#          thermo.lib.
+#     (c)  Calculations are for two equivalence ratios (r,eq.ratio =1,1.5).
+#     (d)  Assigned pressures are 1, 0.1, and 0.01 atm (p(atm)=1,.1,.01).
+#     (e)  Assigned temperatures are 3000 and 2000 K (t(k)=3000,2000).
+#     (f)  'only' dataset is used to restrict possible products.
+#     (g)  Energy units in the final tables are in calories (calories).
+
+# 'problem' dataset:
+   problem case=Example-1 tp  p(atm)=1,.1,.01,t(k)=3000,2000,
+             r,eq.ratio=1,1.5
+# 'reactants' dataset:
+   reac
+     fuel= H2  moles = 1.
+     oxid= Air moles = 1.
+# 'only' dataset:
+   only  Ar    C   CO  CO2  H   H2   H2O  HNO   HO2   HNO2  HNO3  N   NH
+      NO   N2   N2O3  O  O2  OH  O3
+# 'output' dataset:
+   output calories
+# 'end' dataset
+   end
+
+
+!  EXAMPLE 2:
+!     (a)  Assigned-temperature-and-volume (or density) problem (tv).
+!     (b)  Reactants are the same as in example 1.
+!     (c)  One temperature was taken from example 1 (t(k)=3000).
+!     (d)  One mixture was taken from example 1 (phi,eq.ratio=1).
+!          Note: For stoichiometric mixtures, phi = r = 1.
+!     (e)  Densities (rho) were obtained from the results of example 1.
+!          Composition and properties in examples 1 and 2 should match for
+!          these input values.
+!     (f)  'only' dataset is used to restrict possible products.
+!     (g)  Transport properties are to be calculated (transport).
+
+      reac   fuel=H2   wt%=100
+             oxid Air   wt%=100
+      prob  case=Example-2  phi,eq.ratio=1, tv  t(k)=3000
+            rho,g/cc=9.1864d-05,8.0877d-06,6.6054d-07
+      only  Ar C CO CO2 H H2 H2O HNO HO2 HNO2 HNO3 N NH NO N2 N2O3 O O2 OH  O3
+      outp  transport calories
+      end
+
+
+!  EXAMPLE 3:
+!     (a)  Combustion or assigned-enthalpy-and-pressure problem (hp).
+!     (b)  Fuels are 'C7H8(L)' and 'C8H18(L),n-octa' at 298.15 K. The oxidant is
+!          air at 700 K.
+!     (c)  Oxidant-to-fuel weight ratio is 17 (o/f =17).  Weight fractions are
+!          fractions of fuel relative to total fuel and fractions of oxidant
+!          relative to total oxidant.
+!     (d)  Mixture enthalpy is calculated from reactant values given in
+!          thermo.lib. This is because data for these species are given in
+!          thermo.lib and the species names match exactly.
+!     (e)  Many species are omitted from the product data base ('omit' dataset).
+!          Note:  these species names must match those used in thermo.lib.
+!     (f)  Assigned pressures are 100, 10, and 1 bar (p(bar)=100,10,1).
+!     (g)  Mixture properties are to be printed in SI units (siunits).
+!     (h)  Mole fractions > 1.e-15 are to be in e-format (trace=1.e-15).
+!
+reac
+     oxid Air  wtfrac= 1   t(k)=700.0
+     fuel C7H8(L)   wtfrac= .4   t(k)= 298.15
+     fuel C8H18(L),n-octa   wtfrac= .6 t(k)= 298.15
+prob   case=Example-3   hp  p(bar)=100,10,1, o/f = 17
+output siunits  trace=1.e-15
+
+omit CCN              CNC              C2N2             C2O
+     C3H4,allene      C3H4,propyne     C3H4,cyclo-      C3
+     C3H5,allyl       C3H6,propylene   C3H6,cyclo-      C3H3,propargyl
+     C3H6O            C3H7,n-propyl    C3H7,i-propyl    Jet-A(g)
+     C3O2             C4               C4H2             C3H8O,2propanol
+     C4H4,1,3-cyclo-  C4H6,butadiene   C4H6,2-butyne    C3H8O,1propanol
+     C4H8,tr2-butene  C4H8,isobutene   C4H8,cyclo-      C4H6,cyclo-
+     (CH3COOH)2       C4H9,n-butyl     C4H9,i-butyl     C4H8,1-butene
+     C4H9,s-butyl     C4H9,t-butyl     C4H10,isobutane  C4H8,cis2-buten
+     C4H10,n-butane   C4N2             C5               C3H8
+     C5H6,1,3cyclo-   C5H8,cyclo-      C5H10,1-pentene  C10H21,n-decyl
+     C5H10,cyclo-     C5H11,pentyl     C5H11,t-pentyl   C12H10,biphenyl
+     C5H12,n-pentane  C5H12,i-pentane  CH3C(CH3)2CH3    C12H9,o-bipheny
+     C6H6             C6H5OH,phenol    C6H10,cyclo-     C6H2
+     C6H12,1-hexene   C6H12,cyclo-     C6H13,n-hexyl    C6H5,phenyl
+     C7H7,benzyl      C7H8             C7H8O,cresol-mx  C6H5O,phenoxy
+     C7H14,1-heptene  C7H15,n-heptyl   C7H16,n-heptane  C10H8,azulene
+     C8H8,styrene     C8H10,ethylbenz  C8H16,1-octene   C10H8,napthlene
+     C8H17,n-octyl    C8H18,isooctane  C8H18,n-octane   C9H19,n-nonyl
+     Jet-A(L)         C6H6(L)          H2O(s)           H2O(L)
+end  End all input for example 3
+
+
+!  EXAMPLE 4:
+!     (a)  Assigned-internal-energy-and-density problem (uv).
+!     (b)  Fuel, oxidant, and oxidant-to-fuel weight ratio are the same as in
+!          example 3.
+!     (c)  Internal energy u was taken from col. 1 of the output of example 3.
+!          However, input requires u/R, i.e., u = -375.27 kJ/kg and
+!          u/R = -375.27/8.31451 = -45.1343 (kg-mol)(K)/kg  (u/r=-45.1343).
+!     (d)  Units for density input are limited to g/cc and kg/m**3.  From
+!          example 3 point 1, rho = 14.428 kg/m**3 (rho,kg/m**3=14.428).
+!     (e)  Mixture properties are to be printed in SI units (default unit).
+!     (f)  Mole fractions > 1.e-15 are to be in e-format (trace=1.e-15).
+!     (g)  Note that since all parameters for this example are the same as
+!          those used for col. 1 of example 3, assigning u and rho from
+!          this column should yield the same pressure and temperature assigned
+!          for that point in example 3.
+
+ prob   case=Example-4, o/f=17   uv  u/r=-45.1343, rho,kg/m**3=14.428
+
+output  trace=1.e-15
+
+reac   oxid Air       wtfrac= 1    t(k)=700.0
+       fuel C7H8(L)   wtfrac= .4   t(k)= 298.15
+       fuel C8H18(L),n-octa wtfrac= .6 t(k)= 298.15
+
+omit CCN  CNC  C2N2  C2O  C3H4,allene  C3H4,propyne  C3H4,cyclo-  C3
+     C3H5,allyl      C3H6,propylene  C3H6,cyclo-     C3H3,propargyl
+     C3H6O           C3H7,n-propyl   C3H7,i-propyl   Jet-A(g)
+     C3O2            C4              C4H2            C3H8O,2propanol
+     C4H4,1,3-cyclo- C4H6,butadiene  C4H6,2-butyne   C3H8O,1propanol
+     C4H8,tr2-butene C4H8,isobutene  C4H8,cyclo-     C4H6,cyclo-
+     (CH3COOH)2      C4H9,n-butyl    C4H9,i-butyl    C4H8,1-butene
+     C4H9,s-butyl    C4H9,t-butyl    C4H10,isobutane C4H8,cis2-buten
+     C4H10,n-butane  C4N2            C5              C3H8
+     C5H6,1,3cyclo-  C5H8,cyclo-     C5H10,1-pentene C10H21,n-decyl
+     C5H10,cyclo-    C5H11,pentyl    C5H11,t-pentyl  C12H10,biphenyl
+     C5H12,n-pentane C5H12,i-pentane CH3C(CH3)2CH3   C12H9,o-bipheny
+     C6H6            C6H5OH,phenol   C6H10,cyclo-    C6H2
+     C6H12,1-hexene  C6H12,cyclo-    C6H13,n-hexyl   C6H5,phenyl
+     C7H7,benzyl     C7H8            C7H8O,cresol-mx C6H5O,phenoxy
+     C7H14,1-heptene C7H15,n-heptyl  C7H16,n-heptane C10H8,azulene
+     C8H8,styrene    C8H10,ethylbenz C8H16,1-octene  C10H8,napthlene
+     C8H17,n-octyl   C8H18,isooctane C8H18,n-octane  C9H19,n-nonyl
+     C7H8(L)  C8H18(L),n-octa Jet-A(L)  C6H6(L)  H2O(s)   H2O(L)
+ end
+
+
+!  EXAMPLE 5:
+!     (a)  Combustion problem (hp) for solid propellant with 5 ingredients.
+!     (b)  The assigned enthalpies and "exploded" formulas for four of the
+!          components are to be taken from thermo.lib.  However, data for
+!          'CHOS-Binder' are not available in thermo.lib and thus the "exploded"
+!          formula and enthalpy are given in the 'reac' dataset.
+!     (c)  The reactants are given in percent by weight (wt%=...).  The
+!          propellant components are not designated as fuel and oxidant - they
+!          are labelled with the 'name' alternative.  Weight fractions are
+!          relative to the total reactant.
+!     (d)  Five pressures are given in units of psia (p,psia=500,250,
+!          125,50,5,).
+!     (e)  As with examples 3 and 4, many species in thermo.lib are omitted
+!          as possible products by means of an 'omit' dataset.
+!     (f)  Energy units in the final tables are in calories (calories).
+
+reac
+   name NH4CLO4(I)   wt%= 72.06  t(k)=298.15
+   name CHOS-Binder C 1 H 1.86955 O .031256 S .008415 wt%=18.58
+                          h,cal=-2999.082 t(k)=298.15
+   name AL(cr)  wt%= 9.   t(k)=298.15
+   name MgO(cr)  wt%= .2   t(k)=298.15
+   name H2O(L)  wt%=.16   t(k)=298.15
+
+prob    case=5, hp   p,psia=500,250,125,50,5,
+
+outp   calories
+
+omit COOH  C2 C2H CHCO,ketyl  C2H2,vinylidene  CH2CO,ketene  C2H3,vinyl
+     CH3CO,acetyl  C2H4O,ethylen-o CH3CHO,ethanal  CH3COOH   (HCOOH)2
+     C2H5            C2H6            CH3N2CH3        CH3OCH3
+     C2H5OH          CCN             CNC             C2N2
+     C2O             C3              C3H3,propargyl  C3H4,allene
+     C3H4,propyne    C3H4,cyclo-     C3H5,allyl      C3H6,propylene
+     C3H6,cyclo-     C3H6O           C3H7,n-propyl   C3H7,i-propyl
+     C3H8            C3H8O,1propanol C3H8O,2propanol C3O2
+     C4              C4H2            C4H4,1,3-cyclo- C4H6,butadiene
+     C4H6,2-butyne   C4H6,cyclo-     C4H8,1-butene   C4H8,cis2-buten
+     C4H8,tr2-butene C4H8,isobutene  C4H8,cyclo-     (CH3COOH)2
+     C4H9,n-butyl    C4H9,i-butyl    C4H9,s-butyl    C4H9,t-butyl
+     C4H10,isobutane C4H10,n-butane  C4N2            C5
+     C5H6,1,3cyclo-  C5H8,cyclo-     C5H10,1-pentene C5H10,cyclo-
+     C5H11,pentyl    C5H11,t-pentyl  C5H12,n-pentane C5H12,i-pentane
+     CH3C(CH3)2CH3   C6H2            C6H5,phenyl     C6H5O,phenoxy
+     C6H6            C6H5OH,phenol   C6H10,cyclo-    C6H12,1-hexene
+     C6H12,cyclo-    C6H13,n-hexyl    C7H7,benzyl    C7H8
+     C7H8O,cresol-mx C7H14,1-heptene C7H15,n-heptyl  C7H16,n-heptane
+     C8H8,styrene    C8H10,ethylbenz C8H16,1-octene  C8H17,n-octyl
+     C8H18,isooctane C8H18,n-octane  C9H19,n-nonyl   C10H8,naphthale
+     C10H21,n-decyl  C12H9,o-bipheny C12H10,biphenyl Jet-A(g)
+     HNCO   HNO  HNO2   HNO3   HCCN    HCHO,formaldehy  HCOOH
+     NH     NH2  NH2OH  NCN    N2H2  NH2NO2   N2H4  H2O2
+ (HCOOH)2   C6H6(L)  C7H8(L)  C8H18(L),n-octa  Jet-A(L)  H2O(s) H2O(L)
+ end
+
+
+!  EXAMPLE 6:
+!     (a)  Chapman-Jouguet detonation problem (detonation)
+!     (b)  The reactants are H2 and O2 gases.  The mixture is
+!          stoichiometric (r,e=1).
+!     (c)  The unburned gases are at 298.15 and 500 K and pressures
+!          1 bar and 30 bars (t,k=298.15,500, pbar=1,30)
+!     (d)  Thermal transport properties are called for (transport).
+!     (e)  Energy units in the final tables are in calories (calories).
+
+reac  oxid O2  wt%=100      t(k)=298.15
+      fuel H2  wt%=100.     t(k)=298.15
+
+ prob  detonation   case=6  t=298.15,500, r,e=1, pbar=1,20
+
+output  calories transport
+end
+
+
+!  EXAMPLE 7:
+!     (a)  Shock tube problem (shock).
+!     (b)  Reactants are H2, O2, and Ar gases at 300 K.  Note that for shock
+!          problems reactants must be gaseous species in the thermodynamic
+!          data base.  The program calculates properties of the
+!          reactants at the temperature given (300 K) using the thermo.lib
+!          coefficients.
+!     (c)  Reactants are given in moles (moles = ...).
+!     (d)  Initial gas pressures are 10 and 20 mm Hg (p,mmhg=10,20,)
+!     (e)  Seven initial gas velocities are assigned (u1=1000,1100,1200,
+!          1250,1300,1350,1400,).  Note units of u1 are always m/s.
+!     (f)  Equilibrium calculations are to be performed for incident shock
+!          conditions (incd  eql).
+!     (g)  Frozen calculations are to be performed for incident shock
+!          conditions (incd  froz).
+!     (h)  No 'outp' dataset is given since the default values of the
+!          the parameters have the desired  values (e.g. SI units).
+
+reac   name= H2  moles= 0.050  t(k) 300.00
+       name= O2  moles= 0.050  t(k) 300.00
+       name= Ar  moles= 0.900  t(k) 300.00
+
+problem  case=7 p,mmhg=10,20, shock u1=1000,1100,1200,1250,1300,1350,1400,
+  incd froz  eql
+
+end
+
+
+#  EXAMPLE 8:
+#     (a)  Rocket problem with infinite-area combustor (rocket iac by default).
+#     (b)  The fuel is H2(L) at 20.27 K; the oxidant is O2(L) at 90.17 K.
+#          Both are in thermo.lib so that the enthalpies and "exploded" formulas
+#          do not need to be given.
+#     (c)  The oxidant-to-fuel ratio is 5.55157 (o/f=5.55157).
+#     (d)  The chamber pressure is 53.3172 bars (p,bar=53.3172).
+#     (e)  Calculations are with equilibrium chemistry only (equilibrium).
+#     (f)  For exit points there are three pressure ratios (pi/p=10,100,1000),
+#          one subsonic area ratio (subar=1.58), and three supersonic area
+#          ratios (supar=25,50,75).
+
+      problem  rocket  equilibrium  o/f=5.55157
+case=8  p,bar=53.3172 subar=1.58,pi/p=10,100,1000,supar=25,50,75
+      reactants
+fuel = H2(L)  wt% 100.   t(k) 20.27
+oxid = O2(L)  wt% 100.   t(k) 90.17
+      output  siunits
+      end
+
+
+#  EXAMPLE 9:
+#     (a)  Rocket problem with a finite-area combustor (rocket  fac).
+#     (b)  Contraction ratio of 1.58 (acat=1.58) is assigned.
+#     (c)  Fuel, oxidant, and the remaining parameters are the same as in
+#          example 8.
+
+reac  fuel = H2(L)  wt%=100.  t,k= 20.27
+      oxid = O2(L)  wt%=100.  t,k= 90.17
+problem  o/f=5.55157 case=9  rocket  fac  p,bar=53.3172 acat=1.58
+         pi/p=10,100,1000, supar=25,50,75
+output  siunits
+end
+
+
+#  EXAMPLE 10:
+#     (a)  Rocket problem with a finite-area combustor (rocket fac).
+#     (b)  A ratio of mass flow rate to chamber area of 1333.9 (ma=1333.9)
+#          is assigned.  This value was calculated from the results
+#          of example 9 where a contraction ratio of 1.58 was assigned.
+#     (c)  Fuel, oxidant, and the remaining parameters are the same as in
+#          examples 8 and 9.
+
+reac  fuel = H2(L)  t,k= 20.27
+      oxid = O2(L)  t,k= 90.17
+problem  o/f=5.55157 case=10  rocket  fac  p,bar=53.3172 ma=1333.9
+         pi/p=10,100,1000, sup-ae/at=25,50,75
+output  short
+end
+
+
+#  EXAMPLE 11:
+#     (a)  Rocket problem with an infinite-area combustor (rocket).
+#     (b)  Reactants are Li(cr) at 298.15 K and F2(L) at 85.02 K.
+#          Enthalpies and "exploded" formulas are to be taken from
+#          thermo.lib.  Thus this information is not given.
+#     (c)  Relative amounts of reactants are given as moles.
+#     (d)  Chamber pressure is 1000 psia (p,psia =1000).
+#     (e)  Ionized species are to be included in the products (ions).
+#     (f)  Only equilibrium calculations are to be performed (equilibrium).
+#     (g)  For exit points, one pressure ratio (pi/p=68.0457), one
+#          subsonic area ratio (sub,ae/at=10), and three supersonic area ratios
+#          (sup,ae/at=10,20,100) are to be included.
+
+reac   fuel = Li(cr) moles=   1.    t(k)=298.15
+       oxid = F2(L)  moles= .5556   t(k)=85.02
+prob   case=11 rocket  equilibrium  p,psia=1000 ions
+        pi/p=68.0457, sub,ae/at=10, sup,ae/at=10,20,100
+output siunits transport
+end
+
+
+#  EXAMPLE 12:
+#     (a)  Infinite-area rocket problem (rocket).
+#     (b)  The fuel is monomethyl hydrazine (CH6N2(L)) and the oxidant is
+#          nitrogen tetroxide (N2O4(L)) at 298.15 K.  Enthalpies and
+#          "exploded" formulas are to be taken from thermo.lib.
+#     (c)  The density of the reactant mixture is desired.  This requires
+#          the individual densities be given with the reactant data
+#          (rho,g/cc = .874 and rho,g/cc == 1.431).
+#     (d)  The oxidant-to-fuel weight ratio is 2.5 (o/f=2.5).
+#     (e)  Chamber pressure is 1000 psia (p,psia=1000).
+#     (f)  Equilibrium and frozen calculations are to be performed with
+#          freezing at the throat (nfz=2).
+#     (g)  For exit points one pressure ratio (pi/p=68.0457) and four
+#          supersonic area ratios (supersonic=10,50,100,200) are given.
+
+reac fuel = CH6N2(L)     rho,g/cc = .874
+     oxid = N2O4(L)      rho,g/cc = 1.431
+prob  rocket  case=12  p,psia =1000, pi/p=68.0457,  eql frozen nfz=2
+       supersonic=5,10,25,50,75,100,150,200, o/f= 2.5,
+only  CO    CO2   H   HNO  HNO2  HO2   H2    H2O   H2O2  N     NO    NO2
+     N2    N2O   O  OH  O2    HCO   NH    CH4  NH2  NH3  H2O(L)  C(gr)
+output  siunits  massf  plot aeat t p ivac isp mach cf
+end
+
+
+!EXAMPLE 13:
+!   (a)  Rocket problem with an infinite-area combustor (rocket). This
+!        problem was selected to show some unusual derivatives.
+!   (b)  Tripropellant.  Fuels are N2H4(L) and Be(L) and oxidant is H2O2(L),
+!        all at 298.15 K.
+!   (c)  Reactant mixture is given as 67% fuel by weight (%fuel=67.).
+!   (d)  Chamber pressure is 3000 psia (p,psia=3000).
+!   (e)  Calculations are to be for equilibrium conditions only (equilibrium).
+!   (f)  Four exit pressure ratios are assigned (pi/p=3,10,30,300).
+!   (g)  BeO(L) is included as possible combustion product for the first
+!        point (insert).
+!   (h)  Mole fractions > 1.e-10 are to be in e-format (trace=1.e-10).
+!   (i)  Units in final tables to be non-SI (calories).
+
+
+reac fuel = N2H4(L)    wt%= 80   t=298.15
+     fuel = Be(a)      wt%= 20   t=298.15
+     oxid = H2O2(L)    wt%=100   t=298.15
+prob  rocket  case=13  p,psia=3000, pi/p=3,10,30,300,equilibrium   %fuel = 67.
+
+outp  trace= 1.e-10 calories
+insert  BeO(L)
+end
+
+
+!  EXAMPLE 14:
+!     (a)  Output from this case is used 1) to illustrate the effect of
+!          condensed species on volume and molecular weight (see sec.2.2,part I)
+!     (b)  Assigned-temperature-and-pressure problem (tp).
+!     (c)  Reactants are H2(L) and O2(L) and amounts are specified in moles.
+!     (d)  The "exploded" formulas are given to save the program looking them
+!          up.  Reactant enthalpies are not needed for assigned temperature
+!          problems.
+!     (e)  Assigned pressure in atmospheres is p,atm =.05.
+!     (f)  Assigned temperatures in kelvin are t,k =1000,500,351,305,304.3,
+!          304, 300.
+!     (g)  Print intermediate output for the fifth point with debug = 5.
+
+reac      name H2(L) moles=100   H 2
+          name O2(L) moles=60    O 2
+
+prob      tp  p,atm=.05  case=14
+          t,k = 1000,500,350,305,304.3,304.2,304,300,
+
+output    siunits  debug = 5
+
+end

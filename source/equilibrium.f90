@@ -8,7 +8,9 @@ module cea_equilibrium
                          pi
     use cea_mixture, only: Mixture, MixtureThermo
     use cea_transport, only: TransportDB, get_mixture_transport
+    use fb_findloc, only: findloc
     use fb_utils
+    implicit none
 
     type :: EqSolver
         !! Equilibrium Solver Type
@@ -307,6 +309,7 @@ contains
         logical, intent(in), optional :: ions
         type(TransportDB), intent(in), optional :: all_transport
         character(*), intent(in), optional :: insert(:)  ! List of condensed species to insert
+        integer :: i
 
         ! Initialize reactant data
         self%products = products
@@ -359,6 +362,11 @@ contains
 
         ! Store the insert species
         if (present(insert)) then
+            do i = 1, size(insert)
+                if (len_trim(insert(i)) > snl) then
+                    call abort('EqSolver_init: insert species name too long: '//trim(insert(i)))
+                end if
+            end do
             self%insert = insert
         end if
 
@@ -1479,7 +1487,7 @@ contains
         logical, intent(in), optional :: computed_partials
 
         ! Locals
-        integer :: i, j
+        integer :: i
         logical :: computed_partials_
 
         computed_partials_ = .false.
@@ -1835,9 +1843,6 @@ contains
         type(EqSolver), intent(in), target :: solver
         real(dp), intent(in) :: nj_init(:)
 
-        ! Locals
-        integer :: i
-
         ! Check if nj_init is allocated and has the correct size
         if (size(nj_init) == solver%num_products) then
             self%nj = nj_init
@@ -1972,7 +1977,7 @@ contains
         ! log(T) at constant P (RP-1311 Table 2.3)
 
         ! Arguments
-        class(EqPartials), intent(inout), target :: self
+        class(EqPartials), intent(in) :: self
         class(EqSolver), intent(in), target :: solver
         class(EqSolution), intent(in), target :: soln
         real(dp), intent(out), allocatable :: J(:,:)
@@ -2070,7 +2075,7 @@ contains
         ! log(P) at constant T (RP-1311 Table 2.4)
 
         ! Arguments
-        class(EqPartials), intent(inout), target :: self
+        class(EqPartials), intent(in) :: self
         class(EqSolver), intent(in), target :: solver
         class(EqSolution), intent(in), target :: soln
         real(dp), intent(out), allocatable :: J(:,:)

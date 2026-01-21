@@ -632,6 +632,9 @@ contains
         allocate(f%coefficients(max_values))
 
         n = 1
+        if (len_trim(token) > en) then
+            call abort('parse_formula: element symbol too long: '//trim(token))
+        end if
         f%elements(n) = token
         f%coefficients(n) = scanner%read_real()
 
@@ -640,7 +643,11 @@ contains
             if (ierr /= 0) exit  ! Buffer empty
             select case(word(1:1))
                 case('A':'Z')
-                    f%elements(n) = scanner%read_word()
+                    word = scanner%read_word()
+                    if (len_trim(word) > en) then
+                        call abort('parse_formula: element symbol too long: '//trim(word))
+                    end if
+                    f%elements(n) = word
                     f%coefficients(n) = scanner%read_real()
                 case default
                     exit  ! Start of new keyword

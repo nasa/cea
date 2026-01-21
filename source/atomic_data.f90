@@ -139,9 +139,16 @@ contains
 
         ! Locals
         integer :: idx(1)
+        integer :: i
 
         ! Find the index of the requested symbol
-        idx = findloc(AtomicData%name, symbol)
+        idx = 0
+        do i = 1, size(AtomicData)
+            if (AtomicData(i)%name == symbol) then
+                idx(1) = i
+                exit
+            end if
+        end do
 
         ! Error if symbol not found
         if (idx(1) < 1) then

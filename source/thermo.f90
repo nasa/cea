@@ -114,6 +114,11 @@ contains
         real(dp) :: cv
         integer :: i, idx
 
+        if (.not. allocated(self%fits)) then
+            cv = 0.0d0
+            return
+        end if
+
         ! Select temperature range
         idx = 1
         do i = 1,self%num_intervals
@@ -133,6 +138,11 @@ contains
         real(dp) :: cp
         integer :: i, idx
 
+        if (.not. allocated(self%fits)) then
+            cp = 0.0d0
+            return
+        end if
+
         ! Select temperature range
         idx = 1
         do i = 1,self%num_intervals
@@ -151,6 +161,11 @@ contains
         real(dp), intent(in) :: T
         real(dp) :: u_R
         integer :: i, idx
+
+        if (.not. allocated(self%fits)) then
+            u_R = self%calc_enthalpy(T) - T
+            return
+        end if
 
         ! Select temperature range
         idx = 1
@@ -196,6 +211,11 @@ contains
         real(dp) :: s_R
         integer :: i, idx
 
+        if (.not. allocated(self%fits)) then
+            s_R = 0.0d0
+            return
+        end if
+
         ! Select temperature range
         idx = 1
         do i = 1,self%num_intervals
@@ -214,6 +234,11 @@ contains
         real(dp), intent(in) :: T
         real(dp) :: g
         integer :: i, idx
+
+        if (.not. allocated(self%fits)) then
+            g = self%calc_enthalpy(T)
+            return
+        end if
 
         ! Select temperature range
         idx = 1
@@ -355,15 +380,18 @@ contains
 
         ! Locals
         integer, allocatable :: sort_map(:), uniq_map(:)
-        integer :: num_unique, skip
+        integer :: num_unique, skip, i
 
         call log_info('Building list of unique elements')
         elem = reshape(sym, [size(sym)])
         call sort(elem, sort_map)
         call unique(elem, uniq_map, num_unique)
 
-        skip = findloc(elem, "",1)
-        skip = max(skip, 0)
+        skip = 0
+        do i = 1, num_unique
+            if (.not. is_empty(elem(i))) exit
+            skip = skip + 1
+        end do
 
         elem = elem(1+skip:num_unique)
         call log_info('Found '//to_str(size(elem))//' unique elements')

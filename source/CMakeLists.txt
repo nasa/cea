@@ -56,8 +56,7 @@ if(WIN32)
     # finding the path to the various DLLs and installing them.
     target_link_options(cea
                         PUBLIC "-static-libgfortran"
-                        PUBLIC "-static-libgcc"
-                        PUBLIC "-static-libquadmath")
+                        PUBLIC "-static-libgcc")
 endif()
 
 if(CEA_BUILD_TESTING)

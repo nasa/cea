@@ -5,6 +5,7 @@ module cea_transport
                          sn => species_name_len
     use cea_fits, only: TransportFit
     use cea_mixture, only: Mixture
+    use fb_findloc, only: findloc
     use fb_logging
     implicit none
 

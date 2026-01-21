@@ -6,6 +6,7 @@ module cea_detonation
     use cea_transport, only: TransportDB
     use cea_equilibrium, only: EqSolution, EqSolver, EqPartials
     use fb_utils
+    implicit none
 
     type :: DetonSolver
         !! Detonation solver object

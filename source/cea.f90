@@ -14,4 +14,5 @@ module cea
     use cea_rocket, only: RocketSolver, RocketSolution
     use cea_shock, only: ShockSolver, ShockSolution
     use cea_detonation, only: DetonSolver, DetonSolution
+    implicit none
 end module

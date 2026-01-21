@@ -7,6 +7,7 @@ add_library(fbasics_core
     ${CMAKE_CURRENT_BINARY_DIR}/parameters.f90
     algorithms.f90
     c_binding.f90
+    findloc.f90
     geometry.f90
     logging.f90
     math.f90

@@ -239,7 +239,7 @@ contains
         real(dp) :: state1, state2
         real(dp), allocatable :: weights(:)
         integer :: i, j, k, num_state1, num_state2, num_of
-        character(snl), allocatable :: product_names(:), reactant_names(:)
+        character(snl), allocatable :: product_names(:)
 
         ! Get the reactants Mixture object
         reactants = Mixture(thermo, input_reactants=prob%reactants, ions=prob%problem%include_ions)
@@ -359,9 +359,9 @@ contains
         real(dp) :: pc, hc
         real(dp), allocatable :: tc, tc_est, mdot, ac_at
         real(dp), allocatable :: subar(:), supar(:), pi_p(:)
-        logical :: fac, frz, eql, ions, need_hc
+        logical :: fac, frz, eql, need_hc
         integer :: nfrz
-        character(snl), allocatable :: product_names(:), reactant_names(:)
+        character(snl), allocatable :: product_names(:)
 
         ! Initialize
         need_hc = .false.
@@ -506,7 +506,7 @@ contains
         real(dp), allocatable :: weights(:)
         logical :: incident, input_reflected, frozen, equilibrium, incident_frozen, reflected_frozen, reflected, use_mach
         integer :: i, k, idx_P, idx_T, npts, num_u1, num_P, num_T
-        character(snl), allocatable :: product_names(:), reactant_names(:)
+        character(snl), allocatable :: product_names(:)
 
         ! Get the reactants Mixture object
         reactants = Mixture(thermo, input_reactants=prob%reactants, ions=prob%problem%include_ions)
@@ -735,9 +735,9 @@ contains
         type(DetonSolution) :: solution
         real(dp) :: T0, P0
         real(dp), allocatable :: weights(:)
-        logical :: frozen, equilibrium
+        logical :: frozen
         integer :: i, j, k, num_T, num_P, num_of
-        character(snl), allocatable :: product_names(:), reactant_names(:)
+        character(snl), allocatable :: product_names(:)
 
         ! Get the reactants Mixture object
         reactants = Mixture(thermo, input_reactants=prob%reactants, ions=prob%problem%include_ions)
@@ -835,7 +835,7 @@ contains
 
         ! Locals
         integer :: i, j, k, m, npts, idx, last_row_cols, nrows, ncols, num_trace
-        integer, parameter :: max_cols = 6
+        ! integer, parameter :: max_cols = 6
         real(dp) :: trace
         logical :: incident, reflected, equilibrium, frozen, input_reflected
         logical :: write_incd_frz, write_refl_frz, write_incd_eql, write_refl_eql
@@ -1094,7 +1094,7 @@ contains
                 write(ioout, *) ""
                 do idx = 1, solver%eq_solver%num_products
                     if (is_trace(idx) .eqv. .false.) then
-                        eq_fmt = get_shock_species_format(solutions, idx, 1, k, m, 2, prob%output%mass_fractions, trace)
+                        eq_fmt = get_shock_species_format(solutions, idx, 1, k, m, 2, prob%output%mass_fractions)
                         if (prob%output%mass_fractions) then
                             write(ioout, eq_fmt) solver%eq_solver%products%species_names(idx), &
                                 (solutions(i, 1, k)%eq_soln(2)%mass_fractions(idx), i=1,m)
@@ -1187,7 +1187,7 @@ contains
                 write(ioout, *) ""
                 do idx = 1, solver%eq_solver%num_products
                     if (is_trace(idx) .eqv. .false.) then
-                        eq_fmt = get_shock_species_format(solutions, idx, 1, k, m, 3, prob%output%mass_fractions, trace)
+                        eq_fmt = get_shock_species_format(solutions, idx, 1, k, m, 3, prob%output%mass_fractions)
                         if (prob%output%mass_fractions) then
                             write(ioout, eq_fmt) solver%eq_solver%products%species_names(idx), &
                                 (solutions(i, 1, k)%eq_soln(3)%mass_fractions(idx), i=1,m)
@@ -1233,7 +1233,7 @@ contains
         integer :: i, j, k, m, n, idx, last_row_cols, nrows, ncols, num_trace
         integer, parameter :: max_cols = 6
         real(dp) :: trace
-        logical :: frozen, transport
+        logical :: transport
         character(snl), allocatable :: trace_names(:)
         logical, allocatable :: is_trace(:)
         character(80) :: eq_fmt
@@ -1401,7 +1401,7 @@ contains
             write(ioout, *) ""
             do idx = 1, solver%eq_solver%num_products
                 if (.not. is_trace(idx)) then
-                    eq_fmt = get_deton_species_format(solutions, idx, k, m, n, prob%output%mass_fractions, trace)
+                    eq_fmt = get_deton_species_format(solutions, idx, k, m, n, prob%output%mass_fractions)
                     if (prob%output%mass_fractions) then
                         write(ioout, eq_fmt) solver%eq_solver%products%species_names(idx), &
                             ((solutions(i, j, k)%eq_soln%mass_fractions(idx), j=1,n), i=1,m)
@@ -1684,7 +1684,7 @@ contains
 
         ! Locals
         integer :: i, j, k, idx, m, n, num_trace, nrows, ncols, last_row_cols
-        integer, parameter :: max_cols = 6
+        ! integer, parameter :: max_cols = 6
         real(dp) :: of_ratio, pct_fuel, r_eq, phi_eq
         real(dp) :: trace
         character(snl), allocatable :: trace_names(:)
@@ -1831,7 +1831,7 @@ contains
             write(ioout, *) ""
             do idx = 1, solver%num_products
                 if (is_trace(idx) .eqv. .false.) then
-                    eq_fmt = get_eq_species_format(solutions, idx, k, m, n, prob%output%mass_fractions, trace)
+                    eq_fmt = get_eq_species_format(solutions, idx, k, m, n, prob%output%mass_fractions)
                     if (prob%output%mass_fractions) then
                         write(ioout, eq_fmt) solver%products%species_names(idx), &
                             ((solutions(i, j, k)%mass_fractions(idx), i=1,m), j=1,n)
@@ -1877,7 +1877,7 @@ contains
         ! Locals
         integer :: i, j, k, idx, ii, jj, m, n, num_trace, nrows, ncols, np, ne, nc
         integer :: max_exit, exit_extra, x, y, last_row_cols, nfrz
-        integer, parameter :: max_cols = 6
+        ! integer, parameter :: max_cols = 6
         integer, parameter :: infty_idx = 2
         real(dp) :: of_ratio, pct_fuel, r_eq, phi_eq
         real(dp) :: trace
@@ -2203,10 +2203,10 @@ contains
                         if (is_trace(ii) .eqv. .false.) then
                             if (frozen) then
                                 spec_fmt = get_rocket_species_format(solutions, ii, i, j, k, np, &
-                                    prob%output%mass_fractions, trace, .true., nfrz)
+                                    prob%output%mass_fractions, .true., nfrz)
                             else
                                 spec_fmt = get_rocket_species_format(solutions, ii, i, j, k, np, &
-                                    prob%output%mass_fractions, trace)
+                                    prob%output%mass_fractions)
                             end if
                             if (prob%output%mass_fractions) then
                                 if (frozen) then
@@ -2481,7 +2481,7 @@ contains
                                         write(ioout, '(1x, A15, 2x, 3(F13.5))', advance="no") &
                                             solver%eq_solver%products%species_names(ii), &
                                             (solutions(i, j, k)%eq_soln(idx)%mass_fractions(ii), idx=1,nc)
-                                        write(ioout, '(3(F13.5)))') (solutions(i, j, k)%eq_soln(idx)%mass_fractions(ii), idx=x,y)
+                                        write(ioout, '(3(F13.5))') (solutions(i, j, k)%eq_soln(idx)%mass_fractions(ii), idx=x,y)
                                     end if
                                 else
                                     if (frozen) then
@@ -2494,7 +2494,7 @@ contains
                                         write(ioout, '(1x, A15, 2x, 3(F13.5))', advance="no") &
                                             solver%eq_solver%products%species_names(ii), &
                                             (solutions(i, j, k)%eq_soln(idx)%mole_fractions(ii), idx=1,nc)
-                                        write(ioout, '(3(F13.5)))') (solutions(i, j, k)%eq_soln(idx)%mole_fractions(ii), idx=x,y)
+                                        write(ioout, '(3(F13.5))') (solutions(i, j, k)%eq_soln(idx)%mole_fractions(ii), idx=x,y)
                                     end if
                                 end if
                             end if
@@ -2636,7 +2636,7 @@ contains
 
     end subroutine
 
-    function get_eq_species_format(solutions, idx, k, m, n, mass_frac, trace) result(eq_fmt)
+    function get_eq_species_format(solutions, idx, k, m, n, mass_frac) result(eq_fmt)
         ! Write out the line formatting string for mole or mass fraction output
 
         ! Arguments
@@ -2646,7 +2646,6 @@ contains
         integer, intent(in) :: m  ! Size of index 1 of solutions
         integer, intent(in) :: n  ! Size of index 2 of solutions
         logical, intent(in) :: mass_frac  ! If true, use mass fractions; if false, use mole fractions
-        real(dp), intent(in) :: trace  ! Threshold amount
 
         ! Result
         character(70) :: eq_fmt
@@ -2686,7 +2685,7 @@ contains
 
     end function
 
-    function get_rocket_species_format(solutions, idx, i, j, k, np, mass_frac, trace, frozen, nfrz) result(spec_fmt)
+    function get_rocket_species_format(solutions, idx, i, j, k, np, mass_frac, frozen, nfrz) result(spec_fmt)
         ! Write out the line formatting string for mole or mass fraction output
 
         ! Arguments
@@ -2697,7 +2696,6 @@ contains
         integer, intent(in) :: k  ! o/f ratio index
         integer, intent(in) :: np  ! Number of product species to write out on this line
         logical, intent(in) :: mass_frac  ! If true, use mass fractions; if false, use mole fractions
-        real(dp), intent(in) :: trace  ! Threshold amount
         logical, intent(in), optional :: frozen  ! If true, use frozen values; if false, use equilibrium values
         integer, intent(in), optional :: nfrz  ! Index of frozen solution
 
@@ -2770,7 +2768,7 @@ contains
 
     end function
 
-    function get_shock_species_format(solutions, idx, j, k, m, n, mass_frac, trace) result(spec_fmt)
+    function get_shock_species_format(solutions, idx, j, k, m, n, mass_frac) result(spec_fmt)
         ! Write out the line formatting string for mole or mass fraction output
 
         ! Arguments
@@ -2781,7 +2779,6 @@ contains
         integer, intent(in) :: m  ! Number of initial shock velocities or Mach numbers
         integer, intent(in) :: n  ! Shock station index
         logical, intent(in) :: mass_frac  ! If true, use mass fractions; if false, use mole fractions
-        real(dp), intent(in) :: trace  ! Threshold amount
 
         ! Result
         character(80) :: spec_fmt
@@ -2819,7 +2816,7 @@ contains
 
     end function
 
-    function get_deton_species_format(solutions, idx, k, m, n, mass_frac, trace) result(eq_fmt)
+    function get_deton_species_format(solutions, idx, k, m, n, mass_frac) result(eq_fmt)
         ! Write out the line formatting string for mole or mass fraction output
 
         ! Arguments
@@ -2829,7 +2826,6 @@ contains
         integer, intent(in) :: m  ! Size of index 1 of solutions
         integer, intent(in) :: n  ! Size of index 2 of solutions
         logical, intent(in) :: mass_frac  ! If true, use mass fractions; if false, use mole fractions
-        real(dp), intent(in) :: trace  ! Threshold amount
 
         ! Result
         character(70) :: eq_fmt
