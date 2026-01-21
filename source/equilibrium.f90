@@ -2474,8 +2474,10 @@ contains
         do i = 1, ng
             dS_sum_state1 = dS_sum_state1 + self%dnj_dstate1(i)*s_g_minus(i)
             dS_sum_state1 = dS_sum_state1 + nj_g(i)* &
-                (ds_g_dT(i)*self%dT_dstate1 - dln_nj_dstate1(i) - dlogP_over_n_state1)
+                (ds_g_dT(i)*self%dT_dstate1 - dln_nj_dstate1(i))
         end do
+        ! Add the log(P/n) derivative terms once (not once per species)
+        dS_sum_state1 = dS_sum_state1 - n*dlogP_over_n_state1
         do idx_c = 1, na
             i = active_cond_idx(idx_c)
             dS_sum_state1 = dS_sum_state1 + self%dnj_dstate1(ng+idx_c)*s_c(i)
@@ -2491,8 +2493,10 @@ contains
             do i = 1, ng
                 dS_sum_state2 = dS_sum_state2 + self%dnj_dstate2(i)*s_g_minus(i)
                 dS_sum_state2 = dS_sum_state2 + nj_g(i)* &
-                    (ds_g_dT(i)*self%dT_dstate2 - dln_nj_dstate2(i) - dlogP_over_n_state2)
+                    (ds_g_dT(i)*self%dT_dstate2 - dln_nj_dstate2(i))
             end do
+            ! Add the log(P/n) derivative terms once (not once per species)
+            dS_sum_state2 = dS_sum_state2 - n*dlogP_over_n_state2
             do idx_c = 1, na
                 i = active_cond_idx(idx_c)
                 dS_sum_state2 = dS_sum_state2 + self%dnj_dstate2(ng+idx_c)*s_c(i)
@@ -2510,8 +2514,10 @@ contains
                 do i = 1, ng
                     dS_sum_dw0(j) = dS_sum_dw0(j) + self%dnj_dw0(i, j)*s_g_minus(i)
                     dS_sum_dw0(j) = dS_sum_dw0(j) + nj_g(i)* &
-                        (ds_g_dT(i)*self%dT_dw0(j) - dln_nj_dw0(i, j) - dlogP_over_n_dw0(j))
+                        (ds_g_dT(i)*self%dT_dw0(j) - dln_nj_dw0(i, j))
                 end do
+                ! Add the log(P/n) derivative terms once (not once per species)
+                dS_sum_dw0(j) = dS_sum_dw0(j) - n*dlogP_over_n_dw0(j)
                 do idx_c = 1, na
                     i = active_cond_idx(idx_c)
                     dS_sum_dw0(j) = dS_sum_dw0(j) + self%dnj_dw0(ng+idx_c, j)*s_c(i)
