@@ -42,4 +42,29 @@ module cea_param
     real(dp), parameter :: inv_sqrt2 = 1.0d0/sqrt2
     real(dp), parameter :: inv_sqrt3 = 1.0d0/sqrt3
 
+contains
+
+    subroutine get_data_search_dirs(search_dirs)
+        character(:), allocatable, intent(out) :: search_dirs(:)
+        character(:), allocatable :: env_dir
+        integer :: env_status, env_len, max_len
+
+        call get_environment_variable("CEA_DATA_DIR", length=env_len, status=env_status)
+        if (env_status == 0 .and. env_len > 0) then
+            allocate(character(env_len) :: env_dir)
+            call get_environment_variable("CEA_DATA_DIR", value=env_dir)
+        end if
+
+        if (allocated(env_dir)) then
+            max_len = max(len(env_dir), len(data_dirs(1)))
+            allocate(character(max_len) :: search_dirs(size(data_dirs) + 1))
+            search_dirs(1) = data_dirs(1)
+            search_dirs(2) = env_dir
+            search_dirs(3:) = data_dirs(2:)
+        else
+            allocate(character(len(data_dirs(1))) :: search_dirs(size(data_dirs)))
+            search_dirs = data_dirs
+        end if
+    end subroutine
+
 end module

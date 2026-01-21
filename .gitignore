@@ -18,6 +18,7 @@ extern/install
 *.xlsx
 *.pdf
 *.bat
+*.lib
 !sampleThe/*.inp
 !test/main_interface/*.inp
 !test/main_interface/reference_output/*.out

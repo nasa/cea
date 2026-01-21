@@ -19,6 +19,7 @@ program cea
     ! Locals
     character(:), allocatable :: input_file, thermo_file, trans_file
     character(:), allocatable :: compile_thermo_input, compile_trans_input
+    character(:), allocatable :: data_search_dirs(:)
     type(ThermoDB) :: all_thermo
     type(TransportDB) :: all_transport
     type(ProblemDB), allocatable :: problems(:)
@@ -57,12 +58,14 @@ program cea
         call abort('Could not locate input file: '//input_file)
     end if
 
-    thermo_file = locate(thermo_file, data_dirs)
+    call get_data_search_dirs(data_search_dirs)
+
+    thermo_file = locate(thermo_file, data_search_dirs)
     if (len(thermo_file) == 0) then
         call abort('Could not locate thermo file: '//thermo_file)
     end if
 
-    trans_file = locate(trans_file, data_dirs)
+    trans_file = locate(trans_file, data_search_dirs)
     if (len(trans_file) == 0) then
         call log_info('Could not locate transport file: '//trans_file)
     else

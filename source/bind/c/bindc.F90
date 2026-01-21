@@ -3,7 +3,7 @@ module cea_bindc
     use cea, snl => species_name_len, &
              enl => element_name_len, &
              wp => real_kind
-    use cea_param, only: data_dirs, empty_dp, gas_constant
+    use cea_param, only: empty_dp, gas_constant, get_data_search_dirs
     use cea_input, only: ReactantInput
     use cea_mixture, only: names_match
     use iso_c_binding
@@ -302,11 +302,13 @@ contains
         character(c_char), intent(in) :: cthermofile(*)
         character(:), allocatable :: thermofile
         character(:), allocatable :: resolved
+        character(:), allocatable :: search_dirs(:)
 
         ierr = CEA_SUCCESS
 
         call c_copy(cthermofile, thermofile)
-        resolved = locate(thermofile, data_dirs)
+        call get_data_search_dirs(search_dirs)
+        resolved = locate(thermofile, search_dirs)
         if (is_empty(resolved)) then
             ierr = CEA_INVALID_FILENAME
             call log_error('Could not locate thermo database file: '//thermofile)
@@ -334,11 +336,13 @@ contains
         character(c_char), intent(in) :: ctransfile(*)
         character(:), allocatable :: transfile
         character(:), allocatable :: resolved
+        character(:), allocatable :: search_dirs(:)
 
         ierr = CEA_SUCCESS
 
         call c_copy(ctransfile, transfile)
-        resolved = locate(transfile, data_dirs)
+        call get_data_search_dirs(search_dirs)
+        resolved = locate(transfile, search_dirs)
         if (is_empty(resolved)) then
             ierr = CEA_INVALID_FILENAME
             call log_error('Could not locate transport database file: '//transfile)

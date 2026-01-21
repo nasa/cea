@@ -101,6 +101,16 @@ add_custom_target(compile_databases ALL
     DEPENDS ${CMAKE_BINARY_DIR}/thermo.lib ${CMAKE_BINARY_DIR}/trans.lib
 )
 
+if(PROJECT_IS_TOP_LEVEL)
+    add_custom_command(TARGET compile_databases POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${CMAKE_BINARY_DIR}/thermo.lib ${CMAKE_SOURCE_DIR}/data/thermo.lib
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${CMAKE_BINARY_DIR}/trans.lib ${CMAKE_SOURCE_DIR}/data/trans.lib
+        COMMENT "Copying compiled databases to source data directory"
+    )
+endif()
+
 
 #-----------------------------------------------------------------------
 # Installation
@@ -108,6 +118,10 @@ add_custom_target(compile_databases ALL
 install(
     FILES ${CMAKE_BINARY_DIR}/thermo.lib ${CMAKE_BINARY_DIR}/trans.lib
     DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/cea
+)
+install(
+    FILES ${CMAKE_BINARY_DIR}/thermo.lib ${CMAKE_BINARY_DIR}/trans.lib
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/data
 )
 install(EXPORT cea-config
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/cea
