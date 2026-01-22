@@ -15,6 +15,38 @@ CEA is governed by the following priorities:
 
 Changes that improve readability, documentation, or interfaces are often welcome. Changes that alter numerical behavior require careful justification and review.
 
+## Getting Started
+
+### Setting Up Your Development Environment
+
+1. **Fork and clone the repository**
+   ```bash
+   git clone https://github.com/your-username/cea.git
+   cd cea
+   ```
+
+2. **Choose a development preset**
+   CEA provides CMake presets for development. For contributors, use one of:
+   - `dev` – GNU/gfortran with all bindings (recommended for most contributors)
+   - `dev-intel` – Intel ifort with all bindings
+   - `dev-ub-hunt` – GNU with undefined behavior detection (for advanced debugging)
+
+3. **Configure and build**
+   ```bash
+   cmake --preset dev
+   cmake --build build-dev
+   ```
+
+4. **Run tests to verify your setup**
+   ```bash
+   cd build-dev
+   ctest
+   ```
+
+For Python development, see the [Python Binding Rebuilds](#python-binding-rebuilds-editable-installs) section below.
+
+See [README.md](README.md) for detailed build instructions and requirements.
+
 ## Codebase Overview
 
 CEA consists of three primary layers:
@@ -97,6 +129,50 @@ At minimum, contributors should verify that:
 - Existing tests pass
 - No unintended behavior changes occur
 
+### Running Tests
+
+CEA uses pFUnit (part of the Goddard Fortran Ecosystem) for unit testing. Tests are enabled via the `CEA_BUILD_TESTING` CMake option.
+
+**Prerequisites:**
+1. Clone GFE into the `extern/` directory:
+   ```bash
+   cd extern
+   git clone https://github.com/Goddard-Fortran-Ecosystem/GFE.git
+   cd GFE
+   git submodule update --init
+   ```
+
+2. Configure CEA with testing enabled (the `dev*` presets enable this by default):
+   ```bash
+   cmake --preset dev
+   cmake --build build-dev
+   ```
+
+**Running all tests:**
+```bash
+cd build-dev
+ctest
+```
+
+**Running specific tests:**
+```bash
+# Run core CEA unit tests with verbose output
+ctest -R cea_core_test -V
+
+# Run all main interface tests
+ctest -R cea_main_test
+
+# Run C binding tests
+ctest -R cea_bindc
+```
+
+**Available test suites:**
+- `cea_core_test` – Core Fortran solver unit tests
+- `cea_main_test*` – Legacy CLI interface tests
+- `cea_bindc_*` – C binding validation tests
+
+For Python tests, see the [Python Binding Rebuilds](#python-binding-rebuilds-editable-installs) section.
+
 ## Python Binding Rebuilds (Editable Installs)
 
 The Python package uses scikit-build-core with Ninja. Editable installs do not rebuild on import,
@@ -140,10 +216,25 @@ There is no strict formatting tool enforced, but contributors should follow exis
 
 ## Commit and Pull Request Guidelines
 
+### Branch Naming
+
+Branch names must use one of the following prefixes:
+
+- `feat/` – New features
+- `fix/` – Bug fixes
+- `docs/` – Documentation changes
+- `chore/` – Build, tooling, dependencies
+- `refactor/` – Code restructuring (no behavior change)
+- `test/` – Test additions or improvements
+- `exp/` – Experimental work
+- `wip/` – Work in progress
+
+Prefer short, descriptive topic names (e.g., `fix/python-import-error`, `docs/build-instructions`).
+
 ### Commits
 
 - Use clear, descriptive commit messages
-- Avoid “drive-by” formatting or whitespace changes
+- Avoid "drive-by" formatting or whitespace changes
 
 ### Pull Requests
 
