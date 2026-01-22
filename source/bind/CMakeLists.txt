@@ -64,12 +64,16 @@ if (CEA_ENABLE_BIND_PYTHON)
         ${PYTHON_INCLUDE_DIRS}
         ${NumPy_INCLUDE_DIRS}
         c)
+    if(TARGET compile_databases)
+        add_dependencies(libcea compile_databases)
+    endif()
     # the compiled library
     install(TARGETS libcea DESTINATION lib)
     install(TARGETS cea_bindc DESTINATION lib)
     # default data files (compiled during build)
     install(FILES ${CMAKE_BINARY_DIR}/thermo.lib DESTINATION data)
     install(FILES ${CMAKE_BINARY_DIR}/trans.lib DESTINATION data)
+
     # rest of the pure python package files handled by pip & scikit-build-core
 
 endif()

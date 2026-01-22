@@ -1,5 +1,8 @@
 import os
+import shutil
+import subprocess
 import warnings
+from pathlib import Path
 import pandas as pd
 
 # This program will run the tests in `test_names`, executing the `.inp` files
@@ -19,8 +22,10 @@ test_names = [
     "example7",  # Shock problem
     "example6"   # Deton problem
     ]
-reference_dir = "./reference_output/"
-test_dir = "./test_output/"
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent.parent
+reference_dir = SCRIPT_DIR / "reference_output"
+test_dir = SCRIPT_DIR / "test_output"
 
 # Initialize values
 test_passed = True  # Flag for each individual test case
@@ -61,13 +66,28 @@ def ref_round(ref_val, test_val):
 
 def run_tests(test_names):
 
-    run_dir = "~/git/cea/build-dev/source"
+    run_dir = Path(os.environ.get("CEA_RUN_DIR", "~/git/cea/build-dev/source")).expanduser()
+    default_exe = run_dir / "cea"
+    cea_exe = os.environ.get("CEA_EXE")
+    if cea_exe is None:
+        if default_exe.exists():
+            cea_exe = str(default_exe)
+        else:
+            cea_exe = shutil.which("cea")
+    if cea_exe is None:
+        raise FileNotFoundError("Could not locate `cea` executable. Set CEA_EXE or CEA_RUN_DIR, or add `cea` to PATH.")
+
+    test_dir.mkdir(parents=True, exist_ok=True)
 
     for test in test_names:
         # Execute the code on the input file
         print(f"Running {test}")
-        os.system(run_dir+"/cea"+f" {test}")
-        os.system(f"mv {test}.out {test_dir}")
+        input_base = SCRIPT_DIR / test
+        subprocess.run([cea_exe, str(input_base)], cwd=REPO_ROOT, check=True)
+        out_file = input_base.with_suffix(".out")
+        if not out_file.exists():
+            raise FileNotFoundError(f"Expected output file not found: {out_file}")
+        shutil.move(str(out_file), str(test_dir / out_file.name))
         print()
 
     return
@@ -91,10 +111,10 @@ for test in test_names:
     test_passed = True
 
     # Get the validation output
-    thermo_ref, amounts_ref, transport_ref, rocket_ref, shock_ref, deton_ref = parse_output(reference_dir+f"{test}.out")
+    thermo_ref, amounts_ref, transport_ref, rocket_ref, shock_ref, deton_ref = parse_output(str(reference_dir / f"{test}.out"))
 
     # Get the test output
-    thermo, amounts, transport, rocket, shock, deton = parse_output(test_dir+f"{test}.out")
+    thermo, amounts, transport, rocket, shock, deton = parse_output(str(test_dir / f"{test}.out"))
 
     # Compare thermo output
     # ---------------------

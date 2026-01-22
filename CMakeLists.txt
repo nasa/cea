@@ -107,6 +107,14 @@ if(PROJECT_IS_TOP_LEVEL)
                 ${CMAKE_BINARY_DIR}/thermo.lib ${CMAKE_SOURCE_DIR}/data/thermo.lib
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 ${CMAKE_BINARY_DIR}/trans.lib ${CMAKE_SOURCE_DIR}/data/trans.lib
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+                ${CMAKE_SOURCE_DIR}/source/bind/python/cea/data
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${CMAKE_BINARY_DIR}/thermo.lib
+                ${CMAKE_SOURCE_DIR}/source/bind/python/cea/data/thermo.lib
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${CMAKE_BINARY_DIR}/trans.lib
+                ${CMAKE_SOURCE_DIR}/source/bind/python/cea/data/trans.lib
         COMMENT "Copying compiled databases to source data directory"
     )
 endif()

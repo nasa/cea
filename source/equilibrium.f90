@@ -1842,11 +1842,21 @@ contains
         class(EqSolution), intent(inout), target :: self
         type(EqSolver), intent(in), target :: solver
         real(dp), intent(in) :: nj_init(:)
+        integer :: i
+        real(dp), parameter :: smalno = 1.0d-6
+        real(dp), parameter :: smnol = -13.815511d0
 
         ! Check if nj_init is allocated and has the correct size
         if (size(nj_init) == solver%num_products) then
             self%nj = nj_init
-            self%ln_nj = log(self%nj(:solver%num_gas))
+            do i = 1, solver%num_gas
+                if (self%nj(i) <= 0.0d0) then
+                    self%nj(i) = smalno
+                    self%ln_nj(i) = smnol
+                else
+                    self%ln_nj(i) = log(self%nj(i))
+                end if
+            end do
             self%n = sum(self%nj(:solver%num_gas))
         else
             call abort('EqSolution_set_nj: nj_init must be allocated and have size equal to num_products.')

@@ -85,6 +85,8 @@ LOG_INFO     = CEA_LOG_INFO
 LOG_DEBUG    = CEA_LOG_DEBUG
 LOG_NONE     = CEA_LOG_NONE
 
+_py_log_level = LOG_WARNING
+
 # Alias the equilibrium problem types
 TP = CEA_TP
 HP = CEA_HP
@@ -285,7 +287,15 @@ def set_log_level(level):
     """
     cdef cea_err ierr
     ierr = cea_set_log_level(level)
+    global _py_log_level
+    _py_log_level = int(level)
     return
+
+def _maybe_print_init_path(label, path):
+    if _py_log_level == LOG_NONE:
+        return
+    if path:
+        print(f"Loaded {label} from: {path}")
 
 def init(path=None, trans=True):
     """
@@ -295,7 +305,8 @@ def init(path=None, trans=True):
     ----------
     path : str, optional
         Path to directory containing thermo.lib and trans.lib files. If None, searches the
-        current directory, then CEA_DATA_DIR, then the packaged cea/data directory.
+        current directory, then CEA_DATA_DIR, then the packaged cea/data directory, then
+        the repo data directory if present.
     trans : bool, default True
         Whether to initialize transport properties. Transport data are optional.
 
@@ -315,6 +326,8 @@ def init(path=None, trans=True):
         if env_dir:
             candidate_dirs.append(env_dir)
 
+        dev_data_dir = None
+
         pkg_data = None
         try:
             pkg_data = importlib_resources.files("cea").joinpath("data")
@@ -323,7 +336,21 @@ def init(path=None, trans=True):
 
         if pkg_data is not None:
             with importlib_resources.as_file(pkg_data) as pkg_path:
+                if dev_data_dir is None:
+                    try:
+                        # Find repo root by locating data/thermo.inp for dev-tree runs.
+                        search_root = os.path.dirname(pkg_path)
+                        for _ in range(6):
+                            dev_candidate = os.path.join(search_root, "data")
+                            if os.path.isfile(os.path.join(dev_candidate, "thermo.inp")):
+                                dev_data_dir = dev_candidate
+                                break
+                            search_root = os.path.dirname(search_root)
+                    except Exception:
+                        dev_data_dir = None
                 pkg_dirs = candidate_dirs + [str(pkg_path)]
+                if dev_data_dir and dev_data_dir not in pkg_dirs:
+                    pkg_dirs.append(dev_data_dir)
                 thermo_path = None
                 trans_path = None
                 for dirname in pkg_dirs:
@@ -344,6 +371,7 @@ def init(path=None, trans=True):
                 ierr = cea_init_thermo(cthermo_path.ptr)
                 if ierr != SUCCESS:
                     raise ValueError("Invalid path; thermo.lib not found.")
+                _maybe_print_init_path("thermo.lib", thermo_path)
 
                 if trans:
                     if trans_path is None:
@@ -359,7 +387,12 @@ def init(path=None, trans=True):
                                 "trans.lib could not be initialized; continuing without transport properties.",
                                 RuntimeWarning,
                             )
+                        else:
+                            _maybe_print_init_path("trans.lib", trans_path)
                 return
+
+        if dev_data_dir and dev_data_dir not in candidate_dirs:
+            candidate_dirs.append(dev_data_dir)
 
         thermo_path = None
         trans_path = None
@@ -381,6 +414,7 @@ def init(path=None, trans=True):
         ierr = cea_init_thermo(cthermo_path.ptr)
         if ierr != SUCCESS:
             raise ValueError("Invalid path; thermo.lib not found.")
+        _maybe_print_init_path("thermo.lib", thermo_path)
 
         if trans:
             if trans_path is None:
@@ -396,22 +430,29 @@ def init(path=None, trans=True):
                         "trans.lib could not be initialized; continuing without transport properties.",
                         RuntimeWarning,
                     )
+                else:
+                    _maybe_print_init_path("trans.lib", trans_path)
         return
 
     if type(path) is not str:
         raise TypeError("init path must be a string to the location of thermo.lib, and optionally trans.lib")
-    cthermo_path = _CString(path+"/thermo.lib", "init path")
+    thermo_path = os.path.join(path, "thermo.lib")
+    trans_path = os.path.join(path, "trans.lib")
+    cthermo_path = _CString(thermo_path, "init path")
     ierr = cea_init_thermo(cthermo_path.ptr)
     if ierr != SUCCESS:
         raise ValueError("Invalid path; thermo.lib not found.")
+    _maybe_print_init_path("thermo.lib", thermo_path)
     if trans:
-        ctrans_path = _CString(path+"/trans.lib", "init path")
+        ctrans_path = _CString(trans_path, "init path")
         ierr = cea_init_trans(ctrans_path.ptr)
         if ierr != SUCCESS:
             warnings.warn(
                 "trans.lib not found; continuing without transport properties.",
                 RuntimeWarning,
             )
+        else:
+            _maybe_print_init_path("trans.lib", trans_path)
     return
 
 def init_thermo(thermofile):

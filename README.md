@@ -141,6 +141,28 @@ will be executing the `cea` program (usually the same directory as the `.inp`
 problem definition file). Database files in the working directory will take
 precedence over the installed database files in `<cea_install_dir>/data/`.
 
+### Database Lookup
+
+CEA locates `thermo.lib` and `trans.lib` in the following order:
+
+- For the CLI and C/Fortran APIs: current working directory, `CEA_DATA_DIR` (if
+  set), `./data`, then `<cea_install_dir>/data`.
+- For Python (`cea.init()` with no path): current working directory,
+  `CEA_DATA_DIR` (if set), packaged `cea/data`, then the repo `data/` directory
+  when running from a source checkout.
+
+You can override the search path by setting `CEA_DATA_DIR` or by passing explicit
+paths:
+
+```bash
+export CEA_DATA_DIR=/path/to/cea/data
+```
+
+```python
+import cea
+cea.init("/path/to/cea/data")
+```
+
 
 ## References
  1. McBride, B.J., Zehe, M. J., Gordon, S., "NASA Glenn Coefficients for Calculating Thermodynamic Properties of Individual Species",

@@ -185,6 +185,11 @@ Recommended workflow:
 - Rebuild the editable install (uses `--no-build-isolation`): `make py-rebuild`
 - Run Python tests: `pytest source/bind/python/tests`
 
+Python database lookup follows the same precedence as the CLI: current working
+directory, `CEA_DATA_DIR` (if set), packaged `cea/data`, then the repo `data/`
+directory when running from a source checkout. Set `CEA_DATA_DIR` to point to
+custom databases if needed.
+
 If you are unsure how to test a change, ask in the issue or PR.
 
 ## Documentation Contributions
