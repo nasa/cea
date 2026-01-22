@@ -82,6 +82,9 @@ Large refactors or algorithmic changes should be discussed before implementation
    - Why the change is needed
    - Whether numerical behavior is expected to change
    This helps avoid duplicated effort and ensures alignment.
+   Use the issue templates for bug reports and feature requests:
+   - `.github/ISSUE_TEMPLATE/bug_report.md`
+   - `.github/ISSUE_TEMPLATE/feature_request.md`
 
 2. **Make Small, Focused Changes**
    Each pull request should ideally address one concern:
@@ -249,6 +252,9 @@ Your PR description should include:
 - Motivation
 - Impacted components
 - Whether numerical behavior changes (yes/no)
+
+The PR template provides a concise checklist:
+- `.github/pull_request_template.md`
 
 ## What Not to Change
 
