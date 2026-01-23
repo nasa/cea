@@ -19,10 +19,7 @@ add_installed_library(cea_core
     detonation.f90
     thermo.f90
     transport.f90
-<<<<<<< HEAD
-=======
     # derivatives.f90
->>>>>>> 11e7249 (Initial derivatives branch)
     units.f90
 )
 target_link_libraries(cea_core PRIVATE fbasics::core)
@@ -39,10 +36,7 @@ if(CEA_BUILD_TESTING)
             rocket_test.pf
             shock_test.pf
             detonation_test.pf
-<<<<<<< HEAD
-=======
             # derivatives_test.pf
->>>>>>> 11e7249 (Initial derivatives branch)
         LINK_LIBRARIES cea::core fbasics::core
     )
     set_tests_properties(cea_core_test PROPERTIES
