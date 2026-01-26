@@ -1913,14 +1913,11 @@ contains
         n = solution%n
         nj  => solution%nj
         nj_g => solution%nj(:ng)
-        ! nj_c => solution%nj(ng+1:)
         ln_nj => solution%ln_nj
         h_g => solution%thermo%enthalpy(:ng)
         h_c => solution%thermo%enthalpy(ng+1:)
         s_g => solution%thermo%entropy(:ng)
-        ! s_c => solution%thermo%entropy(ng+1:)
         u_g => solution%thermo%energy(:ng)
-        ! cp => solution%thermo%cp
 
         ! Get the mixture pressure and temperature
         P = solution%calc_pressure()
@@ -1932,19 +1929,17 @@ contains
         ! Evalutate constraint residuals
         dhsu_delta_dP = 0.0d0
         if (const_s) then
-            dhsu_delta_dP = sum(nj_g)/P
+            dhsu_delta_dP = -sum(nj_g)/P
         end if
 
         ! Compute intermediate derivatives
         do i = 1, ng
             dh_g_dT(i) = solver%products%species(i)%calc_denthalpy_dT(T)/T - h_g(i)/T
             ds_g_dT(i) = solver%products%species(i)%calc_dentropy_dT(T)
-            ! dcp_g_dT(i) = solver%products%species(i)%calc_dcp_dT(T)
         end do
         do i = 1, nc
             dh_c_dT(i) = solver%products%species(ng+i)%calc_denthalpy_dT(T)/T - h_c(i)/T
             ds_c_dT(i) = solver%products%species(ng+i)%calc_dentropy_dT(T)
-            ! dcp_c_dT(i) = solver%products%species(ng+i)%calc_dcp_dT(T)
         end do
 
         ! Initialize the iteration matrix
@@ -2048,6 +2043,9 @@ contains
             c = c+1
             self%Rx(r, c) = -dhsu_delta_dP - dot_product(dtmp_dP, mu_g) - sum(tmp)/P
             if (.not. const_p) then
+                if (const_s) then
+                    self%Rx(r, c) = self%Rx(r, c) + sum(nj_g)/P
+                end if
                 self%Rx(r, c) = self%Rx(r, c)*(-P/cons%state2)
             end if
 
@@ -2136,9 +2134,9 @@ contains
         real(dp), allocatable :: dS_sum_dw0(:)
         real(dp) :: sum_h
         real(dp) :: sum_dh_dT
-        real(dp) :: sum_dcp_dT
         real(dp) :: sum_h_dnj
         real(dp) :: sum_cp_dnj
+        real(dp) :: sum_dcp_dT_term
         real(dp) :: sum_cp
         real(dp) :: dS_sum_state1
         real(dp) :: dS_sum_state2
@@ -2387,8 +2385,6 @@ contains
         sum_dh_dT = dot_product(nj_g, dh_g_dT)
         if (nc > 0) sum_dh_dT = sum_dh_dT + dot_product(nj_c, dh_c_dT)
 
-        sum_dcp_dT = dot_product(nj_g, dcp_g_dT)
-        if (nc > 0) sum_dcp_dT = sum_dcp_dT + dot_product(nj_c, dcp_c_dT)
         sum_cp = dot_product(nj_g, cp(:ng))
         if (nc > 0) sum_cp = sum_cp + dot_product(nj_c, cp(ng+1:))
         if (abs((sum_h + T*sum_dh_dT) - sum_cp) > 1.0d-8*max(1.0d0, abs(sum_cp))) then
@@ -2447,7 +2443,11 @@ contains
         ! ---------------------------------------------------------
 
         ! dU/dstate1:
-        self%dU_dstate1 = self%dH_dstate1 - fac*(n*self%dT_dstate1 + T*self%dn_dstate1)
+        if (const_u) then
+            self%dU_dstate1 = 1.0d0
+        else
+            self%dU_dstate1 = self%dH_dstate1 - fac*(n*self%dT_dstate1 + T*self%dn_dstate1)
+        end if
 
         ! dU/dstate2:
         if (const_u) then
@@ -2470,20 +2470,24 @@ contains
         ! ---------------------------------------------------------
 
         ! dS/dstate1:
-        dS_sum_state1 = 0.0d0
-        do i = 1, ng
-            dS_sum_state1 = dS_sum_state1 + self%dnj_dstate1(i)*s_g_minus(i)
-            dS_sum_state1 = dS_sum_state1 + nj_g(i)* &
-                (ds_g_dT(i)*self%dT_dstate1 - dln_nj_dstate1(i))
-        end do
-        ! Add the log(P/n) derivative terms once (not once per species)
-        dS_sum_state1 = dS_sum_state1 - n*dlogP_over_n_state1
-        do idx_c = 1, na
-            i = active_cond_idx(idx_c)
-            dS_sum_state1 = dS_sum_state1 + self%dnj_dstate1(ng+idx_c)*s_c(i)
-            dS_sum_state1 = dS_sum_state1 + nj_c(i)*ds_c_dT(i)*self%dT_dstate1
-        end do
-        self%dS_dstate1 = fac*dS_sum_state1
+        if (const_s) then
+            self%dS_dstate1 = 1.0d0
+        else
+            dS_sum_state1 = 0.0d0
+            do i = 1, ng
+                dS_sum_state1 = dS_sum_state1 + self%dnj_dstate1(i)*s_g_minus(i)
+                dS_sum_state1 = dS_sum_state1 + nj_g(i)* &
+                    (ds_g_dT(i)*self%dT_dstate1 - dln_nj_dstate1(i))
+            end do
+            ! Add the log(P/n) derivative terms once (not once per species)
+            dS_sum_state1 = dS_sum_state1 - n*dlogP_over_n_state1
+            do idx_c = 1, na
+                i = active_cond_idx(idx_c)
+                dS_sum_state1 = dS_sum_state1 + self%dnj_dstate1(ng+idx_c)*s_c(i)
+                dS_sum_state1 = dS_sum_state1 + nj_c(i)*ds_c_dT(i)*self%dT_dstate1
+            end do
+            self%dS_dstate1 = fac*dS_sum_state1
+        end if
 
         ! dS/dstate2:
         if (const_s) then
@@ -2547,12 +2551,22 @@ contains
         ! ---------------------------------------------------------
 
         ! dCp_fr/dstate1:
+        ! dCp_fr/dx = sum_j(dnj/dx * Cp_j) + sum_j(nj * dCp_j/dT * dT/dx)
         sum_cp_dnj = dot_product(cp(:ng), self%dnj_dstate1(:ng))
         do idx_c = 1, na
             i = active_cond_idx(idx_c)
             sum_cp_dnj = sum_cp_dnj + cp(ng+i)*self%dnj_dstate1(ng+idx_c)
         end do
-        self%dCp_fr_dstate1 = fac*(sum_cp_dnj + sum_dcp_dT*self%dT_dstate1)
+        ! Add temperature derivative terms: sum_j(nj * dCp_j/dT) * dT/dstate1
+        sum_dcp_dT_term = 0.0d0
+        do i = 1, ng
+            sum_dcp_dT_term = sum_dcp_dT_term + nj_g(i) * dcp_g_dT(i)
+        end do
+        do idx_c = 1, na
+            i = active_cond_idx(idx_c)
+            sum_dcp_dT_term = sum_dcp_dT_term + nj_c(i) * dcp_c_dT(i)
+        end do
+        self%dCp_fr_dstate1 = fac*(sum_cp_dnj + sum_dcp_dT_term*self%dT_dstate1)
 
         ! dCp_fr/dstate2:
         sum_cp_dnj = dot_product(cp(:ng), self%dnj_dstate2(:ng))
@@ -2560,7 +2574,16 @@ contains
             i = active_cond_idx(idx_c)
             sum_cp_dnj = sum_cp_dnj + cp(ng+i)*self%dnj_dstate2(ng+idx_c)
         end do
-        self%dCp_fr_dstate2 = fac*(sum_cp_dnj + sum_dcp_dT*self%dT_dstate2)
+        ! Add temperature derivative terms: sum_j(nj * dCp_j/dT) * dT/dstate2
+        sum_dcp_dT_term = 0.0d0
+        do i = 1, ng
+            sum_dcp_dT_term = sum_dcp_dT_term + nj_g(i) * dcp_g_dT(i)
+        end do
+        do idx_c = 1, na
+            i = active_cond_idx(idx_c)
+            sum_dcp_dT_term = sum_dcp_dT_term + nj_c(i) * dcp_c_dT(i)
+        end do
+        self%dCp_fr_dstate2 = fac*(sum_cp_dnj + sum_dcp_dT_term*self%dT_dstate2)
 
         ! dCp_fr/dw0:
         do j = 1, nr
@@ -2569,7 +2592,16 @@ contains
                 i = active_cond_idx(idx_c)
                 sum_cp_dnj = sum_cp_dnj + cp(ng+i)*self%dnj_dw0(ng+idx_c, j)
             end do
-            self%dCp_fr_dw0(j) = fac*(sum_cp_dnj + sum_dcp_dT*self%dT_dw0(j))
+            ! Add temperature derivative terms: sum_j(nj * dCp_j/dT) * dT/dw0
+            sum_dcp_dT_term = 0.0d0
+            do i = 1, ng
+                sum_dcp_dT_term = sum_dcp_dT_term + nj_g(i) * dcp_g_dT(i)
+            end do
+            do idx_c = 1, na
+                i = active_cond_idx(idx_c)
+                sum_dcp_dT_term = sum_dcp_dT_term + nj_c(i) * dcp_c_dT(i)
+            end do
+            self%dCp_fr_dw0(j) = fac*(sum_cp_dnj + sum_dcp_dT_term*self%dT_dw0(j))
         end do
 
     end subroutine

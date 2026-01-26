@@ -150,7 +150,7 @@ contains
         dh_dT = T*dh_dT + self%a4
         dh_dT = T*dh_dT + self%a3
         dh_dT = T*dh_dT + self%a2
-        dh_dT = T*dh_dT + 2.0*self%a1
+        dh_dT = T*dh_dT + 2.0d0*self%a1
         dh_dT = dh_dT/(T*T)
     end function
 
@@ -163,8 +163,8 @@ contains
         ds_dT = T*ds_dT + self%a5
         ds_dT = T*ds_dT + self%a4
         ds_dT = T*ds_dT + self%a3
-        ds_dT = T*ds_dT - self%a2
-        ds_dT = T*ds_dT - self%a1
+        ds_dT = T*ds_dT + self%a2
+        ds_dT = T*ds_dT + self%a1
         ds_dT = ds_dT/(T*T*T)
     end function
 
