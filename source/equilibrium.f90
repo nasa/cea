@@ -1185,7 +1185,7 @@ contains
 
             ! Select entropy/enthalpy constraint
             if (const_s) then
-                tmp = nj_g*(h_g-mu_g)!(s_g-ln_nj-log(P/n))
+                tmp = nj_g*(h_g-mu_g)
                 h_or_s_or_u => soln%thermo%entropy(ng+1:)
             else if (const_h) then
                 tmp = nj_g*h_g
@@ -1929,7 +1929,7 @@ contains
         ! Evalutate constraint residuals
         dhsu_delta_dP = 0.0d0
         if (const_s) then
-            dhsu_delta_dP = -sum(nj_g)/P
+            dhsu_delta_dP = sum(nj_g)/P
         end if
 
         ! Compute intermediate derivatives
@@ -2030,7 +2030,7 @@ contains
             ! Select entropy/enthalpy constraint
             if (const_s) then
                 tmp = nj_g*(h_g-mu_g)
-                dtmp_dP = -nj_g/P
+                dtmp_dP = 0.0d0!-nj_g/P
             else if (const_h) then
                 tmp = nj_g*h_g
                 dtmp_dP = 0.0d0
@@ -2385,13 +2385,6 @@ contains
         sum_dh_dT = dot_product(nj_g, dh_g_dT)
         if (nc > 0) sum_dh_dT = sum_dh_dT + dot_product(nj_c, dh_c_dT)
 
-        sum_cp = dot_product(nj_g, cp(:ng))
-        if (nc > 0) sum_cp = sum_cp + dot_product(nj_c, cp(ng+1:))
-        if (abs((sum_h + T*sum_dh_dT) - sum_cp) > 1.0d-8*max(1.0d0, abs(sum_cp))) then
-            write(*, '(a,1p,3e16.8)') "EqDerivatives_unpack_values: cp consistency sum_h+T*sum_dh_dT, sum_cp, diff = ", &
-                sum_h + T*sum_dh_dT, sum_cp, (sum_h + T*sum_dh_dT - sum_cp)
-        end if
-
         do i = 1, ng
             s_g_minus(i) = s_g(i) - ln_nj(i) - log_p_over_n
         end do
@@ -2444,7 +2437,8 @@ contains
 
         ! dU/dstate1:
         if (const_u) then
-            self%dU_dstate1 = 1.0d0
+            ! state1 is energy/R; convert to dimensional energy derivative
+            self%dU_dstate1 = fac
         else
             self%dU_dstate1 = self%dH_dstate1 - fac*(n*self%dT_dstate1 + T*self%dn_dstate1)
         end if
@@ -2471,7 +2465,8 @@ contains
 
         ! dS/dstate1:
         if (const_s) then
-            self%dS_dstate1 = 1.0d0
+            ! state1 is entropy/R; convert to dimensional entropy derivative
+            self%dS_dstate1 = fac
         else
             dS_sum_state1 = 0.0d0
             do i = 1, ng
@@ -2536,6 +2531,11 @@ contains
         ! ---------------------------------------------------------
 
         ! dG/dstate1:
+        write(*,*) "Computing dG/dstate1"
+        write(*,*) "dH/dstate1 = ", self%dH_dstate1
+        write(*,*) "entropy_dim = ", entropy_dim
+        write(*,*) "dT/dstate1 = ", self%dT_dstate1
+        write(*,*) "dS/dstate1 = ", self%dS_dstate1
         self%dG_dstate1 = self%dH_dstate1 - entropy_dim*self%dT_dstate1 - T*self%dS_dstate1
 
         ! dG/dstate2:
@@ -2658,12 +2658,12 @@ contains
         ! Arguments
         class(EqDerivatives), intent(inout) :: self
         class(EqSolver), intent(in), target :: solver
-        class(EqSolution), intent(in), target :: solution
+        class(EqSolution), intent(inout), target :: solution
         real(dp), intent(in) :: h
         logical, intent(in), optional :: verbose
 
         ! Locals
-        type(EqSolution) :: pert_soln
+        type(EqSolution), target :: pert_soln
         real(dp), allocatable :: base_nj(:)
         real(dp), allocatable :: pert_nj(:)
         real(dp), allocatable :: w0(:)
@@ -2964,77 +2964,6 @@ contains
                 dlogP_over_n_state1_an = self%dT_dstate1 / base_T
                 dlogP_over_n_state2_an = self%dT_dstate2 / base_T - 1.0d0/cons%state2
             end if
-
-            ! i = idx_max_state1
-            ! term_pi = dot_product(A_g(i, :), self%dudx(1:ne, 2))
-            ! term_T = (ds_g_dT(i) - dh_g_dT(i))*self%dT_dstate1
-            ! term_log = -dlogP_over_n_state1_an
-            ! dln_nj_an = term_pi + term_T + term_log
-            ! dln_nj_fd = dln_nj_state1_fd(i)
-            ! dnj_from_ln = base_nj(i)*dln_nj_fd
-            ! write(*,*) "dln_nj/dstate1 (", solver%products%species_names(i), "): fd=", dln_nj_fd, " analytic=", dln_nj_an
-            ! write(*,*) "  terms: pi=", term_pi, " T=", term_T, " log=", term_log
-            ! write(*,*) "  dlog(P/n)/dstate1: fd=", dlogP_over_n_state1_fd, " analytic=", dlogP_over_n_state1_an
-            ! write(*,*) "  dnj from ln(fd)=", dnj_from_ln, " dnj fd=", self%dnj_dstate1_fd(i), " dnj analytic=", self%dnj_dstate1(i)
-
-            ! i = idx_max_state2
-            ! term_pi = dot_product(A_g(i, :), self%dudx(1:ne, 1))
-            ! term_T = (ds_g_dT(i) - dh_g_dT(i))*self%dT_dstate2
-            ! term_log = -dlogP_over_n_state2_an
-            ! dln_nj_an = term_pi + term_T + term_log
-            ! dln_nj_fd = dln_nj_state2_fd(i)
-            ! dnj_from_ln = base_nj(i)*dln_nj_fd
-            ! write(*,*) "dln_nj/dstate2 (", solver%products%species_names(i), "): fd=", dln_nj_fd, " analytic=", dln_nj_an
-            ! write(*,*) "  terms: pi=", term_pi, " T=", term_T, " log=", term_log
-            ! write(*,*) "  dlog(P/n)/dstate2: fd=", dlogP_over_n_state2_fd, " analytic=", dlogP_over_n_state2_an
-            ! write(*,*) "  dnj from ln(fd)=", dnj_from_ln, " dnj fd=", self%dnj_dstate2_fd(i), " dnj analytic=", self%dnj_dstate2(i)
-
-            ! if (nr > 0 .and. max_err_dw0 >= 0.0d0) then
-            !     allocate(dT_db0(ne), dn_db0(ne), dlogP_over_n_db0(ne), dln_nj_db0(ne))
-            !     if (const_t) then
-            !         dT_db0 = 0.0d0
-            !     else
-            !         dT_db0 = base_T*self%dudx(lnT_idx, 3:ne+2)
-            !     end if
-            !     if (const_p) then
-            !         dn_db0 = base_n*self%dudx(lnn_idx, 3:ne+2)
-            !     else
-            !         dn_db0 = 0.0d0
-            !     end if
-            !     if (const_p) then
-            !         dlogP_over_n_db0 = -dn_db0 / base_n
-            !     else
-            !         dlogP_over_n_db0 = dT_db0 / base_T
-            !     end if
-
-            !     w_sum = sum(solution%w0)
-            !     inv_w_sum = 1.0d0 / w_sum
-            !     do j = 1, nr
-            !         db0_dw0(:, j) = solver%reactants%stoich_matrix(j, :) / &
-            !             solver%reactants%species(j)%molecular_weight
-            !         db0_dw0(:, j) = (db0_dw0(:, j) - cons%b0) * inv_w_sum
-            !     end do
-
-            !     i = idx_max_dw0
-            !     j = j_max_dw0
-            !     do idx_c = 1, ne
-            !         dln_nj_db0(idx_c) = dot_product(A_g(i, :), self%dudx(1:ne, idx_c+2)) &
-            !             + (ds_g_dT(i) - dh_g_dT(i))*dT_db0(idx_c) - dlogP_over_n_db0(idx_c)
-            !     end do
-            !     dln_nj_an = dot_product(dln_nj_db0, db0_dw0(:, j))
-            !     dln_nj_fd = dln_nj_dw0_fd_max(i)
-            !     dnj_from_ln = base_nj(i)*dln_nj_fd
-            !     if (const_p) then
-            !         dlogP_over_n_dw0_an = -self%dn_dw0(j) / base_n
-            !     else
-            !         dlogP_over_n_dw0_an = self%dT_dw0(j) / base_T
-            !     end if
-            !     write(*,*) "dln_nj/dw0 (", solver%products%species_names(i), ", w0(", j, ")): fd=", &
-            !         dln_nj_fd, " analytic=", dln_nj_an
-            !     write(*,*) "  dlog(P/n)/dw0: fd=", dlogP_over_n_dw0_fd_max, " analytic=", dlogP_over_n_dw0_an
-            !     write(*,*) "  dnj from ln(fd)=", dnj_from_ln, " dnj fd=", self%dnj_dw0_fd(i, j), &
-            !         " dnj analytic=", self%dnj_dw0(i, j)
-            ! end if
 
             abs_err = abs(self%dH_dstate1_fd - self%dH_dstate1)
             rel_err = abs_err / max(abs(self%dH_dstate1), 1.0d-30)
