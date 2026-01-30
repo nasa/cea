@@ -1959,13 +1959,16 @@ contains
             c = c+1
             self%Rx(r, c) = -sum(tmp)/P
             if (.not. const_p) then
-                self%Rx(r, c) = self%Rx(r, c)*(-P/cons%state2)
+                self%Rx(r, c) = self%Rx(r, c)*(P/cons%state2)
             end if
 
             ! dR/dx2 (x2: fixed temperature/enthalpy/entropy/energy)
             c = c+1
             if (const_t) then
                 self%Rx(r, c) = -dot_product(tmp, dh_g_dT-ds_g_dT)
+                if (.not. const_p) then
+                    self%Rx(r, c) = self%Rx(r, c) - sum(tmp)/T
+                end if
             else
                 self%Rx(r, c) = 0.0d0
             end if
@@ -2030,13 +2033,15 @@ contains
             ! Select entropy/enthalpy constraint
             if (const_s) then
                 tmp = nj_g*(h_g-mu_g)
-                dtmp_dP = 0.0d0!-nj_g/P
             else if (const_h) then
                 tmp = nj_g*h_g
-                dtmp_dP = 0.0d0
             else if (const_u) then
                 tmp = nj_g*u_g
-                dtmp_dP = 0.0d0
+            end if
+
+            dtmp_dP = 0.0d0
+            if (.not. const_p .and. const_s) then
+                dtmp_dP = -tmp/P - nj_g/P
             end if
 
             ! dR/dx1 (x1: fixed pressure or volume)
@@ -2268,8 +2273,6 @@ contains
         ! ---------------------------------------------------------
         ! dn/dx
         ! ---------------------------------------------------------
-        ! TODO: ∆ln(n) not included in derivative matrix du/dx for volume-based problems,
-        !       but may be non-zero due to changes in species amounts.
 
         ! dn/dstate1:
         if (const_p) then
@@ -2377,6 +2380,15 @@ contains
 
         self%dnj_dw0 = matmul(dnj_db0, db0_dw0)
 
+        ! For volume-constrained problems, n is the sum of gas species.
+        if (.not. const_p) then
+            self%dn_dstate1 = sum(self%dnj_dstate1(:ng))
+            self%dn_dstate2 = sum(self%dnj_dstate2(:ng))
+            do j = 1, nr
+                self%dn_dw0(j) = sum(self%dnj_dw0(:ng, j))
+            end do
+        end if
+
         ! ---------------------------------------------------------
         ! dH/dx
         ! ---------------------------------------------------------
@@ -2436,28 +2448,15 @@ contains
         ! ---------------------------------------------------------
 
         ! dU/dstate1:
-        if (const_u) then
-            ! state1 is energy/R; convert to dimensional energy derivative
-            self%dU_dstate1 = fac
-        else
-            self%dU_dstate1 = self%dH_dstate1 - fac*(n*self%dT_dstate1 + T*self%dn_dstate1)
-        end if
+        self%dU_dstate1 = self%dH_dstate1 - fac*(n*self%dT_dstate1 + T*self%dn_dstate1)
 
         ! dU/dstate2:
-        if (const_u) then
-            self%dU_dstate2 = 0.0d0
-        else
-            self%dU_dstate2 = self%dH_dstate2 - fac*(n*self%dT_dstate2 + T*self%dn_dstate2)
-        end if
+        self%dU_dstate2 = self%dH_dstate2 - fac*(n*self%dT_dstate2 + T*self%dn_dstate2)
 
         ! dU/dw0:
-        if (const_u) then
-            self%dU_dw0 = 0.0d0
-        else
-            do j = 1, nr
-                self%dU_dw0(j) = self%dH_dw0(j) - fac*(n*self%dT_dw0(j) + T*self%dn_dw0(j))
-            end do
-        end if
+        do j = 1, nr
+            self%dU_dw0(j) = self%dH_dw0(j) - fac*(n*self%dT_dw0(j) + T*self%dn_dw0(j))
+        end do
 
         ! ---------------------------------------------------------
         ! dS/dx
@@ -2531,11 +2530,6 @@ contains
         ! ---------------------------------------------------------
 
         ! dG/dstate1:
-        write(*,*) "Computing dG/dstate1"
-        write(*,*) "dH/dstate1 = ", self%dH_dstate1
-        write(*,*) "entropy_dim = ", entropy_dim
-        write(*,*) "dT/dstate1 = ", self%dT_dstate1
-        write(*,*) "dS/dstate1 = ", self%dS_dstate1
         self%dG_dstate1 = self%dH_dstate1 - entropy_dim*self%dT_dstate1 - T*self%dS_dstate1
 
         ! dG/dstate2:
