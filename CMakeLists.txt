@@ -1,4 +1,9 @@
 cmake_minimum_required(VERSION 3.19)
+
+# Enables use of a later option to force static linking of runtime libraries
+# for the python interface target on windows
+cmake_policy(SET CMP0091 NEW)
+
 set(CMAKE_DISABLE_SOURCE_CHANGES ON)
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 project(CEA

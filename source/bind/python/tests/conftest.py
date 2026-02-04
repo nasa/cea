@@ -4,8 +4,6 @@ from pathlib import Path
 import pytest
 
 PROJECT_PYTHON_DIR = Path(__file__).resolve().parents[1]
-if str(PROJECT_PYTHON_DIR) not in sys.path:
-    sys.path.insert(0, str(PROJECT_PYTHON_DIR))
 
 
 @pytest.fixture(scope="session")

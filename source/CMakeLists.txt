@@ -54,9 +54,19 @@ if(WIN32)
     # on windows, several dll either need to be installed on the target
     # machine, or they need to be statically linked. linking seemed easier than
     # finding the path to the various DLLs and installing them.
+    # If the intel compilers are used, static link the intel runtime
+    # The appropriate intel flags are different on linux and windows, because
+    if (CMAKE_Fortran_COMPILER_ID STREQUAL "IntelLLVM" OR CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
+        target_link_options(cea
+                            PUBLIC "-libs:static")
+    else()
+        target_link_options(cea
+                            PUBLIC "-static-libgfortran"
+                            PUBLIC "-static-libgcc")
+    endif()
+elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "IntelLLVM" OR CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
     target_link_options(cea
-                        PUBLIC "-static-libgfortran"
-                        PUBLIC "-static-libgcc")
+                        PUBLIC "-static-intel")
 endif()
 
 if(CEA_BUILD_TESTING)

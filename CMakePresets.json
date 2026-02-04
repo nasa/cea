@@ -103,6 +103,20 @@
         "CMAKE_Fortran_COMPILER": "ifort",
         "CMAKE_Fortran_FLAGS": "-std08"
       }
+    },
+    {
+      "name": "intel-ifx",
+      "displayName": "Baseline Intel ifx Config",
+      "description": "Default configuration for the ifort compilier.",
+      "binaryDir": "build-intel",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "icx",
+        "CMAKE_CXX_COMPILER": "icpx",
+        "CMAKE_Fortran_COMPILER": "ifx",
+        "CMAKE_Fortran_FLAGS": "-std08"
+      }
     }
   ]
 }
