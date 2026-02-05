@@ -8,6 +8,10 @@ extern "C" {
 // Enumerations
 typedef enum { CEA_LOG_LEVEL_ENUM                } cea_log_level;
 typedef enum { CEA_EQUILIBRIUM_TYPE_ENUM         } cea_equilibrium_type;
+typedef enum { CEA_DERIVATIVE_METHOD_ENUM        } cea_derivative_method;
+typedef enum { CEA_EQDERIV_SCALAR_ENUM           } cea_eqderiv_scalar;
+typedef enum { CEA_EQDERIV_ARRAY_ENUM            } cea_eqderiv_array;
+typedef enum { CEA_EQDERIV_MATRIX_ENUM           } cea_eqderiv_matrix;
 typedef enum { CEA_EQUILIBRIUM_SIZE_ENUM         } cea_equilibrium_size;
 typedef enum { CEA_PROPERTY_TYPE_ENUM            } cea_property_type;
 typedef enum { CEA_ROCKET_PROPERTY_TYPE_ENUM     } cea_rocket_property_type;
@@ -21,6 +25,7 @@ typedef struct {} cea_mixture_t;
 typedef struct {} cea_eqsolver_t;
 typedef struct {} cea_eqsolution_t;
 typedef struct {} cea_eqpartials_t;
+typedef struct {} cea_eqderivatives_t;
 typedef struct {} cea_rocket_solver_t;
 typedef struct {} cea_rocket_solution_t;
 typedef struct {} cea_shock_solver_t;
@@ -34,6 +39,7 @@ typedef cea_mixture_t*     cea_mixture;
 typedef cea_eqsolver_t*    cea_eqsolver;
 typedef cea_eqsolution_t*  cea_eqsolution;
 typedef cea_eqpartials_t*  cea_eqpartials;
+typedef cea_eqderivatives_t*  cea_eqderivatives;
 typedef cea_rocket_solver_t*    cea_rocket_solver;
 typedef cea_rocket_solution_t*  cea_rocket_solution;
 typedef cea_shock_solver_t*     cea_shock_solver;
@@ -424,6 +430,67 @@ cea_err cea_eqpartials_create(
 
 cea_err cea_eqpartials_destroy(
     cea_eqpartials *eqpartials
+);
+
+//----------------------------------------------------------------------
+// Equilibrium Derivatives API
+//----------------------------------------------------------------------
+
+// Create/Destroy
+cea_err cea_eqderivatives_create(
+    cea_eqderivatives *derivs,
+    const cea_eqsolver solver,
+    const cea_eqsolution soln
+);
+
+cea_err cea_eqderivatives_destroy(
+    cea_eqderivatives *derivs
+);
+
+// Compute
+cea_err cea_eqderivatives_compute_derivatives(
+    const cea_eqderivatives derivs,
+    const cea_eqsolver solver,
+    const cea_eqsolution soln,
+    const bool check_closure_defect
+);
+
+cea_err cea_eqderivatives_compute_fd(
+    const cea_eqderivatives derivs,
+    const cea_eqsolver solver,
+    const cea_eqsolution soln,
+    const cea_real h,
+    const bool verbose
+);
+
+// Getters
+cea_err cea_eqderivatives_get_scalar(
+    const cea_eqderivatives derivs,
+    const cea_eqderiv_scalar which,
+    const cea_derivative_method method,
+    cea_real *value
+);
+
+cea_err cea_eqderivatives_get_array(
+    const cea_eqderivatives derivs,
+    const cea_eqsolver solver,
+    const cea_eqsolution soln,
+    const cea_eqderiv_array which,
+    const cea_derivative_method method,
+    const cea_int len,
+    cea_real out[]
+);
+
+// Matrix is returned row-major (C-order) in out[(row*cols) + col].
+cea_err cea_eqderivatives_get_matrix(
+    const cea_eqderivatives derivs,
+    const cea_eqsolver solver,
+    const cea_eqsolution soln,
+    const cea_eqderiv_matrix which,
+    const cea_derivative_method method,
+    const cea_int rows,
+    const cea_int cols,
+    cea_real out[]
 );
 
 //----------------------------------------------------------------------
