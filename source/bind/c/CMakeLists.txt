@@ -1,5 +1,7 @@
 
 add_installed_library(cea_bindc SHARED bindc.F90)
+#include(../cmake/CompilerFlags.cmake)
+project_enable_fortran_std(cea_bindc)
 target_link_libraries(cea_bindc PRIVATE cea::core fbasics::core)
 target_include_directories(cea_bindc PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 install(FILES cea.h cea_enum.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cea/bindc)

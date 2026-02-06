@@ -21,6 +21,13 @@ add_installed_library(cea_core
     transport.f90
     units.f90
 )
+# Call function to correctly process compiler flags to check Fortran 
+# standard compliance based on compiler / OS
+set(CMAKE_Fortran_STANDARD 2008)
+set(CMAKE_Fortran_STANDARD_REQUIRED ON)
+include(../cmake/CompilerFlags.cmake)
+project_enable_fortran_std(cea_core)
+
 target_link_libraries(cea_core PRIVATE fbasics::core)
 
 if(CEA_BUILD_TESTING)
@@ -47,6 +54,7 @@ endif()
 # Main application
 #=====================================================================
 add_executable(cea main.f90)
+project_enable_fortran_std(cea)
 target_link_libraries(cea PRIVATE cea::core fbasics::core)
 install(TARGETS cea DESTINATION ${CMAKE_INSTALL_BINDIR})
 
@@ -54,8 +62,8 @@ if(WIN32)
     # on windows, several dll either need to be installed on the target
     # machine, or they need to be statically linked. linking seemed easier than
     # finding the path to the various DLLs and installing them.
-    # If the intel compilers are used, static link the intel runtime
-    # The appropriate intel flags are different on linux and windows, because
+    # If the intel compilers are used on windows, CMAKE_MSVC_RUNTIME_LIBRARY is set in the root
+    # CMakeLists.txt to force the use of static runtime libraries for all targets
     if (CMAKE_Fortran_COMPILER_ID STREQUAL "IntelLLVM" OR CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
         target_link_options(cea
                             PUBLIC "-libs:static")
@@ -65,6 +73,7 @@ if(WIN32)
                             PUBLIC "-static-libgcc")
     endif()
 elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "IntelLLVM" OR CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
+    # Static link runtime libraries on linux if using Intel compilers
     target_link_options(cea
                         PUBLIC "-static-intel")
 endif()

@@ -88,7 +88,7 @@
         "CMAKE_C_COMPILER": "gcc",
         "CMAKE_CXX_COMPILER": "g++",
         "CMAKE_Fortran_COMPILER": "gfortran",
-        "CMAKE_Fortran_FLAGS": "-std=f2008 -fimplicit-none -ffree-line-length-none"
+        "CMAKE_Fortran_FLAGS": "-fimplicit-none -ffree-line-length-none"
       }
     },
     {
@@ -100,8 +100,7 @@
       "cacheVariables": {
         "CMAKE_C_COMPILER": "icc",
         "CMAKE_CXX_COMPILER": "icpc",
-        "CMAKE_Fortran_COMPILER": "ifort",
-        "CMAKE_Fortran_FLAGS": "-std08"
+        "CMAKE_Fortran_COMPILER": "ifort"
       }
     },
     {
@@ -114,8 +113,7 @@
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_C_COMPILER": "icx",
         "CMAKE_CXX_COMPILER": "icpx",
-        "CMAKE_Fortran_COMPILER": "ifx",
-        "CMAKE_Fortran_FLAGS": "-std08"
+        "CMAKE_Fortran_COMPILER": "ifx"
       }
     }
   ]
