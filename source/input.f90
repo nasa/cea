@@ -654,6 +654,11 @@ contains
             end select
         end do
 
+        ! If the number of elements specified in the input file was less than max_values,
+        ! the number of elements read was n - 1
+        if (n .ne. size(f%elements)) then
+            n = n - 1
+        end if
         f%elements = f%elements(:n)
         f%coefficients = f%coefficients(:n)
 
