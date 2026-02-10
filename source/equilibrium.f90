@@ -1417,9 +1417,10 @@ contains
         integer, intent(in) :: ierr
 
         ! Locals
-        integer :: i, j                      ! Iterators
+        integer :: i, j, k                   ! Iterators
         real(dp) :: temp                     ! Temporary summation value
-        integer :: idx                       ! Index variable
+        integer :: idx                       ! Condensed species index
+        integer :: idx_active                ! Active condensed row index in the Jacobian
         integer :: ng                        ! Number of gas species
         integer :: nc                        ! Number of condensed species
         integer :: ne                        ! Number of elements
@@ -1430,9 +1431,10 @@ contains
 
         ! Shorthand
         ng = self%num_gas
+        nc = self%num_condensed
         ne = self%num_elements
         na = count(soln%is_active)
-        A => self%products%stoich_matrix(:,:)
+        A => self%products%stoich_matrix(ng+1:,:)
 
         self%xsize = 80.0d0
         self%tsize = 80.0d0
@@ -1463,18 +1465,33 @@ contains
                 soln%is_active(idx) = .false.
                 soln%nj(ng+idx) = 0.0d0
                 soln%converged = .false.
-                soln%j_switch = i
+                soln%j_switch = idx
                 iter = -1
             end if
 
         ! TODO: singular updates when elements are removed
 
         ! Remove condensed species to correct singularity
-        else if (ierr > ne .and. ierr < count(soln%is_active)+ne) then
-            idx = ierr - ne
-            if (soln%is_active(idx)) then
+        else if (ierr > ne .and. ierr <= na+ne) then
+            ! Map Jacobian active condensed row index to condensed species index.
+            idx_active = ierr - ne
+            idx = 0
+            k = 0
+            do i = 1, nc
+                if (.not. soln%is_active(i)) cycle
+                k = k + 1
+                if (k == idx_active) then
+                    idx = i
+                    exit
+                end if
+            end do
+
+            if (idx > 0 .and. soln%is_active(idx)) then
                 soln%is_active(idx) = .false.
                 soln%nj(self%num_gas+idx) = 0.0d0
+                soln%converged = .false.
+                soln%j_switch = idx
+                iter = -1
             end if
         end if
 
