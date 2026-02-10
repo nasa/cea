@@ -29,6 +29,7 @@ Getting Started
 
    installation
    quick_start
+   Win11 Install Example <Win11-oneAPI_Walkthrough>
 
 Interfaces
 ===========

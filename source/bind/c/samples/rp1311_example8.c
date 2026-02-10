@@ -75,6 +75,7 @@ int main(void) {
     cea_rocket_solution_get_property(soln, CEA_ROCKET_TEMPERATURE, num_pts, temperature);
     cea_rocket_solution_get_property(soln, CEA_ROCKET_PRESSURE, num_pts, pressure);
     cea_rocket_solution_get_property(soln, CEA_ROCKET_GAMMA_S, num_pts, gamma);
+    cea_rocket_solution_get_property(soln, CEA_ROCKET_M, num_pts, mw);
     cea_rocket_solution_get_property(soln, CEA_MACH, num_pts, mach);
     cea_rocket_solution_get_property(soln, CEA_AE_AT, num_pts, area_ratio);
     cea_rocket_solution_get_property(soln, CEA_ISP, num_pts, isp);
@@ -83,7 +84,7 @@ int main(void) {
 
     printf(
         "%10s %10s %10s %10s %10s %10s %10s %10s %10s \n",
-        "T (K)", "P (bar)", "gamma_s", "MW", "Mach", "Ae/At", "ISP", "C* (m/s)", "C_f"
+        "T (K)", "P (bar)", "gamma_s", "M (1/n)", "Mach", "Ae/At", "ISP", "C* (m/s)", "C_f"
     );
 
     for (int i = 0; i < num_pts; ++i) {
