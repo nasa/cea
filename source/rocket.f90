@@ -532,6 +532,7 @@ contains
         ! Locals
         integer :: i, j                      ! Loop index
         integer, parameter :: max_iter_area = 10  ! Maximum number of iterations for exit condition using area ratio
+        real(dp), parameter :: area_tol = 4.0d-5  ! Legacy area-ratio convergence tolerance
         real(dp) :: usq, asq                 ! velocity squared; sonic velocity squared
         real(dp) :: h                        ! Enthalpy at any other station (temporary)
         real(dp) :: gamma_s                  ! Temp variable for isentropic exponent gamma_s
@@ -580,7 +581,10 @@ contains
                 dln_pinf_pe_dln_aeat = gamma_s*usq/(usq - asq)  ! (Eq. 6.23)
                 dln_pinf_pe = dln_pinf_pe_dln_aeat*(log(subar(i)) - log(soln%ae_at(idx)))
 
-                if (abs(dln_pinf_pe) .le. tol) exit  ! Check convergence
+                ! Legacy convergence test for assigned area ratio:
+                ! relative Ae/At error OR small pressure-ratio update.
+                if (abs(soln%ae_at(idx)-subar(i))/subar(i) <= area_tol) exit
+                if (abs(dln_pinf_pe) < area_tol) exit
                 ln_pinf_pe = ln_pinf_pe + dln_pinf_pe  ! If not converged, update estimate
 
             end do
@@ -615,6 +619,7 @@ contains
         ! Locals
         integer :: i, j                      ! Loop index
         integer, parameter :: max_iter_area = 10  ! Maximum number of iterations for exit condition using area ratio
+        real(dp), parameter :: area_tol = 4.0d-5  ! Legacy area-ratio convergence tolerance
         real(dp) :: usq, asq                 ! velocity squared; sonic velocity squared
         real(dp) :: h                        ! Enthalpy at any other station (temporary)
         real(dp) :: gamma_s                  ! Temp variable for isentropic exponent gamma_s
@@ -662,7 +667,10 @@ contains
                 dln_pinf_pe_dln_aeat = gamma_s*usq/(usq - asq)  ! (Eq. 6.23)
                 dln_pinf_pe = dln_pinf_pe_dln_aeat*(log(supar(i)) - log(soln%ae_at(idx)))
 
-                if (abs(dln_pinf_pe) .le. tol) exit  ! Check convergence
+                ! Legacy convergence test for assigned area ratio:
+                ! relative Ae/At error OR small pressure-ratio update.
+                if (abs(soln%ae_at(idx)-supar(i))/supar(i) <= area_tol) exit
+                if (abs(dln_pinf_pe) < area_tol) exit
                 ln_pinf_pe = ln_pinf_pe + dln_pinf_pe  ! If not converged, update estimate
 
             end do
@@ -697,6 +705,7 @@ contains
         ! Locals
         integer :: i, j                      ! Loop index
         integer, parameter :: max_iter_area = 10  ! Maximum number of iterations for exit condition using area ratio
+        real(dp), parameter :: area_tol = 4.0d-5  ! Legacy area-ratio convergence tolerance
         real(dp) :: usq, asq                 ! velocity squared; sonic velocity squared
         real(dp) :: h                        ! Enthalpy at any other station (temporary)
         real(dp) :: gamma_s                  ! Temp variable for isentropic exponent gamma_s
@@ -752,7 +761,10 @@ contains
                 dln_pinf_pe_dln_aeat = gamma_s*usq/(usq - asq)  ! (Eq. 6.23)
                 dln_pinf_pe = dln_pinf_pe_dln_aeat*(log(supar(i)) - log(soln%ae_at(idx)))
 
-                if (abs(dln_pinf_pe) .le. tol) exit  ! Check convergence
+                ! Legacy convergence test for assigned area ratio:
+                ! relative Ae/At error OR small pressure-ratio update.
+                if (abs(soln%ae_at(idx)-supar(i))/supar(i) <= area_tol) exit
+                if (abs(dln_pinf_pe) < area_tol) exit
                 ln_pinf_pe = ln_pinf_pe + dln_pinf_pe  ! If not converged, update estimate
 
             end do
@@ -951,6 +963,7 @@ contains
         integer :: n_frz_                    ! Temporary variable for frozen index
         integer :: num_pts                   ! Total number of evaluation points
         integer, parameter :: max_iter_area = 10  ! Maximum number of iterations for exit condition using area ratio
+        real(dp), parameter :: area_tol = 4.0d-5  ! Legacy area-ratio convergence tolerance
         character(len=2) :: prob_type        ! Equilibrium problem type
         real(dp) :: state1                   ! Chamber temperature or enthalpy, or entropy at other stations
         real(dp) :: S_ref                    ! Reference entropy
@@ -1132,7 +1145,10 @@ contains
                 dln_pinf_pc_dln_acat = gamma_s*usq/(usq - asq)  ! (Eq. 6.23)
                 dln_pinf_pc = dln_pinf_pc_dln_acat*(log(ac_at_) - log(soln%ae_at(idx)))
 
-                if (abs(dln_pinf_pc) .le. tol) exit  ! Check convergence
+                ! Legacy convergence test for assigned area ratio:
+                ! relative Ac/At error OR small pressure-ratio update.
+                if (abs(soln%ae_at(idx)-ac_at_)/ac_at_ <= area_tol) exit
+                if (abs(dln_pinf_pc) < area_tol) exit
                 ln_pinf_pc = ln_pinf_pc + dln_pinf_pc  ! If not converged, update estimate
                 if (ln_pinf_pc < 0.0d0) ln_pinf_pc = 0.000001d0
 
