@@ -1464,6 +1464,7 @@ contains
         integer :: na                        ! Number of active condensed species
         integer, allocatable :: active_idx(:)! Active condensed indices in legacy order
         real(dp), pointer :: A(:,:)          ! Stoichiometric matrix
+        real(dp), pointer :: A_all(:,:)      ! Full stoichiometric matrix
         real(dp), parameter :: tol = 1.d-8   ! Tolerance to check if value ~0
         real(dp), parameter :: smalno = 1.0d-6
         real(dp), parameter :: smnol = -13.815511d0
@@ -1477,6 +1478,7 @@ contains
         na = count(soln%is_active)
         active_idx = soln%active_condensed_indices()
         A => self%products%stoich_matrix(ng+1:,:)
+        A_all => self%products%stoich_matrix(:,:)
 
         self%xsize = 80.0d0
         self%tsize = 80.0d0
@@ -1515,7 +1517,32 @@ contains
                 made_change = .true.
             end if
 
-        ! TODO: singular updates when elements are removed
+        ! Legacy-inspired recovery for element-row singularities:
+        ! remove the smallest active condensed species that participates
+        ! in the singular element equation.
+        else if (ierr >= 1 .and. ierr <= ne .and. na > 0) then
+            temp = huge(1.0d0)
+            idx = 0
+            do k = 1, size(active_idx)
+                i = active_idx(k)
+                if (abs(A(i, ierr)) <= tol) cycle
+                if (soln%nj(ng+i) <= temp) then
+                    temp = soln%nj(ng+i)
+                    idx = i
+                end if
+            end do
+
+            if (idx > 0) then
+                call log_info("Removing condensed species "//self%products%species_names(ng+idx)// &
+                              " to correct element-row singularity")
+                call soln%deactivate_condensed(idx)
+                soln%nj(ng+idx) = 0.0d0
+                soln%converged = .false.
+                soln%j_switch = idx
+                if (present(singular_index)) singular_index = idx
+                iter = -1
+                made_change = .true.
+            end if
 
         ! Remove condensed species to correct singularity
         else if (ierr > ne .and. ierr <= na+ne) then
@@ -1532,6 +1559,28 @@ contains
                 if (present(singular_index)) singular_index = idx
                 iter = -1
                 made_change = .true.
+            end if
+        end if
+
+        ! Legacy ion-row fallback: if the electron equation is singular, remove
+        ! ionized species from the active iterate and disable ion solving.
+        if (.not. made_change .and. ierr >= 1 .and. ierr <= ne .and. &
+            self%ions .and. self%active_ions .and. self%num_elements > 0) then
+            if (trim(self%products%element_names(self%num_elements)) == 'E' .and. ierr == ne) then
+                do i = 1, ng
+                    if (A_all(i, self%num_elements) /= 0.0d0) then
+                        soln%nj(i) = 0.0d0
+                        soln%ln_nj(i) = smnol
+                        made_change = .true.
+                    end if
+                end do
+                if (made_change) then
+                    self%active_ions = .false.
+                    soln%pi_e = 0.0d0
+                    soln%dpi_e = 0.0d0
+                    soln%converged = .false.
+                    iter = -1
+                end if
             end if
         end if
 
