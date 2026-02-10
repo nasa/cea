@@ -1169,7 +1169,8 @@ contains
 
         made_change = .false.
 
-        if (na == 0 .or. soln%constraints%is_constant_temperature()) return
+        ! Legacy CEA applies condensed-phase validity checks during TP solves too.
+        if (na == 0) return
 
         ! Update condensed thermodynamic properties
         ! call self%products%calc_thermo(soln%thermo, soln%T, condensed=.true.)
