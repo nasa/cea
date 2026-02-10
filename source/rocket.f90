@@ -1082,6 +1082,10 @@ contains
             ! Throat conditions
             ! -----------------------------------------------
             idx = 4
+            ! Legacy SETEN-style initialization for FAC throat:
+            ! seed the throat solve from point 2 (infinity) by saving/using it.
+            soln%eq_soln(3) = soln%eq_soln(2)
+            soln%i_save = -2
             call self%solve_throat(soln, idx, p_inf, h_inj, S_ref, reactant_weights, awt)
 
             ! -----------------------------------------------
