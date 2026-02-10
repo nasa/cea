@@ -1655,10 +1655,6 @@ contains
 
             end if
 
-            if (soln%converged) then
-                soln%times_converged = soln%times_converged + 1
-            end if
-
             if (soln%times_converged > 3*self%num_elements) then
                 soln%converged = .false.
                 call abort("Convergence failed to establish set of condensed species.")
