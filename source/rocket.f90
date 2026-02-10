@@ -821,6 +821,7 @@ contains
         else
             call self%solve_throat(soln, idx, pc, h_inf, state1, reactant_weights, awt)
         end if
+        ln_pinf_pt = log(soln%pressure(1)/soln%pressure(2))
 
         ! -----------------------------------------------
         ! Exit conditions: pressure ratio
@@ -842,9 +843,6 @@ contains
             if (frozen) then
                 call log_info('RocketSolver: WARNING!!  FREEZING IS NOT ALLOWED AT A SUBSONIC PRESSURE RATIO')
             else
-                ! Get some values for shorthand
-                ln_pinf_pt = log(soln%pressure(1)/soln%pressure(2))
-
                 call self%solve_subar(soln, idx, pc, subar, h_inf, state1, reactant_weights, idx-1, 2, ln_pinf_pt, awt)
             end if
 
