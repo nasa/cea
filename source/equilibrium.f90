@@ -156,6 +156,8 @@ module cea_equilibrium
             !! State and element constraints
         logical, allocatable :: is_active(:)
             !! True if condensed species included in G
+        integer, allocatable :: active_rank(:)
+            !! Active condensed ordering rank (1 = newest/front), 0 = inactive
         integer :: j_liq = 0
             !! Index of liquid phase if two phases are present for same species
         integer :: j_sol = 0
@@ -255,6 +257,11 @@ module cea_equilibrium
         !   and then only work with the "active" subset of the G array.
     contains
         procedure :: set_nj => EqSolution_set_nj
+        procedure :: activate_condensed => EqSolution_activate_condensed
+        procedure :: activate_condensed_front => EqSolution_activate_condensed_front
+        procedure :: deactivate_condensed => EqSolution_deactivate_condensed
+        procedure :: replace_active_condensed => EqSolution_replace_active_condensed
+        procedure :: active_condensed_indices => EqSolution_active_condensed_indices
         procedure :: num_equations => EqSolution_num_equations
         procedure :: calc_pressure => EqSolution_calc_pressure
         procedure :: calc_volume => EqSolution_calc_volume
@@ -585,6 +592,7 @@ contains
         real(dp) :: dln_n                     ! 𝛥ln(n)
         real(dp) :: dln_T                     ! 𝛥ln(T)
         integer :: i, idx_c                   ! Indices
+        integer, allocatable :: active_idx(:) ! Active condensed indices in legacy order
         logical :: const_p, const_t           ! Flags enabling/disabling matrix equations
         type(EqConstraints), pointer :: cons  ! Abbreviation for soln%constraints
         real(dp) :: lambda                    ! Damped update factor
@@ -643,12 +651,10 @@ contains
         end if
 
         ! Condensed species concentrations
-        idx_c = 1  ! Index into active set of condensed species
-        do i = 1, nc
-            if (soln%is_active(i)) then
-                nj_c(i) = nj_c(i) + lambda*dnj_c(idx_c)
-                idx_c = idx_c + 1
-            end if
+        active_idx = soln%active_condensed_indices()
+        do idx_c = 1, size(active_idx)
+            i = active_idx(idx_c)
+            nj_c(i) = nj_c(i) + lambda*dnj_c(idx_c)
         end do
 
         ! Total moles
@@ -910,6 +916,7 @@ contains
         real(dp), pointer :: h_or_s_or_u(:)     ! For evaluating Eq 2.27/2.28
         integer :: r, c                         ! Iteration matrix row/column indices
         integer :: i, j                         ! Loop counters
+        integer, allocatable :: active_idx(:)   ! Active condensed indices in legacy order
         logical :: const_p, const_t, const_s, const_h, const_u  ! Flags enabling/disabling matrix equations
         type(EqConstraints), pointer :: cons    ! Abbreviation for soln%constraints
 
@@ -918,6 +925,7 @@ contains
         nc = self%num_condensed
         ne = self%num_active_elements()
         na = count(soln%is_active)
+        active_idx = soln%active_condensed_indices()
         num_eqn = soln%num_equations(self)
         cons => soln%constraints
         const_p = cons%is_constant_pressure()
@@ -1009,8 +1017,8 @@ contains
         !-------------------------------------------------------
         ! Equation (2.25/2.46): Condensed phase constraints
         !-------------------------------------------------------
-        do i = 1,nc
-            if (.not. soln%is_active(i)) cycle
+        do j = 1, na
+            i = active_idx(j)
             r = r+1
             c = 0
 
@@ -1102,10 +1110,10 @@ contains
             end do
 
             ! Condensed derivatives
-            do j = 1,nc
-                if (.not. soln%is_active(j)) cycle
+            do j = 1, na
+                i = active_idx(j)
                 c = c+1
-                G(r,c) = h_or_s_or_u(j)
+                G(r,c) = h_or_s_or_u(i)
             end do
 
             ! Delta ln(n) derivative
@@ -1153,6 +1161,7 @@ contains
         integer :: nc                              ! Number of condensed species
         integer :: na                              ! Number of active condensed species
         integer :: i, j, idx_c                     ! Index
+        integer, allocatable :: active_idx(:)      ! Active condensed indices in legacy order
         real(dp) :: T_low_i, T_high_i              ! Low and high temperature limits for a species [K]
         real(dp) :: T_low_j, T_high_j              ! Low and high temperature limits for a species [K]
         real(dp) :: max_T_j                        ! Max melting temperature of the candidate phase [K]
@@ -1175,12 +1184,9 @@ contains
         ! Update condensed thermodynamic properties
         ! call self%products%calc_thermo(soln%thermo, soln%T, condensed=.true.)
 
-        idx_c = 0  ! Index into the active set of condensed species
-
-        do i = 1, nc
-
-            if (.not. soln%is_active(i)) cycle
-            idx_c = idx_c + 1
+        active_idx = soln%active_condensed_indices()
+        do idx_c = 1, na
+            i = active_idx(idx_c)
 
             if (i == soln%j_sol .or. i == soln%j_liq) cycle
 
@@ -1213,8 +1219,7 @@ contains
                             ! Switch phase
                             call log_info("Phase change: replace "//trim(self%products%species_names(ng+i))//&
                                           " with "//self%products%species_names(ng+idx_other_phase(j)))
-                            soln%is_active(i) = .false.
-                            soln%is_active(idx_other_phase(j)) = .true.
+                            call soln%replace_active_condensed(i, idx_other_phase(j))
                             soln%nj(ng+idx_other_phase(j)) = soln%nj(ng+i)
                             soln%nj(ng+i) = 0.0d0
                             soln%converged = .false.
@@ -1239,7 +1244,7 @@ contains
                                 soln%j_sol = i
                                 soln%j_liq = idx_other_phase(j)
                             end if
-                            soln%is_active(idx_other_phase(j)) = .true.
+                            call soln%activate_condensed_front(idx_other_phase(j))
                             soln%nj(ng+idx_other_phase(j)) = 0.5d0*soln%nj(ng+i)
                             soln%nj(ng+i)                  = 0.5d0*soln%nj(ng+i)
                             soln%converged = .false.
@@ -1253,8 +1258,7 @@ contains
                             ! Switch phase
                             call log_info("Phase change: replace "//trim(self%products%species_names(ng+i))//&
                                           " with "//self%products%species_names(ng+idx_other_phase(j)))
-                            soln%is_active(i) = .false.
-                            soln%is_active(idx_other_phase(j)) = .true.
+                            call soln%replace_active_condensed(i, idx_other_phase(j))
                             soln%nj(ng+idx_other_phase(j)) = soln%nj(ng+i)
                             soln%nj(ng+i) = 0.0d0
                             soln%converged = .false.
@@ -1276,7 +1280,7 @@ contains
                             soln%j_sol = i
                             soln%j_liq = idx_other_phase(j)
                         end if
-                        soln%is_active(idx_other_phase(j)) = .true.
+                        call soln%activate_condensed_front(idx_other_phase(j))
                         soln%nj(ng+idx_other_phase(j)) = 0.5d0*soln%nj(ng+i)
                         soln%nj(ng+i)                  = 0.5d0*soln%nj(ng+i)
                         soln%converged = .false.
@@ -1293,7 +1297,7 @@ contains
             if (soln%T > 1.2d0*max_T_j) then
                 ! Remove condensed species
                 call log_info("Removing condensed species: "//self%products%species_names(ng+i))
-                Soln%is_active(i) = .false.
+                call soln%deactivate_condensed(i)
                 soln%nj(ng+i) = 0.0d0
                 soln%converged = .false.
                 soln%j_switch = 0
@@ -1323,7 +1327,7 @@ contains
         integer :: nc                             ! Number of total condensed species
         real(dp), pointer :: nj_c(:)              ! Condensed species concentrations [kmol-per-kg]
         real(dp), pointer :: cp_c(:)              ! Condensed pecies heat capacities [unitless]
-        integer :: i                              ! Index
+        integer :: i, j                           ! Indices
         integer :: cond_idx                       ! Index of condensed species to add/remove
         integer :: singular_index_                ! Index of condensed species that caused a singular matrix
         real(dp) :: temp                          ! Temp value to select condensed species
@@ -1334,6 +1338,7 @@ contains
         real(dp), pointer :: s_c(:)               ! Condensed entropies [unitless]
         real(dp), pointer :: A_c(:,:)             ! Condensed stoichiometric matrices
         real(dp), pointer :: pi(:)                ! 𝛑_j (k-th iteration)
+        integer, allocatable :: active_idx(:)     ! Active condensed indices in legacy order
         logical :: made_change                    ! Flag to indicate if a species was added or removed (used for other subroutine calls)
         real(dp), parameter :: T_min = 200.0d0    ! Minimum gas temperature defined in thermo data [K]
         real(dp), parameter :: tol = 1d-12
@@ -1362,12 +1367,13 @@ contains
         if (na > 0) then
             temp = 0.0d0
             cond_idx = 0
+            active_idx = soln%active_condensed_indices()
 
-            do i = 1, nc
-                if (.not. soln%is_active(i)) cycle
-                if (nj_c(i)*cp_c(i) <= temp) then
-                    temp = nj_c(i)*cp_c(i)
-                    cond_idx = i
+            do i = 1, size(active_idx)
+                j = active_idx(i)
+                if (nj_c(j)*cp_c(j) <= temp) then
+                    temp = nj_c(j)*cp_c(j)
+                    cond_idx = j
                 end if
             end do
 
@@ -1376,7 +1382,7 @@ contains
                     soln%j_sol = 0
                     soln%j_liq = 0
                 end if
-                soln%is_active(cond_idx) = .false.
+                call soln%deactivate_condensed(cond_idx)
                 soln%nj(ng+cond_idx) = 0.0d0
                 soln%converged = .false.
                 iter = -1
@@ -1424,7 +1430,7 @@ contains
 
         ! Insert the selected condensed species
         if (abs(min_delg) > tol) then
-            soln%is_active(cond_idx) = .true.
+            call soln%activate_condensed_front(cond_idx)
             soln%converged = .false.
             iter = -1
             soln%last_cond_idx = cond_idx
@@ -1456,6 +1462,7 @@ contains
         integer :: nc                        ! Number of condensed species
         integer :: ne                        ! Number of elements
         integer :: na                        ! Number of active condensed species
+        integer, allocatable :: active_idx(:)! Active condensed indices in legacy order
         real(dp), pointer :: A(:,:)          ! Stoichiometric matrix
         real(dp), parameter :: tol = 1.d-8   ! Tolerance to check if value ~0
         real(dp), parameter :: smalno = 1.0d-6
@@ -1468,6 +1475,7 @@ contains
         nc = self%num_condensed
         ne = self%num_active_elements()
         na = count(soln%is_active)
+        active_idx = soln%active_condensed_indices()
         A => self%products%stoich_matrix(ng+1:,:)
 
         self%xsize = 80.0d0
@@ -1480,8 +1488,8 @@ contains
 
             temp = 1000.0d0
             idx = 0  ! Condensed species index selected to correct singular matrix
-            do i = 1, nc
-                if (.not. soln%is_active(i)) cycle
+            do k = 1, size(active_idx)
+                i = active_idx(k)
 
                 if (i /= soln%last_cond_idx) then
                     do j = 1, ne
@@ -1498,7 +1506,7 @@ contains
             if (idx > 0) then
                 call log_info("Removing condensed species "//self%products%species_names(ng+idx)// &
                               " to correct singular matrix")
-                soln%is_active(idx) = .false.
+                call soln%deactivate_condensed(idx)
                 soln%nj(ng+idx) = 0.0d0
                 soln%converged = .false.
                 soln%j_switch = idx
@@ -1514,18 +1522,10 @@ contains
             ! Map Jacobian active condensed row index to condensed species index.
             idx_active = ierr - ne
             idx = 0
-            k = 0
-            do i = 1, nc
-                if (.not. soln%is_active(i)) cycle
-                k = k + 1
-                if (k == idx_active) then
-                    idx = i
-                    exit
-                end if
-            end do
+            if (idx_active >= 1 .and. idx_active <= size(active_idx)) idx = active_idx(idx_active)
 
             if (idx > 0 .and. soln%is_active(idx)) then
-                soln%is_active(idx) = .false.
+                call soln%deactivate_condensed(idx)
                 soln%nj(self%num_gas+idx) = 0.0d0
                 soln%converged = .false.
                 soln%j_switch = idx
@@ -1734,7 +1734,7 @@ contains
                             end do
                             do cond_idx = 1, self%num_condensed
                                 if (soln%is_active(cond_idx)) then
-                                    soln%is_active(cond_idx) = .false.
+                                    call soln%deactivate_condensed(cond_idx)
                                     soln%nj(self%num_gas+cond_idx) = 0.0d0
                                     soln%j_switch = cond_idx
                                     exit
@@ -1898,6 +1898,7 @@ contains
         allocate(self%ln_nj(solver%num_gas), source=0.0d0)
         allocate(self%G(solver%max_equations, solver%max_equations+1), source=empty_dp)
         allocate(self%is_active(solver%num_condensed), source=.false.)
+        allocate(self%active_rank(solver%num_condensed), source=0)
         self%constraints = EqConstraints(solver%num_elements)
 
         ! Set initial guess
@@ -1931,7 +1932,7 @@ contains
                     ! Only count this as an "insert" if it is condensed; no effect otherwise
                     if (solver%products%species(j)%i_phase > 0) then
                         call log_info("Inserting "//solver%products%species_names(j))
-                        self%is_active(j-solver%num_gas) = .true.
+                        call self%activate_condensed_front(j-solver%num_gas)
                     end if
                 end if
             end do
@@ -1982,6 +1983,113 @@ contains
         end if
 
     end subroutine
+
+    subroutine EqSolution_activate_condensed(self, idx, rank)
+        class(EqSolution), intent(inout) :: self
+        integer, intent(in) :: idx
+        integer, intent(in), optional :: rank
+        integer :: i, na, target_rank
+
+        if (idx < 1 .or. idx > size(self%is_active)) then
+            call abort('EqSolution_activate_condensed: idx out of bounds.')
+        end if
+
+        if (self%is_active(idx)) call self%deactivate_condensed(idx)
+
+        na = count(self%is_active)
+        target_rank = 1
+        if (present(rank)) target_rank = rank
+        target_rank = max(1, min(target_rank, na+1))
+
+        do i = 1, size(self%is_active)
+            if (self%is_active(i) .and. self%active_rank(i) >= target_rank) then
+                self%active_rank(i) = self%active_rank(i) + 1
+            end if
+        end do
+
+        self%is_active(idx) = .true.
+        self%active_rank(idx) = target_rank
+    end subroutine
+
+    subroutine EqSolution_activate_condensed_front(self, idx)
+        class(EqSolution), intent(inout) :: self
+        integer, intent(in) :: idx
+        call self%activate_condensed(idx, 1)
+    end subroutine
+
+    subroutine EqSolution_deactivate_condensed(self, idx)
+        class(EqSolution), intent(inout) :: self
+        integer, intent(in) :: idx
+        integer :: i, old_rank
+
+        if (idx < 1 .or. idx > size(self%is_active)) then
+            call abort('EqSolution_deactivate_condensed: idx out of bounds.')
+        end if
+
+        if (.not. self%is_active(idx)) return
+
+        old_rank = max(1, self%active_rank(idx))
+        self%is_active(idx) = .false.
+        self%active_rank(idx) = 0
+
+        do i = 1, size(self%is_active)
+            if (self%is_active(i) .and. self%active_rank(i) > old_rank) then
+                self%active_rank(i) = self%active_rank(i) - 1
+            end if
+        end do
+    end subroutine
+
+    subroutine EqSolution_replace_active_condensed(self, old_idx, new_idx)
+        class(EqSolution), intent(inout) :: self
+        integer, intent(in) :: old_idx, new_idx
+        integer :: old_rank
+
+        old_rank = 1
+        if (old_idx >= 1 .and. old_idx <= size(self%is_active)) then
+            if (self%is_active(old_idx)) old_rank = max(1, self%active_rank(old_idx))
+        end if
+
+        if (old_idx >= 1 .and. old_idx <= size(self%is_active)) then
+            call self%deactivate_condensed(old_idx)
+        end if
+        call self%activate_condensed(new_idx, old_rank)
+    end subroutine
+
+    function EqSolution_active_condensed_indices(self) result(active_idx)
+        class(EqSolution), intent(in) :: self
+        integer, allocatable :: active_idx(:)
+        integer, allocatable :: used(:)
+        integer :: na, nc, i, r, next_slot
+
+        na = count(self%is_active)
+        nc = size(self%is_active)
+        allocate(active_idx(na))
+        if (na == 0) return
+        active_idx = 0
+
+        do i = 1, nc
+            if (.not. self%is_active(i)) cycle
+            r = self%active_rank(i)
+            if (r >= 1 .and. r <= na .and. active_idx(r) == 0) active_idx(r) = i
+        end do
+
+        if (any(active_idx == 0)) then
+            allocate(used(nc), source=0)
+            do i = 1, na
+                if (active_idx(i) > 0) used(active_idx(i)) = 1
+            end do
+            next_slot = 1
+            do i = 1, nc
+                if (.not. self%is_active(i)) cycle
+                if (used(i) /= 0) cycle
+                do while (next_slot <= na .and. active_idx(next_slot) /= 0)
+                    next_slot = next_slot + 1
+                end do
+                if (next_slot > na) exit
+                active_idx(next_slot) = i
+            end do
+        end if
+    end function
 
     function EqSolution_num_equations(self, solver) result(num_equations)
         ! Compute the number of equations in the current equilibrium problem
@@ -2123,13 +2231,15 @@ contains
         real(dp), pointer :: h_g(:), h_c(:)     ! Gas/condensed enthalpies [unitless]
         real(dp), pointer :: A_g(:,:), A_c(:,:) ! Gas/condensed stoichiometric matrices
         integer :: r, c                         ! Iteration matrix row/column indices
-        integer :: i, k                         ! Loop counters
+        integer :: i, k, ic                     ! Loop counters
+        integer, allocatable :: active_idx(:)   ! Active condensed indices in legacy order
 
         ! Define shorthand
         ng = solver%num_gas
         nc = solver%num_condensed
         ne = solver%num_active_elements()
         na = count(soln%is_active)
+        active_idx = soln%active_condensed_indices()
         num_eqn = ne+na+1
 
         ! Associate subarray pointers
@@ -2150,8 +2260,8 @@ contains
         !-------------------------------------------------------
         ! Equation (2.56)
         !-------------------------------------------------------
-        do i = 1,ne
-            tmp = nj_g*A_g(:,i)
+        do ic = 1,ne
+            tmp = nj_g*A_g(:,ic)
             r = r+1
             c = 0
 
@@ -2162,10 +2272,10 @@ contains
             end do
 
             ! ∂n,c_i/∂lnT
-            do k = 1,nc
-                if (.not. soln%is_active(k)) cycle
+            do k = 1,na
+                i = active_idx(k)
                 c = c+1
-                J(r,c) = A_c(k,i)
+                J(r,c) = A_c(i, ic)
                 J(c,r) = J(r,c)  ! Symmetric
             end do
 
@@ -2182,8 +2292,8 @@ contains
         !-------------------------------------------------------
         ! Equation (2.57)
         !-------------------------------------------------------
-        do i = 1,nc
-            if (.not. soln%is_active(i)) cycle
+        do k = 1,na
+            i = active_idx(k)
             r = r+1
 
             ! Right hand size
@@ -2220,13 +2330,15 @@ contains
         real(dp), pointer :: ln_nj(:)           ! Log of gas species concentrations [kmol-per-kg]
         real(dp), pointer :: A_g(:,:), A_c(:,:) ! Gas/condensed stoichiometric matrices
         integer :: r, c                         ! Iteration matrix row/column indices
-        integer :: i, k                         ! Loop counters
+        integer :: i, k, ic                     ! Loop counters
+        integer, allocatable :: active_idx(:)   ! Active condensed indices in legacy order
 
         ! Define shorthand
         ng = solver%num_gas
         nc = solver%num_condensed
         ne = solver%num_active_elements()
         na = count(soln%is_active)
+        active_idx = soln%active_condensed_indices()
         num_eqn = ne+na+1
 
         ! Associate subarray pointers
@@ -2245,8 +2357,8 @@ contains
         !-------------------------------------------------------
         ! Equation (2.64)
         !-------------------------------------------------------
-        do i = 1,ne
-            tmp = nj_g*A_g(:,i)
+        do ic = 1,ne
+            tmp = nj_g*A_g(:,ic)
             r = r+1
             c = 0
 
@@ -2257,10 +2369,10 @@ contains
             end do
 
             ! ∂n,c_i/∂lnP
-            do k = 1,nc
-                if (.not. soln%is_active(k)) cycle
+            do k = 1,na
+                i = active_idx(k)
                 c = c+1
-                J(r,c) = A_c(k,i)
+                J(r,c) = A_c(i, ic)
                 J(c,r) = J(r,c)  ! Symmetric
             end do
 
@@ -2299,7 +2411,8 @@ contains
         ! Locals
         real(dp), allocatable :: J(:,:)
         real(dp) :: nj_solid ! Temporary variables for condensed species
-        integer :: ng, ne, nc, na, ierr, i, idx
+        integer :: ng, ne, nc, na, ierr, i, idx, liq_rank
+        integer, allocatable :: active_idx(:)
         real(dp), pointer :: nj(:), nj_g(:)     ! Total/gas species concentrations [kmol-per-kg]
         real(dp), pointer :: cp(:)              ! Species heat capacity [unitless]
         real(dp), pointer :: h_g(:), h_c(:)     ! Gas/condensed enthalpies [unitless]
@@ -2335,7 +2448,8 @@ contains
             nj_solid = soln%nj(ng+soln%j_sol)
             soln%nj(ng+soln%j_sol) = soln%nj(ng+soln%j_sol) + soln%nj(ng+soln%j_liq)
             soln%nj(ng+soln%j_liq) = 0.0d0
-            soln%is_active(soln%j_liq) = .false.
+            liq_rank = max(1, soln%active_rank(soln%j_liq))
+            call soln%deactivate_condensed(soln%j_liq)
             na = count(soln%is_active)
             self%dlnV_dlnT = 0.0d0
             self%cp_eq = 0.0d0
@@ -2357,10 +2471,9 @@ contains
                 end do
 
                 ! Term 2: ∑_j^nc H_j/RT (∂n_i/∂lnT)_P
-                idx = 0
-                do i = 1,nc
-                    if (.not. soln%is_active(i)) cycle
-                    idx = idx + 1
+                active_idx = soln%active_condensed_indices()
+                do idx = 1, size(active_idx)
+                    i = active_idx(idx)
                     self%cp_eq = self%cp_eq + h_c(i)*self%dnc_dlnT(idx)
                 end do
 
@@ -2398,7 +2511,7 @@ contains
                 self%gamma_s = -1.0d0/self%dlnV_dlnP
                 soln%nj(ng+soln%j_liq) = soln%nj(ng+soln%j_sol) - nj_solid
                 soln%nj(ng+soln%j_sol) = nj_solid
-                soln%is_active(soln%j_liq) = .true.
+                call soln%activate_condensed(soln%j_liq, liq_rank)
             end if
 
         else
@@ -2675,7 +2788,7 @@ contains
                  stcf(ng, ng), stcoef(ng), tmp(max_tr), gmat(ng, ng), &
                  stx(ng), stxij(ng, ng))
 
-        ! cond can be used without being initialized, and uninitialized elements 
+        ! cond can be used without being initialized, and uninitialized elements
         ! could be used later if all of the species aren't found in the transport database
         cond = 0.0d0
 
