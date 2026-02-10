@@ -1590,8 +1590,10 @@ contains
         ! Locals
         integer :: i, iter, ierr, num_eqn, times_singular
         integer :: singular_index, singular_index_iter
+        integer :: phase_iter, phase_pass
         real(dp), pointer :: G(:, :)
         type(EqPartials) :: partials_
+        logical :: made_change
 
         call log_debug("Starting Eq. Solve.")
 
@@ -1611,6 +1613,13 @@ contains
         times_singular = 0  ! Number of times a singular matrix was encountered ("ixsing" in CEA2)
         soln%times_converged = 0  ! Number of times initial convergence was established
         soln%j_switch = 0  ! Make sure this is reset every time
+
+        ! Pre-check active condensed phases before the first Newton matrix build.
+        phase_iter = 0
+        do phase_pass = 1, self%num_condensed + 1
+            call self%check_condensed_phases(soln, phase_iter, made_change)
+            if (.not. made_change) exit
+        end do
 
         ! Initial call of the thermodynamic properties
         call self%products%calc_thermo(soln%thermo, soln%T, condensed=.false.)
