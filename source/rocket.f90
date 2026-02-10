@@ -127,12 +127,16 @@ contains
         integer, parameter :: max_iter_frozen = 8  ! Maximum number of iterations for frozen conditions
         integer :: ng                        ! Number of gas species
         logical :: convg                     ! Convergence flag
+        logical :: finalized                 ! True if frozen properties were finalized in-loop
+        logical :: in_range                  ! True if frozen point is within condensed species temperature ranges
         real(dp) :: dlpm
-        real(dp), parameter :: tol = 1.0d-6  ! Tolerance for frozen convergence
+        real(dp), parameter :: tol = 0.5d-4  ! Legacy tolerance for frozen convergence
         real(dp), parameter :: approx_zero_tol = 1.0d-12  ! Tolerance to check if a value is approximately zero
+        real(dp), parameter :: phase_gap = 50.0d0  ! Legacy condensed phase guard band [K]
         real(dp) :: cpsum, ssum              ! Temporary variables for mixture properties
         real(dp) :: cpj, sj                  ! Temporary variables for species properties
         real(dp) :: dlnt                     ! Update variable for log-temperature
+        real(dp) :: T_low, T_high            ! Condensed species temperature bounds [K]
 
         call log_debug("Starting frozen calculations")
 
@@ -155,6 +159,7 @@ contains
         end do
 
         convg = .false.
+        finalized = .false.
         do i = 1, max_iter_frozen
             cpsum = 0.0d0
             ssum = 0.0d0
@@ -179,7 +184,28 @@ contains
                 soln%eq_partials(idx)%dlnV_dlnP = -1.0d0
                 soln%eq_partials(idx)%dlnV_dlnT = 1.0d0
                 call self%eq_solver%products%calc_thermo(soln%eq_soln(idx)%thermo, soln%eq_soln(idx)%T)
-                ! TODO: Check if any condensed species have melting temperatures 50 degress less than the current temp
+
+                ! Legacy guard: stop if any frozen condensed species is outside its
+                ! valid temperature range by more than 50 K.
+                in_range = .true.
+                do j = 1, self%eq_solver%num_condensed
+                    if (abs(soln%eq_soln(n_frz)%nj(ng+j)) <= approx_zero_tol) cycle
+                    T_low = minval(self%eq_solver%products%species(ng+j)%T_fit(:, 1))
+                    T_high = maxval(self%eq_solver%products%species(ng+j)%T_fit(:, 2))
+                    if (soln%eq_soln(idx)%T < (T_low-phase_gap) .or. soln%eq_soln(idx)%T > (T_high+phase_gap)) then
+                        in_range = .false.
+                        exit
+                    end if
+                end do
+
+                if (.not. in_range) then
+                    call log_warning("Frozen calculations stopped: temperature is more than 50 K outside "// &
+                        "the range of a condensed species")
+                    soln%converged = .false.
+                    return
+                end if
+
+                finalized = .true.
                 exit
             else
                 dlnt = (1.d3*soln%eq_soln(n_frz)%entropy/R - ssum)/cpsum
@@ -188,6 +214,12 @@ contains
             end if
 
         end do
+
+        if (.not. finalized) then
+            call log_warning("Frozen calculations did not converge in 8 iterations")
+            soln%converged = .false.
+            return
+        end if
 
         ! Compute and save the mixture properties
         soln%eq_soln(idx)%pressure = soln%pressure(idx)
@@ -312,6 +344,7 @@ contains
 
         call log_debug("Starting frozen throat calculations")
         soln%station(idx) = "throat  "
+        awt = 0.0d0
 
         ! Initial estimate pressure ratio (Eq. 6.15)
         gamma_s = soln%gamma_s(n_frz)
@@ -329,6 +362,7 @@ contains
 
             ! Compute the frozen properties
             call self%frozen(soln, idx, n_frz)
+            if (.not. soln%converged) return
 
             ! Compute throat properties
             h = dot_product(soln%eq_soln(idx)%nj, soln%eq_soln(idx)%thermo%enthalpy)*soln%eq_soln(idx)%T
@@ -452,6 +486,7 @@ contains
 
             ! Compute the frozen solution
             call self%frozen(soln, idx, n_frz)
+            if (.not. soln%converged) return
 
             ! Compute exit properties
             h = dot_product(soln%eq_soln(idx)%nj, soln%eq_soln(idx)%thermo%enthalpy)*soln%eq_soln(idx)%T
@@ -684,6 +719,7 @@ contains
                 ! Compute the frozen solution
                 soln%pressure(idx) = pc/exp(ln_pinf_pe)
                 call self%frozen(soln, idx, n_frz)
+                if (.not. soln%converged) return
 
                 ! Compute exit properties
                 h = dot_product(soln%eq_soln(idx)%nj, soln%eq_soln(idx)%thermo%enthalpy)*soln%eq_soln(idx)%T
@@ -821,6 +857,7 @@ contains
         else
             call self%solve_throat(soln, idx, pc, h_inf, state1, reactant_weights, awt)
         end if
+        if (.not. soln%converged) return
         ln_pinf_pt = log(soln%pressure(1)/soln%pressure(2))
 
         ! -----------------------------------------------
@@ -833,6 +870,7 @@ contains
         else
             call self%solve_pi_p(soln, idx, pc, pi_p, h_inf, state1, reactant_weights)
         end if
+        if (.not. soln%converged) return
 
         ! -----------------------------------------------
         ! Exit conditions: subsonic area ratio
@@ -859,6 +897,7 @@ contains
             else
                 call self%solve_supar(soln, idx, pc, supar, h_inf, state1, reactant_weights, ln_pinf_pt, awt)
             end if
+            if (.not. soln%converged) return
 
         end if
 
@@ -1121,6 +1160,7 @@ contains
         if (frozen .and. idx > n_frz_) then
             call self%solve_throat_frozen(soln, idx, n_frz_, p_inf, h_inj, awt)
         end if
+        if (.not. soln%converged) return
 
         ! -----------------------------------------------
         ! Exit conditions: pressure ratio
@@ -1132,6 +1172,7 @@ contains
         else
             call self%solve_pi_p(soln, idx, pc, pi_p, h_inj, S_ref, reactant_weights)
         end if
+        if (.not. soln%converged) return
 
         ! -----------------------------------------------
         ! Exit conditions: subsonic area ratio
@@ -1163,6 +1204,7 @@ contains
                 call self%solve_supar(soln, idx, soln%pressure(2), supar, h_inj, S_ref, reactant_weights, &
                     ln_pinf_pt, awt)
             end if
+            if (.not. soln%converged) return
         end if
 
         ! Compute performance parameters
