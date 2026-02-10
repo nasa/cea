@@ -262,7 +262,7 @@ contains
 
             ! Update estimate pressure if not converged (Eq. 6.17)
             p = soln%pressure(idx)*((1.0d0 + gamma_s*(usq/asq))/(1.0d0 + gamma_s))
-            if (i > 3) then
+            if (i <= 3) then
                 if (soln%eq_soln(idx)%j_sol /= 0) then
                     T_melt = soln%eq_soln(idx)%T
                     soln%pressure(idx) = p
