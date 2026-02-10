@@ -787,9 +787,12 @@ contains
         ! ---------------------------------------------------------------------------
         if (self%trace > 0.0d0) then
             do i = 1, ne
-                if (abs((pi_prev(i) - pi(i))/pi(i)) > pi_tol) then
-                    soln%pi_converged = .false.
-                    return
+                ! Match CEA2 behavior: if denominator is zero, skip ratio check.
+                if (abs(pi(i)) > tiny(1.0d0)) then
+                    if (abs((pi_prev(i) - pi(i))/pi(i)) > pi_tol) then
+                        soln%pi_converged = .false.
+                        return
+                    end if
                 end if
             end do
         end if
