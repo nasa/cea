@@ -112,13 +112,15 @@ contains
         real(dp) :: cormax, ax  ! Max correction factor; correction coefficient
 
         ax = max(abs(X1), abs(X2))
-        if (ax >= 0.0005d0) then  ! * Note: this also serves as the convergence check
+        if (ax >= 0.00005d0) then  ! Legacy SHCK threshold (.00005)
             cormax = .40546511d0
             if (iter > 4) then
                 cormax = .22314355d0
-            else if (iter > 12) then
+            end if
+            if (iter > 12) then
                 cormax = .09531018d0
-            else if (iter > 20) then
+            end if
+            if (iter > 20) then
                 cormax = .04879016d0
             end if
             ax = ax/cormax
