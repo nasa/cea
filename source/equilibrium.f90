@@ -1428,6 +1428,9 @@ contains
         integer :: na                        ! Number of active condensed species
         real(dp), pointer :: A(:,:)          ! Stoichiometric matrix
         real(dp), parameter :: tol = 1.d-8   ! Tolerance to check if value ~0
+        real(dp), parameter :: smalno = 1.0d-6
+        real(dp), parameter :: smnol = -13.815511d0
+        logical :: made_change
 
 
         ! Shorthand
@@ -1440,6 +1443,7 @@ contains
         self%xsize = 80.0d0
         self%tsize = 80.0d0
         if (present(singular_index)) singular_index = 0
+        made_change = .false.
 
         if (ierr > self%num_elements .and. iter < 1 .and. na > 1 &
             .and. soln%last_cond_idx > 0) then
@@ -1470,6 +1474,7 @@ contains
                 soln%j_switch = idx
                 if (present(singular_index)) singular_index = idx
                 iter = -1
+                made_change = .true.
             end if
 
         ! TODO: singular updates when elements are removed
@@ -1495,6 +1500,22 @@ contains
                 soln%converged = .false.
                 soln%j_switch = idx
                 if (present(singular_index)) singular_index = idx
+                iter = -1
+                made_change = .true.
+            end if
+        end if
+
+        ! Legacy fallback path: seed trace gas species to break persistent singularity.
+        if (.not. made_change) then
+            do i = 1, ng
+                if (soln%nj(i) <= 0.0d0) then
+                    soln%nj(i) = smalno
+                    soln%ln_nj(i) = smnol
+                    made_change = .true.
+                end if
+            end do
+            if (made_change) then
+                soln%converged = .false.
                 iter = -1
             end if
         end if
