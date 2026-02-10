@@ -1374,7 +1374,7 @@ contains
                 if (soln%T <= maxval(self%products%species(ng+i)%T_fit(:, 2))) then
 
                     temp = dot_product(A_c(i,:), pi)
-                    delg = (h_c(i) - s_c(i) - temp)/self%products%species(i)%molecular_weight
+                    delg = (h_c(i) - s_c(i) - temp)/self%products%species(ng+i)%molecular_weight
 
                     if (delg < min_delg .and. delg < 0.0d0) then
                         if (i /= singular_index_) then
