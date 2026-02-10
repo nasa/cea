@@ -365,9 +365,8 @@ contains
 
         if (self%xsize > 80.0d0) self%xsize = 80.0d0
 
-        if (self%trace < 1.0d-8) then
-            self%esize = min(80.0d0, self%xsize + 6.90775528d0)  ! -ln(xsize * 1.d-3)
-        end if
+        ! Match legacy CEA2 behavior: always derive esize from xsize.
+        self%esize = min(80.0d0, self%xsize + 6.90775528d0)
 
         ! Set the max number of times that the solution can converge without establishing a set of condensed species
         self%max_converged = 3*self%products%num_elements
