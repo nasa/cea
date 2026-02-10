@@ -343,7 +343,7 @@ contains
             if (abs(usq - asq)/usq <= ut_tol) exit
 
             ! Update estimate pressure if not converged (Eq. 6.17)
-            p = soln%pressure(idx)*((1.0d0 + gamma_s*soln%mach(idx))/(1.0d0 + gamma_s))
+            p = soln%pressure(idx)*((1.0d0 + gamma_s*(usq/asq))/(1.0d0 + gamma_s))
             if (i > 3) then
                 delta_p = dabs(soln%pressure(idx)-p)/20.d0
                 soln%pressure(idx) = max(p, soln%pressure(idx)) - delta_p
