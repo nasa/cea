@@ -1975,6 +1975,9 @@ contains
                 end if
             else
                 self%Rx(r, c) = 0.0d0
+                if (.not. const_p) then
+                    self%Rx(r, c) = self%Rx(r, c) - sum(tmp)/T
+                end if
             end if
 
             ! dR/dx3...n (x3...n: element amounts)
