@@ -748,7 +748,7 @@ contains
 
         ! Check total moles update
         if (const_p) then
-            if (n*dln_n/sum(nj(1:ng)) > nj_tol) then
+            if (abs(n*dln_n/sum(nj(1:ng))) > nj_tol) then
                 soln%moles_converged = .false.
                 return
             end if
