@@ -3,6 +3,7 @@ module cea_equilibrium
 
     use cea_param, only: dp, empty_dp, R=>gas_constant, &
                          snl=>species_name_len, &
+                         enl=>element_name_len, &
                          Avgdr=>avogadro, &
                          Boltz=>boltzmann, &
                          pi
@@ -46,6 +47,8 @@ module cea_equilibrium
             !! Flag if ions should be included
         logical :: active_ions = .true.
             !! Flag if ions are currently active
+        integer :: reduced_elements = 0
+            !! Number of temporarily reduced element equations in singular recovery
         logical :: transport = .false.
             !! Flag if transport properties should be computed
         character(snl), allocatable :: insert(:)
@@ -388,9 +391,63 @@ contains
         class(EqSolver), intent(in) :: self
         integer :: ne
 
-        ne = self%num_elements
+        ne = self%num_elements - self%reduced_elements
         if (self%ions .and. .not. self%active_ions) ne = max(0, ne-1)
+        ne = max(0, ne)
     end function
+
+    subroutine EqSolver_swap_elements(self, soln, i, j)
+        ! Swap two element equations/columns in the solver state.
+        class(EqSolver), intent(inout), target :: self
+        type(EqSolution), intent(inout), target :: soln
+        integer, intent(in) :: i
+        integer, intent(in) :: j
+        real(dp) :: tmp_col(self%num_products)
+        real(dp) :: tmp
+        character(enl) :: tmp_name
+
+        if (i == j) return
+        if (i < 1 .or. i > self%num_elements .or. j < 1 .or. j > self%num_elements) then
+            call abort('EqSolver_swap_elements: index out of bounds.')
+        end if
+
+        tmp_col = self%products%stoich_matrix(:, i)
+        self%products%stoich_matrix(:, i) = self%products%stoich_matrix(:, j)
+        self%products%stoich_matrix(:, j) = tmp_col
+
+        tmp_name = self%products%element_names(i)
+        self%products%element_names(i) = self%products%element_names(j)
+        self%products%element_names(j) = tmp_name
+
+        tmp = soln%constraints%b0(i)
+        soln%constraints%b0(i) = soln%constraints%b0(j)
+        soln%constraints%b0(j) = tmp
+
+        tmp = soln%pi(i)
+        soln%pi(i) = soln%pi(j)
+        soln%pi(j) = tmp
+
+        tmp = soln%pi_prev(i)
+        soln%pi_prev(i) = soln%pi_prev(j)
+        soln%pi_prev(j) = tmp
+    end subroutine
+
+    subroutine EqSolver_restore_reduced_elements(self, soln, num_swaps, swap_from, swap_to)
+        ! Restore element ordering after solve-local component reduction.
+        class(EqSolver), intent(inout), target :: self
+        type(EqSolution), intent(inout), target :: soln
+        integer, intent(in) :: num_swaps
+        integer, intent(in) :: swap_from(:)
+        integer, intent(in) :: swap_to(:)
+        integer :: i
+
+        if (num_swaps > 0) then
+            do i = num_swaps, 1, -1
+                call EqSolver_swap_elements(self, soln, swap_from(i), swap_to(i))
+            end do
+        end if
+        self%reduced_elements = 0
+    end subroutine
 
     function EqSolver_compute_damped_update_factor(self, soln) result(lambda)
         ! Compute the damped update factor, lambda, for the Newton solver
@@ -1323,6 +1380,7 @@ contains
 
         ! Locals
         integer :: ng                             ! Number of gas species
+        integer :: ne                             ! Number of active elements
         integer :: na                             ! Number of active condensed species
         integer :: nc                             ! Number of total condensed species
         real(dp), pointer :: nj_c(:)              ! Condensed species concentrations [kmol-per-kg]
@@ -1345,6 +1403,7 @@ contains
 
         ! Shorthand
         ng = self%num_gas
+        ne = self%num_active_elements()
         na = count(soln%is_active)
         nc = self%num_condensed
 
@@ -1409,7 +1468,8 @@ contains
                 T_min == minval(self%products%species(ng+i)%T_fit(:, 1))) then
                 if (soln%T <= maxval(self%products%species(ng+i)%T_fit(:, 2))) then
 
-                    temp = dot_product(A_c(i,:), pi)
+                    temp = 0.0d0
+                    if (ne > 0) temp = dot_product(A_c(i,:ne), pi(:ne))
                     delg = (h_c(i) - s_c(i) - temp)/self%products%species(ng+i)%molecular_weight
 
                     if (delg < min_delg .and. delg < 0.0d0) then
@@ -1443,7 +1503,7 @@ contains
 
     end subroutine
 
-    subroutine EqSolver_correct_singular(self, soln, iter, ierr, singular_index)
+    subroutine EqSolver_correct_singular(self, soln, iter, ierr, singular_index, reduced_from, reduced_to)
         ! Try to correct the singular Jacobian matrix
 
         ! Arguments
@@ -1452,6 +1512,8 @@ contains
         integer, intent(inout) :: iter
         integer, intent(in) :: ierr
         integer, intent(out), optional :: singular_index
+        integer, intent(out), optional :: reduced_from
+        integer, intent(out), optional :: reduced_to
 
         ! Locals
         integer :: i, j, k                   ! Iterators
@@ -1483,6 +1545,8 @@ contains
         self%xsize = 80.0d0
         self%tsize = 80.0d0
         if (present(singular_index)) singular_index = 0
+        if (present(reduced_from)) reduced_from = 0
+        if (present(reduced_to)) reduced_to = 0
         made_change = .false.
 
         if (ierr > ne .and. iter < 1 .and. na > 1 &
@@ -1584,6 +1648,22 @@ contains
             end if
         end if
 
+        ! Legacy component-reduction fallback for persistent element-row singularities.
+        if (.not. made_change .and. ierr >= 1 .and. ierr <= ne .and. iter < 1 .and. &
+            ne > 1 .and. .not. (self%ions .and. self%active_ions)) then
+            call log_info("Reducing active element equations after singular restart on "// &
+                          trim(self%products%element_names(ierr)))
+            if (ierr /= ne) call EqSolver_swap_elements(self, soln, ierr, ne)
+            self%reduced_elements = self%reduced_elements + 1
+            soln%pi(ne) = 0.0d0
+            soln%pi_prev(ne) = 0.0d0
+            soln%converged = .false.
+            iter = -1
+            made_change = .true.
+            if (present(reduced_from)) reduced_from = ierr
+            if (present(reduced_to)) reduced_to = ne
+        end if
+
         ! Legacy fallback path: seed trace gas species to break persistent singularity.
         if (.not. made_change) then
             do i = 1, ng
@@ -1667,6 +1747,9 @@ contains
         integer :: i, iter, ierr, num_eqn, times_singular
         integer :: cond_idx
         integer :: singular_index, singular_index_iter
+        integer :: reduced_from_iter, reduced_to_iter
+        integer :: num_reduced
+        integer :: reduced_from(self%num_elements), reduced_to(self%num_elements)
         integer :: phase_iter, phase_pass
         real(dp) :: gas_moles, xi, xln
         real(dp), pointer :: G(:, :)
@@ -1692,7 +1775,11 @@ contains
         soln%times_converged = 0  ! Number of times initial convergence was established
         soln%j_switch = 0  ! Make sure this is reset every time
         self%active_ions = self%ions
+        self%reduced_elements = 0
         soln%pi_e = 0.0d0
+        num_reduced = 0
+        reduced_from = 0
+        reduced_to = 0
 
         ! Pre-check active condensed phases before the first Newton matrix build.
         phase_iter = 0
@@ -1737,13 +1824,21 @@ contains
 
                 times_singular = times_singular + 1
                 if (times_singular > 8) then
+                    call EqSolver_restore_reduced_elements(self, soln, num_reduced, reduced_from, reduced_to)
                     call abort('EqSolver_solve: Too many singular matrices encountered.')
                 end if
 
                 ! Try to correct the singular matrix
                 singular_index_iter = 0
-                call self%correct_singular(soln, iter, ierr, singular_index_iter)
+                reduced_from_iter = 0
+                reduced_to_iter = 0
+                call self%correct_singular(soln, iter, ierr, singular_index_iter, reduced_from_iter, reduced_to_iter)
                 if (singular_index_iter > 0) singular_index = singular_index_iter
+                if (reduced_to_iter > 0) then
+                    num_reduced = num_reduced + 1
+                    reduced_from(num_reduced) = reduced_from_iter
+                    reduced_to(num_reduced) = reduced_to_iter
+                end if
 
                 ! Start next iteration
                 cycle
@@ -1752,6 +1847,7 @@ contains
 
             if (soln%times_converged > 3*self%num_active_elements()) then
                 soln%converged = .false.
+                call EqSolver_restore_reduced_elements(self, soln, num_reduced, reduced_from, reduced_to)
                 call abort("Convergence failed to establish set of condensed species.")
             end if
 
@@ -1800,6 +1896,7 @@ contains
                     end if
 
                     call self%post_process(soln, .false.)
+                    call EqSolver_restore_reduced_elements(self, soln, num_reduced, reduced_from, reduced_to)
                     call abort('EqSolver_solve: Maximum iterations reached without convergence')
                 end if
 
@@ -1828,10 +1925,13 @@ contains
                     soln%converged = .false.
                 end if
 
+                call EqSolver_restore_reduced_elements(self, soln, num_reduced, reduced_from, reduced_to)
                 return
             end if
 
         end do
+
+        call EqSolver_restore_reduced_elements(self, soln, num_reduced, reduced_from, reduced_to)
 
     end subroutine
 
