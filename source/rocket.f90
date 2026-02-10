@@ -639,7 +639,7 @@ contains
             ! Compute intial estimate of pressure ratio (Eq. 6.21/6.22)
             if (supar(i) < 2.0d0) then
                 ln_pinf_pe = ln_pinf_pt + sqrt(3.294d0*(log(supar(i))**2.0d0) + 1.535d0*log(supar(i)))
-            else if (supar(i) > 2.0d0) then
+            else if (supar(i) >= 2.0d0) then
                 ln_pinf_pe = soln%eq_partials(2)%gamma_s + 1.4d0*log(supar(i))
             end if
 
@@ -728,7 +728,7 @@ contains
             ! Compute intial estimate of pressure ratio (Eq. 6.21/6.22)
             if (supar(i) < 2.0d0) then
                 ln_pinf_pe = ln_pinf_pt + sqrt(3.294d0*(log(supar(i))**2.0d0) + 1.535d0*log(supar(i)))
-            else if (supar(i) > 2.0d0) then
+            else if (supar(i) >= 2.0d0) then
                 ln_pinf_pe = soln%eq_partials(2)%gamma_s + 1.4d0*log(supar(i))
             end if
 
