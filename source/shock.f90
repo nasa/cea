@@ -173,7 +173,9 @@ contains
         soln%converged = .false.
         u1 = soln%u(1)
         mach1 = soln%mach(1)
-        soln%eq_soln(idx) = EqSolution(self%eq_solver, T_init=T0)
+        ! Seed incident-equilibrium solve from the unshocked reactant
+        ! composition, matching legacy SHCK/HCALC initialization behavior.
+        soln%eq_soln(idx) = EqSolution(self%eq_solver, T_init=T0, nj_init=soln%eq_soln(1)%nj)
 
         ! Compute the molecular weight of the initial mixture
         wm = sum(weights)
