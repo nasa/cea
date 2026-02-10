@@ -543,6 +543,7 @@ contains
         ! Locals
         integer :: idx  ! Solution index for the incident conditions
         integer :: i                      ! Loop index
+        integer :: ng                     ! Number of gas species
         real(dp) :: cp                    ! Mixture heat capacity
         real(dp) :: wm, wm_k              ! Mixture molecular weight (initial, k-th iteration)
         real(dp) :: h_init, h0            ! Mixture enthalpy (initial, <all other points>)
@@ -587,9 +588,10 @@ contains
         ! Compute the molecular weight of the initial mixture
         wm = 1.0d0/soln%eq_soln(2)%n
         wm_k = wm
+        ng = self%eq_solver%num_gas
 
         ! Initialize the solution for the reflected shock
-        h_init = self%eq_solver%reactants%calc_enthalpy(weights, T2)/R
+        h_init = dot_product(soln%eq_soln(2)%nj, soln%eq_soln(2)%thermo%enthalpy)*T2
         u2 = u1*rho12
         u1u2 = soln%v2
         mu25rt = wm*(u1 - u1*rho12)**2/(R*soln%eq_soln(2)%T)
@@ -606,9 +608,10 @@ contains
             soln%eq_soln(idx)%constraints%state2 = soln%pressure(idx)
             call self%eq_solver%products%calc_thermo(soln%eq_soln(idx)%thermo, soln%eq_soln(idx)%T, condensed=.false.)
 
-            ! Update properties after the equilibrium shock
-            cp = self%eq_solver%reactants%calc_frozen_cp(weights, T5)/R
-            h0 = self%eq_solver%reactants%calc_enthalpy(weights, T5)/R
+            ! Update frozen properties from the incident (state-2) frozen composition.
+            ! Legacy SHCK reflected-frozen path evaluates gas-only frozen cp and h at T5.
+            cp = dot_product(soln%eq_soln(idx)%nj(:ng), soln%eq_soln(idx)%thermo%cp(:ng))
+            h0 = dot_product(soln%eq_soln(idx)%nj(:ng), soln%eq_soln(idx)%thermo%enthalpy(:ng))*T5
             dlnV_dlnP = soln%eq_partials(idx)%dlnV_dlnP
             dlnV_dlnT = soln%eq_partials(idx)%dlnV_dlnT
 
