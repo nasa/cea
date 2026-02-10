@@ -2444,7 +2444,8 @@ contains
         num_match = 0
         do i = 1, size(products%species_names(ng+1:))
 
-            ! if (trim(products%species_names(ng+i)) == trim(name)) cycle
+            ! Exclude the current phase itself; caller needs only alternate phases.
+            if (trim(products%species_names(ng+i)) == trim(name)) cycle
 
             test_name = trim_phase(products%species_names(ng+i))
             if (trim_name == test_name) then
