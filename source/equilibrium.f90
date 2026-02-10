@@ -1652,8 +1652,10 @@ contains
             if (.not. made_change) exit
         end do
 
-        ! Initial call of the thermodynamic properties
-        call self%products%calc_thermo(soln%thermo, soln%T, condensed=.false.)
+        ! Initial call of the thermodynamic properties.
+        ! Compute condensed thermo too so the first Newton build does not use
+        ! stale condensed values when active condensed species are present.
+        call self%products%calc_thermo(soln%thermo, soln%T, condensed=.true.)
 
         ierr = 0
         iter = 0
