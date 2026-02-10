@@ -1407,7 +1407,7 @@ contains
 
     end subroutine
 
-    subroutine EqSolver_correct_singular(self, soln, iter, ierr)
+    subroutine EqSolver_correct_singular(self, soln, iter, ierr, singular_index)
         ! Try to correct the singular Jacobian matrix
 
         ! Arguments
@@ -1415,6 +1415,7 @@ contains
         type(EqSolution), intent(inout), target :: soln
         integer, intent(inout) :: iter
         integer, intent(in) :: ierr
+        integer, intent(out), optional :: singular_index
 
         ! Locals
         integer :: i, j, k                   ! Iterators
@@ -1438,6 +1439,7 @@ contains
 
         self%xsize = 80.0d0
         self%tsize = 80.0d0
+        if (present(singular_index)) singular_index = 0
 
         if (ierr > self%num_elements .and. iter < 1 .and. na > 1 &
             .and. soln%last_cond_idx > 0) then
@@ -1466,6 +1468,7 @@ contains
                 soln%nj(ng+idx) = 0.0d0
                 soln%converged = .false.
                 soln%j_switch = idx
+                if (present(singular_index)) singular_index = idx
                 iter = -1
             end if
 
@@ -1491,6 +1494,7 @@ contains
                 soln%nj(self%num_gas+idx) = 0.0d0
                 soln%converged = .false.
                 soln%j_switch = idx
+                if (present(singular_index)) singular_index = idx
                 iter = -1
             end if
         end if
@@ -1561,6 +1565,7 @@ contains
 
         ! Locals
         integer :: i, iter, ierr, num_eqn, times_singular
+        integer :: singular_index, singular_index_iter
         real(dp), pointer :: G(:, :)
         type(EqPartials) :: partials_
 
@@ -1588,6 +1593,7 @@ contains
 
         ierr = 0
         iter = 0
+        singular_index = 0
         do while (self%max_iterations > iter)
 
             iter = iter + 1
@@ -1619,7 +1625,9 @@ contains
                 end if
 
                 ! Try to correct the singular matrix
-                call self%correct_singular(soln, iter, ierr)
+                singular_index_iter = 0
+                call self%correct_singular(soln, iter, ierr, singular_index_iter)
+                if (singular_index_iter > 0) singular_index = singular_index_iter
 
                 ! Start next iteration
                 cycle
@@ -1636,7 +1644,7 @@ contains
             end if
 
             ! Initial convergence; check on adding or removing condensed species
-            call self%test_condensed(soln, iter)  ! TODO: singular_index
+            call self%test_condensed(soln, iter, singular_index)
 
             if (soln%converged .or. (iter == self%max_iterations)) then
 
