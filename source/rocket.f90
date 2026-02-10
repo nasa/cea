@@ -470,12 +470,22 @@ contains
         real(dp) :: awt                      ! Throat area per unit mass flow rate
         real(dp) :: h                        ! Enthalpy at any other station (temporary)
         real(dp) :: gamma_s                  ! Temp variable for isentropic exponent gamma_s
+        real(dp) :: pip_nf                   ! Pressure ratio at freeze point
 
         call log_debug("Starting frozen pi/p calculations")
 
         awt = soln%eq_soln(soln%throat_idx)%n*soln%eq_soln(soln%throat_idx)%T/ &
             (soln%pressure(soln%throat_idx)*soln%v_sonic(soln%throat_idx))
+        pip_nf = pc/soln%pressure(n_frz)
         do i = 1, size(pi_p)
+            ! Legacy frozen scheduling: omit assigned pressure ratios lower than
+            ! the value at the freeze point.
+            if (pi_p(i) < pip_nf) then
+                call log_info('RocketSolver: WARNING!!  FOR FROZEN PERFORMANCE, POINT OMITTED BECAUSE '// &
+                    'ASSIGNED pi/p IS LESS THAN VALUE AT nfz='//to_str(n_frz))
+                cycle
+            end if
+
             soln%station(idx) = "exit    "
 
             ! Get the pressure from the pressure rato
@@ -697,6 +707,14 @@ contains
         call log_debug("Starting frozen supar calculations")
 
         do i = 1, size(supar)
+            ! Legacy frozen scheduling: omit assigned supersonic area ratios
+            ! that are not greater than the value at the freeze point.
+            if (n_frz >= 3 .and. supar(i) <= soln%ae_at(n_frz)) then
+                call log_info('RocketSolver: WARNING!!  FOR FROZEN PERFORMANCE, POINT OMITTED BECAUSE '// &
+                    'ASSIGNED Ae/At IS LESS THAN OR EQUAL TO VALUE AT nfz='//to_str(n_frz))
+                cycle
+            end if
+
             soln%station(idx) = "exit    "
 
             ! Set the initial guess for the equilibrium solve based on throat conditions
@@ -878,7 +896,7 @@ contains
 
         if (present(subar)) then
 
-            if (frozen) then
+            if (frozen .and. n_frz_ > 1) then
                 call log_info('RocketSolver: WARNING!!  FREEZING IS NOT ALLOWED AT A SUBSONIC PRESSURE RATIO')
             else
                 call self%solve_subar(soln, idx, pc, subar, h_inf, state1, reactant_weights, idx-1, 2, ln_pinf_pt, awt)
@@ -900,6 +918,9 @@ contains
             if (.not. soln%converged) return
 
         end if
+
+        ! Omitted frozen schedule points do not consume output indices.
+        soln%num_pts = idx - 1
 
         ! Compute performance parameters
         call self%post_process(soln, .false.)
@@ -1180,7 +1201,7 @@ contains
 
         if (present(subar)) then
 
-            if (frozen) then
+            if (frozen .and. n_frz_ > 1) then
                 call log_info('RocketSolver: WARNING!!  FREEZING IS NOT ALLOWED AT A SUBSONIC PRESSURE RATIO')
             else
                 ln_pinf_pt = log(soln%pressure(2)/soln%pressure(4))
@@ -1206,6 +1227,9 @@ contains
             end if
             if (.not. soln%converged) return
         end if
+
+        ! Omitted frozen schedule points do not consume output indices.
+        soln%num_pts = idx - 1
 
         ! Compute performance parameters
         call self%post_process(soln, .true.)
