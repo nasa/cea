@@ -311,6 +311,7 @@ contains
         type(TransportDB), intent(in), optional :: all_transport
         character(*), intent(in), optional :: insert(:)  ! List of condensed species to insert
         integer :: i
+        integer :: ngc_equiv
 
         ! Initialize reactant data
         self%products = products
@@ -341,10 +342,13 @@ contains
 
         ! Update size parameters
         if (self%trace > 0.0d0) then
-            ! Note: this results in slightly fewer iterations than CEA2; CEA2 "num_products" equivalent (Ngc)
-            !       includes one condensed species per temperature interval, and we use one total per species.
-            !       This should be fine, since problems rarely use this many iterations.
-            self%max_iterations = 50 + self%num_products/2
+            ! Match CEA2 scaling (maxitn = 50 + Ngc/2), where Ngc counts condensed
+            ! species by temperature interval. Approximate Ngc from this data model.
+            ngc_equiv = self%num_gas
+            do i = 1, self%num_condensed
+                ngc_equiv = ngc_equiv + max(1, self%products%species(self%num_gas+i)%num_intervals)
+            end do
+            self%max_iterations = 50 + ngc_equiv/2
             self%xsize = -log(self%trace)
             if (self%xsize < self%size) self%xsize = self%size + 0.1d0
         end if
