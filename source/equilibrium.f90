@@ -1589,11 +1589,13 @@ contains
 
         ! Locals
         integer :: i, iter, ierr, num_eqn, times_singular
+        integer :: cond_idx
         integer :: singular_index, singular_index_iter
         integer :: phase_iter, phase_pass
+        real(dp) :: gas_moles, xi, xln
         real(dp), pointer :: G(:, :)
         type(EqPartials) :: partials_
-        logical :: made_change
+        logical :: made_change, max_iter_fallback_used
 
         call log_debug("Starting Eq. Solve.")
 
@@ -1627,6 +1629,7 @@ contains
         ierr = 0
         iter = 0
         singular_index = 0
+        max_iter_fallback_used = .false.
         do while (self%max_iterations > iter)
 
             iter = iter + 1
@@ -1684,7 +1687,38 @@ contains
                 end do
 
                 if (.not. soln%converged) then
-                    ! High temperature, included condensed condition
+                    ! Legacy-style fallback for high-temperature condensed edge cases.
+                    gas_moles = sum(soln%nj(:self%num_gas))
+                    if (.not. max_iter_fallback_used) then
+                        if (self%num_gas > 0 .and. &
+                            (.not. soln%constraints%is_constant_enthalpy() .or. soln%T > 100.0d0) .and. &
+                            (count(soln%is_active) == 1) .and. (gas_moles <= 1.0d-4)) then
+                            max_iter_fallback_used = .true.
+                            soln%n = 0.1d0
+                            xi = soln%n / self%num_gas
+                            xln = log(xi)
+                            do i = 1, self%num_gas
+                                soln%nj(i) = xi
+                                soln%ln_nj(i) = xln
+                            end do
+                            do cond_idx = 1, self%num_condensed
+                                if (soln%is_active(cond_idx)) then
+                                    soln%is_active(cond_idx) = .false.
+                                    soln%nj(self%num_gas+cond_idx) = 0.0d0
+                                    soln%j_switch = cond_idx
+                                    exit
+                                end if
+                            end do
+                            soln%j_sol = 0
+                            soln%j_liq = 0
+                            soln%converged = .false.
+                            soln%times_converged = 0
+                            iter = -1
+                            call self%products%calc_thermo(soln%thermo, soln%T, condensed=.false.)
+                            cycle
+                        end if
+                    end if
+
                     call self%post_process(soln, .false.)
                     call abort('EqSolver_solve: Maximum iterations reached without convergence')
                 end if
