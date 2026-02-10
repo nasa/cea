@@ -918,8 +918,6 @@ contains
         ! 4: throat
         ! 5+: exit
 
-        ! TODO: is subar used for FAC?
-
         call log_debug("Starting rocket FAC solve")
 
         ! Set the total number of evaluation points
@@ -1041,7 +1039,7 @@ contains
                 if (ac_at_ < 1.09d0) then
                     ln_pinf_pc = 0.9d0*ln_pinf_pc
                 else if (ac_at_ > 10.0d0) then
-                    ln_pinf_pc = ln_pinf_pc/subar(1)
+                    ln_pinf_pc = ln_pinf_pc/ac_at_
                 end if
                 ! Update the pressure
                 soln%pressure(idx) = p_inf/exp(ln_pinf_pc)
@@ -1117,21 +1115,55 @@ contains
 
         end do
 
+        ! Recompute throat under frozen assumptions after chamber convergence,
+        ! so frozen expansion uses a consistent throat state.
+        idx = 4
+        if (frozen .and. idx > n_frz_) then
+            call self%solve_throat_frozen(soln, idx, n_frz_, p_inf, h_inj, awt)
+        end if
+
         ! -----------------------------------------------
         ! Exit conditions: pressure ratio
         ! -----------------------------------------------
         idx = 5
 
-        call self%solve_pi_p(soln, idx, pc, pi_p, h_inj, S_ref, reactant_weights)
+        if (frozen .and. idx > n_frz_) then
+            call self%solve_pi_p_frozen(soln, idx, n_frz_, pc, pi_p, h_inj, 2)
+        else
+            call self%solve_pi_p(soln, idx, pc, pi_p, h_inj, S_ref, reactant_weights)
+        end if
+
+        ! -----------------------------------------------
+        ! Exit conditions: subsonic area ratio
+        ! -----------------------------------------------
+
+        if (present(subar)) then
+
+            if (frozen) then
+                call log_info('RocketSolver: WARNING!!  FREEZING IS NOT ALLOWED AT A SUBSONIC PRESSURE RATIO')
+            else
+                ln_pinf_pt = log(soln%pressure(2)/soln%pressure(4))
+                call self%solve_subar(soln, idx, soln%pressure(2), subar, h_inj, S_ref, reactant_weights, &
+                    idx-1, 2, ln_pinf_pt, awt)
+            end if
+
+        end if
 
         ! -----------------------------------------------
         ! Exit conditions: supersonic area ratio
         ! -----------------------------------------------
 
-        ! Get some values for shorthand
-        ln_pinf_pt = log(soln%pressure(2)/soln%pressure(4))
+        if (present(supar)) then
+            ln_pinf_pt = log(soln%pressure(2)/soln%pressure(4))
 
-        call self%solve_supar(soln, idx, pc, supar, h_inj, S_ref, reactant_weights, ln_pinf_pt, awt)
+            if (frozen .and. idx > n_frz_) then
+                call self%solve_supar_frozen(soln, idx, n_frz_, soln%pressure(2), supar, h_inj, reactant_weights, &
+                    idx-1, ln_pinf_pt, awt)
+            else
+                call self%solve_supar(soln, idx, soln%pressure(2), supar, h_inj, S_ref, reactant_weights, &
+                    ln_pinf_pt, awt)
+            end if
+        end if
 
         ! Compute performance parameters
         call self%post_process(soln, .true.)
