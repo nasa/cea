@@ -75,6 +75,7 @@ module cea_equilibrium
 
     contains
 
+        procedure :: num_active_elements => EqSolver_num_active_elements
         procedure :: compute_damped_update_factor => EqSolver_compute_damped_update_factor
         procedure :: get_solution_vars => EqSolver_get_solution_vars
         procedure :: update_solution => EqSolver_update_solution
@@ -372,6 +373,14 @@ contains
 
     end function
 
+    function EqSolver_num_active_elements(self) result(ne)
+        class(EqSolver), intent(in) :: self
+        integer :: ne
+
+        ne = self%num_elements
+        if (self%ions .and. .not. self%active_ions) ne = max(0, ne-1)
+    end function
+
     function EqSolver_compute_damped_update_factor(self, soln) result(lambda)
         ! Compute the damped update factor, lambda, for the Newton solver
 
@@ -400,7 +409,7 @@ contains
 
         ! Define shorthand
         ng = self%num_gas
-        ne = self%num_elements
+        ne = self%num_active_elements()
         cons => soln%constraints
         ln_nj => soln%ln_nj
         dln_nj => soln%dln_nj
@@ -449,6 +458,7 @@ contains
         integer :: i                          ! Indices
         integer :: ng                         ! Number of gas species
         integer :: ne                         ! Number of elements
+        integer :: ne_full                    ! Total number of elements (including electron)
         integer :: na                         ! Number of active condensed species
         integer :: num_eqn                    ! Number of equations in the matrix system
         real(dp), pointer :: x(:)             ! Solution vector
@@ -464,7 +474,8 @@ contains
 
         ! Define shorthand
         ng = self%num_gas
-        ne = self%num_elements
+        ne = self%num_active_elements()
+        ne_full = self%num_elements
         na = count(soln%is_active)
         num_eqn = soln%num_equations(self)
         cons => soln%constraints
@@ -490,18 +501,25 @@ contains
         mu_g = h_g - s_g + ln_nj + log(P/n)
 
         ! Get the pi variables
-        soln%pi = x(:ne)
+        soln%pi = 0.0d0
+        if (ne > 0) soln%pi(:ne) = x(:ne)
 
         ! Check on removing ions: if all ionized species have a concentration of 0, remove ions entirely
-        if (self%ions .and. self%active_ions) then
+        if (self%ions .and. self%active_ions .and. ne_full > 0) then
             self%active_ions = .false.
             do i = 1, self%num_products
-                if (A(i, ne) /= 0.0d0) then
+                if (A(i, ne_full) /= 0.0d0) then
                     if (soln%nj(i) > 0.0d0) self%active_ions = .true.
                     if (soln%nj(i) > 0.0d0) exit  ! * I get a compile error when this is included with the above line *
                 end if
             end do
-            if (self%active_ions .and. soln%converged .and. .not. soln%ions_converged) soln%pi_e = x(ne)
+            if (self%active_ions .and. soln%converged .and. .not. soln%ions_converged) then
+                soln%pi_e = x(ne)
+            else
+                soln%pi_e = 0.0d0
+            end if
+        else
+            soln%pi_e = 0.0d0
         end if
 
         ! Get the updates to the condensed species concentrations
@@ -525,12 +543,12 @@ contains
         do i = 1, ng
             ! TODO: Skip the update here for species with removed elements
 
-            soln%dln_nj(i) = -mu_g(i) + soln%dln_n + dot_product(A_g(i, :), soln%pi) + soln%dln_T*h_g(i)
+            soln%dln_nj(i) = -mu_g(i) + soln%dln_n + dot_product(A_g(i, :ne), soln%pi(:ne)) + soln%dln_T*h_g(i)
             if (.not. const_p) soln%dln_nj(i) = soln%dln_nj(i) - soln%dln_T
 
             ! Ionized species update
-            if (self%ions .and. soln%pi_e /= 0.0d0) then
-                soln%dln_nj(i) = soln%dln_nj(i) + A_g(i, ne)*soln%pi_e
+            if (self%ions .and. self%active_ions .and. ne_full > 0 .and. soln%pi_e /= 0.0d0) then
+                soln%dln_nj(i) = soln%dln_nj(i) + A_g(i, ne_full)*soln%pi_e
             end if
         end do
 
@@ -548,6 +566,7 @@ contains
         integer  :: nc                        ! Number of condensed species
         integer  :: na                        ! Number of active condensed species
         integer  :: ne                        ! Number of elements
+        integer  :: ne_full                   ! Total number of elements (including electron)
         integer  :: num_eqn                   ! Number of equations in the matrix system
         real(dp), pointer :: nj_g(:), nj_c(:) ! Gas/condensed species concentrations [kmol-per-kg]
         real(dp) :: n                         ! Total moles of mixture
@@ -573,7 +592,8 @@ contains
         ng = self%num_gas
         nc = self%num_condensed
         na = count(soln%is_active)
-        ne = self%num_elements
+        ne = self%num_active_elements()
+        ne_full = self%num_elements
         num_eqn = soln%num_equations(self)
         cons => soln%constraints
         dln_nj => soln%dln_nj
@@ -608,9 +628,9 @@ contains
         end do
 
         ! Use a lower threshold for ionized species before truncating the concentrations
-        if (self%ions .and. self%active_ions) then
+        if (self%ions .and. self%active_ions .and. ne_full > 0) then
             do i = 1, ng
-                if (A_g(i, ne) /= 0.0d0 .and. nj_g(i) == 0.0d0) then
+                if (A_g(i, ne_full) /= 0.0d0 .and. nj_g(i) == 0.0d0) then
                     if (ln_nj(i) - ln_n + self%esize > 0.0d0) then
                         nj_g(i) = exp(ln_nj(i))
                     end if
@@ -655,6 +675,7 @@ contains
         integer  :: ng                        ! Number of gas species
         integer  :: na                        ! Number of active condensed species
         integer  :: ne                        ! Number of elements
+        integer  :: ne_full                   ! Total number of elements (including electron)
         real(dp) :: b_delta(self%num_elements)! Residual for element contraints
         real(dp) :: s_delta                   ! Residual for entropy state
         real(dp), pointer :: b0(:)            ! Fixed element concentrations
@@ -684,7 +705,8 @@ contains
 
         ! Define shorthand
         ng = self%num_gas
-        ne = self%num_elements
+        ne = self%num_active_elements()
+        ne_full = self%num_elements
         na = count(soln%is_active)
         cons => soln%constraints
         nj => soln%nj
@@ -814,13 +836,13 @@ contains
         ! If everything converged, check ion convergence: Equation (3.14)
         ! ---------------------------------------------------------------
         soln%ions_converged = .false.
-        if (self%ions .and. self%active_ions) then
+        if (self%ions .and. self%active_ions .and. ne_full > 0) then
             ! Check on electron balance
             do i = 1, 80  ! Max iterations
                 sum1 = 0.0d0
                 sum2 = 0.0d0
                 do j = 1, ng
-                    if (A_g(j, ne) /= 0.0d0) then
+                    if (A_g(j, ne_full) /= 0.0d0) then
                         soln%nj(j) = 0.0d0
                         temp = 0.0d0
                         if (soln%ln_nj(j) > -87.0d0) temp = exp(soln%ln_nj(j))
@@ -828,16 +850,16 @@ contains
                             !soln%pi_e = 0.0d0
                             soln%nj(j) = temp
                         end if
-                        aa = A_g(j, ne)*temp
+                        aa = A_g(j, ne_full)*temp
                         sum1 = sum1 + aa
-                        sum2 = sum2 + aa*A_g(j, ne)
+                        sum2 = sum2 + aa*A_g(j, ne_full)
                     end if
                 end do
                 if (sum2 /= 0.0d0) then
                     soln%dpi_e = -sum1/sum2
                     do j = 1, ng
-                        if (A_g(j, ne) /= 0.0d0) then
-                            soln%ln_nj(j) = soln%ln_nj(j) + A_g(j, ne)*soln%dpi_e
+                        if (A_g(j, ne_full) /= 0.0d0) then
+                            soln%ln_nj(j) = soln%ln_nj(j) + A_g(j, ne_full)*soln%dpi_e
                         end if
                     end do
                 end if
@@ -890,7 +912,7 @@ contains
         ! Define shorthand
         ng = self%num_gas
         nc = self%num_condensed
-        ne = self%num_elements
+        ne = self%num_active_elements()
         na = count(soln%is_active)
         num_eqn = soln%num_equations(self)
         cons => soln%constraints
@@ -990,8 +1012,8 @@ contains
 
             ! Pi derivatives
             ! Symmetric with (2.24) condensed derivatives
-            G(r,:ne) = A_c(i,:)
-            G(:ne,r) = A_c(i,:)
+            G(r,:ne) = A_c(i,:ne)
+            G(:ne,r) = A_c(i,:ne)
             c = c+ne
 
             ! Condensed derivatives
@@ -1439,7 +1461,7 @@ contains
         ! Shorthand
         ng = self%num_gas
         nc = self%num_condensed
-        ne = self%num_elements
+        ne = self%num_active_elements()
         na = count(soln%is_active)
         A => self%products%stoich_matrix(ng+1:,:)
 
@@ -1448,7 +1470,7 @@ contains
         if (present(singular_index)) singular_index = 0
         made_change = .false.
 
-        if (ierr > self%num_elements .and. iter < 1 .and. na > 1 &
+        if (ierr > ne .and. iter < 1 .and. na > 1 &
             .and. soln%last_cond_idx > 0) then
 
             temp = 1000.0d0
@@ -1615,6 +1637,8 @@ contains
         times_singular = 0  ! Number of times a singular matrix was encountered ("ixsing" in CEA2)
         soln%times_converged = 0  ! Number of times initial convergence was established
         soln%j_switch = 0  ! Make sure this is reset every time
+        self%active_ions = self%ions
+        soln%pi_e = 0.0d0
 
         ! Pre-check active condensed phases before the first Newton matrix build.
         phase_iter = 0
@@ -1670,7 +1694,7 @@ contains
 
             end if
 
-            if (soln%times_converged > 3*self%num_elements) then
+            if (soln%times_converged > 3*self%num_active_elements()) then
                 soln%converged = .false.
                 call abort("Convergence failed to establish set of condensed species.")
             end if
@@ -1969,7 +1993,7 @@ contains
         type(EqConstraints), pointer :: cons  ! Abbreviation for soln%constraints
 
         ! Shorthand
-        ne = solver%num_elements
+        ne = solver%num_active_elements()
         na = count(self%is_active)
         cons => self%constraints
         const_p = cons%is_constant_pressure()
@@ -2097,7 +2121,7 @@ contains
         ! Define shorthand
         ng = solver%num_gas
         nc = solver%num_condensed
-        ne = solver%num_elements
+        ne = solver%num_active_elements()
         na = count(soln%is_active)
         num_eqn = ne+na+1
 
@@ -2194,7 +2218,7 @@ contains
         ! Define shorthand
         ng = solver%num_gas
         nc = solver%num_condensed
-        ne = solver%num_elements
+        ne = solver%num_active_elements()
         na = count(soln%is_active)
         num_eqn = ne+na+1
 
@@ -2277,7 +2301,7 @@ contains
         ! Shorthand
         ng = solver%num_gas
         nc = solver%num_condensed
-        ne = solver%num_elements
+        ne = solver%num_active_elements()
         na = count(soln%is_active)
         A_g => solver%products%stoich_matrix(:ng,:) ! NOTE: A is transpose of a_ij in RP-1311
         A_c => solver%products%stoich_matrix(ng+1:,:)
@@ -2314,7 +2338,8 @@ contains
             call self%assemble_partials_matrix_const_p(solver, soln, J)
             call gauss(J, ierr)
             if (ierr == 0) then
-                self%dpi_dlnT = J(:ne, ne+na+2)
+                self%dpi_dlnT = 0.0d0
+                if (ne > 0) self%dpi_dlnT(:ne) = J(:ne, ne+na+2)
                 self%dnc_dlnT = J(ne+1:ne+na, ne+na+2)
                 self%dn_dlnT = J(ne+na+1, ne+na+2)
                 self%dlnV_dlnT = 1.0d0 + self%dn_dlnT
@@ -2353,7 +2378,8 @@ contains
         call self%assemble_partials_matrix_const_t(solver, soln, J)
         call gauss(J, ierr)
         if (ierr == 0) then
-            self%dpi_dlnP = J(:ne, ne+na+2)
+            self%dpi_dlnP = 0.0d0
+            if (ne > 0) self%dpi_dlnP(:ne) = J(:ne, ne+na+2)
             self%dnc_dlnP = J(ne+1:ne+na, ne+na+2)
             self%dn_dlnP = J(ne+na+1, ne+na+2)
             self%dlnV_dlnP = -1.0d0 + self%dn_dlnP
