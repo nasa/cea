@@ -244,13 +244,18 @@
 # limitations under the License.
 #=============================================================================
 
-find_package(Python3 COMPONENTS Interpreter Development.Module QUIET)
+if(WIN32)
+  find_package(Python3 COMPONENTS Interpreter Development QUIET)
+else()
+  find_package(Python3 COMPONENTS Interpreter Development.Module QUIET)
+endif()
 if(Python3_Interpreter_FOUND)
   set(PYTHON_EXECUTABLE "${Python3_EXECUTABLE}")
   set(PYTHON_INCLUDE_DIRS "${Python3_INCLUDE_DIRS}")
-  if(Python3_LIBRARIES)
+  if(WIN32 AND Python3_LIBRARIES)
     set(PYTHON_LIBRARIES "${Python3_LIBRARIES}")
   else()
+    # For non-Windows extension modules, prefer dynamic symbol lookup at load-time.
     set(PYTHON_LIBRARIES "")
   endif()
   set(PYTHONLIBS_VERSION_STRING "${Python3_VERSION}")

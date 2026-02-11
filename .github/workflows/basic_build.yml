@@ -174,7 +174,6 @@ jobs:
           call "C:\Program Files (x86)\Intel\oneAPI\setvars.bat" intel64 >nul
           cmake -S . -B build -G Ninja ^
             -DCMAKE_Fortran_COMPILER="%FC%" ^
-            -DCMAKE_AR=lib ^
             -DCMAKE_BUILD_TYPE=Release ^
             -DCEA_BUILD_TESTING=OFF ^
             -DCEA_ENABLE_BIND_C=ON ^
