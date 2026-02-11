@@ -124,14 +124,16 @@ jobs:
 
       - name: Remove MinGW/MSYS paths for Intel Windows builds
         if: runner.os == 'Windows' && (matrix.compiler == 'intel' || matrix.compiler == 'intel-classic')
+        shell: pwsh
         run: |
-          CLEAN_PATH="$(printf '%s' "$PATH" | tr ':' '\n' | grep -viE 'mingw|msys' | paste -sd ':' -)"
-          echo "PATH=${CLEAN_PATH}" >> "$GITHUB_ENV"
+          $parts = $env:PATH -split ';'
+          $clean = $parts | Where-Object { $_ -and ($_ -notmatch 'mingw') -and ($_ -notmatch 'msys') }
+          "PATH=$($clean -join ';')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Install build tools
         run: |
           python -m pip install --upgrade pip
-          python -m pip install cmake ninja setuptools numpy cython
+          python -m pip install ninja setuptools numpy cython
 
       - name: Record toolchain info
         run: |
@@ -151,7 +153,8 @@ jobs:
             esac
           fi
 
-      - name: Configure
+      - name: Configure (Non-Intel Windows)
+        if: runner.os != 'Windows' || matrix.compiler == 'gcc'
         run: |
           FC_COMPILER="${FC:-${{ matrix.fc }}}"
           cmake -S . -B build -G Ninja \
@@ -164,8 +167,31 @@ jobs:
             -DCEA_ENABLE_BIND_MATLAB=OFF \
             -DCEA_ENABLE_BIND_EXCEL=OFF
 
-      - name: Build
+      - name: Configure (Windows Intel)
+        if: runner.os == 'Windows' && (matrix.compiler == 'intel' || matrix.compiler == 'intel-classic')
+        shell: cmd
         run: |
+          call "C:\Program Files (x86)\Intel\oneAPI\setvars.bat" intel64 >nul
+          cmake -S . -B build -G Ninja ^
+            -DCMAKE_Fortran_COMPILER="%FC%" ^
+            -DCMAKE_BUILD_TYPE=Release ^
+            -DCEA_BUILD_TESTING=OFF ^
+            -DCEA_ENABLE_BIND_C=ON ^
+            -DCEA_ENABLE_BIND_CXX=OFF ^
+            -DCEA_ENABLE_BIND_PYTHON=OFF ^
+            -DCEA_ENABLE_BIND_MATLAB=OFF ^
+            -DCEA_ENABLE_BIND_EXCEL=OFF
+
+      - name: Build (Non-Intel Windows)
+        if: runner.os != 'Windows' || matrix.compiler == 'gcc'
+        run: |
+          cmake --build build
+
+      - name: Build (Windows Intel)
+        if: runner.os == 'Windows' && (matrix.compiler == 'intel' || matrix.compiler == 'intel-classic')
+        shell: cmd
+        run: |
+          call "C:\Program Files (x86)\Intel\oneAPI\setvars.bat" intel64 >nul
           cmake --build build
 
       - name: Run smoke test (Unix)
@@ -174,9 +200,16 @@ jobs:
           ./build/source/cea -h
 
       - name: Run smoke test (Windows)
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && matrix.compiler == 'gcc'
         run: |
           ./build/source/cea.exe -h
+
+      - name: Run smoke test (Windows Intel)
+        if: runner.os == 'Windows' && (matrix.compiler == 'intel' || matrix.compiler == 'intel-classic')
+        shell: cmd
+        run: |
+          call "C:\Program Files (x86)\Intel\oneAPI\setvars.bat" intel64 >nul
+          .\build\source\cea.exe -h
 
       - name: Verify C ABI library output (Unix)
         if: runner.os != 'Windows'
