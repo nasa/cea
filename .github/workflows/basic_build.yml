@@ -17,15 +17,15 @@ jobs:
             arch: x86_64
             compiler: gcc
             version: "11"
-            fc: gfortran-11
+            fc: gfortran
           - label: linux-aarch64-gfortran
             runs_on: ubuntu-22.04-arm
             arch: aarch64
             compiler: gcc
-            version: "13"
-            fc: gfortran-13
+            version: "11"
+            fc: gfortran
           - label: macos-x86_64-gfortran
-            runs_on: macos-13
+            runs_on: macos-15-intel
             arch: x86_64
             compiler: gcc
             version: "14"
@@ -70,7 +70,7 @@ jobs:
         if: runner.os == 'Linux' && matrix.compiler == 'gcc'
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-${{ matrix.version }} g++-${{ matrix.version }} gfortran-${{ matrix.version }}
+          sudo apt-get install -y gcc g++ gfortran
 
       - name: Set up Fortran compiler (macOS)
         if: runner.os == 'macOS' && matrix.compiler == 'gcc'
@@ -84,6 +84,28 @@ jobs:
         with:
           compiler: ${{ matrix.compiler }}
           version: ${{ matrix.version }}
+
+      - name: Resolve Intel compiler path
+        if: runner.os == 'Windows' && (matrix.compiler == 'intel' || matrix.compiler == 'intel-classic')
+        shell: pwsh
+        run: |
+          $compiler = "${{ matrix.fc }}"
+          $resolved = $null
+          $cmd = Get-Command $compiler -ErrorAction SilentlyContinue
+          if ($cmd) {
+            $resolved = $cmd.Source
+          } else {
+            $candidates = Get-ChildItem -Path "C:\Program Files (x86)\Intel\oneAPI\compiler" -Filter "$compiler.exe" -Recurse -ErrorAction SilentlyContinue | Sort-Object FullName -Descending
+            if ($candidates.Count -gt 0) {
+              $resolved = $candidates[0].FullName
+            }
+          }
+          if (-not $resolved) {
+            Write-Error "Unable to find $compiler.exe in PATH or oneAPI install path."
+            exit 1
+          }
+          "FC=$resolved" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          [System.IO.Path]::GetDirectoryName($resolved) | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Set up MSYS2 (Windows gfortran)
         if: runner.os == 'Windows' && matrix.compiler == 'gcc'
@@ -109,7 +131,7 @@ jobs:
       - name: Install build tools
         run: |
           python -m pip install --upgrade pip
-          python -m pip install ninja setuptools numpy cython
+          python -m pip install cmake ninja setuptools numpy cython
 
       - name: Record toolchain info
         run: |
@@ -118,8 +140,9 @@ jobs:
           ninja --version
           if command -v gfortran &> /dev/null; then gfortran --version; fi
           if [ -n "${FC}" ]; then
-            case "${FC}" in
-              ifort|ifx)
+            FC_BASENAME="$(basename "${FC}")"
+            case "${FC_BASENAME}" in
+              ifort|ifort.exe|ifx|ifx.exe)
                 "${FC}" /help > /dev/null || true
                 ;;
               *)
@@ -129,11 +152,10 @@ jobs:
           fi
 
       - name: Configure
-        env:
-          FC: ${{ matrix.fc }}
         run: |
+          FC_COMPILER="${FC:-${{ matrix.fc }}}"
           cmake -S . -B build -G Ninja \
-            -DCMAKE_Fortran_COMPILER="${FC}" \
+            -DCMAKE_Fortran_COMPILER="${FC_COMPILER}" \
             -DCMAKE_BUILD_TYPE=Release \
             -DCEA_BUILD_TESTING=OFF \
             -DCEA_ENABLE_BIND_C=ON \
