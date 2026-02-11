@@ -424,6 +424,7 @@ contains
         type(string_scanner) :: scanner
         character(15) :: token
         integer :: ierr, n, capacity, i
+        logical :: has_na, has_fuel_oxid
 
         scanner = string_scanner(replace_delimiters(buffer, replace_commas=.false.))
         token = scanner%read_word()  ! Skip 'reac' keyword
@@ -469,11 +470,16 @@ contains
 
         ! Validate input data
         call assert(n > 0, 'reac dataset missing reactant definitions.')
+        has_na = .false.
+        has_fuel_oxid = .false.
         do i = 1, n
             call assert(allocated(reac(i)%type), 'reac dataset missing reactant type.')
             call assert(len_trim(reac(i)%type) > 0, 'reac dataset has empty reactant type.')
             call assert(allocated(reac(i)%name), 'reac dataset missing reactant name.')
             call assert(len_trim(reac(i)%name) > 0, 'reac dataset has empty reactant name.')
+
+            if (reac(i)%type == 'na') has_na = .true.
+            if (reac(i)%type == 'fu' .or. reac(i)%type == 'ox') has_fuel_oxid = .true.
 
             if (reac(i)%type == 'na') then
                 call assert(allocated(reac(i)%amount), 'reac dataset missing amount for reactant #'//to_str(i))
@@ -496,6 +502,11 @@ contains
                     'reac dataset missing density values for reactant #'//to_str(i))
             end if
         end do
+
+        if (has_na .and. has_fuel_oxid) then
+            call abort("reac dataset cannot mix 'name' reactants with 'fuel'/'oxid' reactants. " // &
+                       "Use only name=... for all reactants, or only fuel=/oxid= for all reactants.")
+        end if
 
     end function
 
