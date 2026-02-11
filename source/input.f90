@@ -625,7 +625,7 @@ contains
 
         type(Formula) :: f
         integer, parameter :: max_values = 16
-        integer :: n, ierr
+        integer :: i, n, ierr
         character(:), allocatable :: word
 
         allocate(f%elements(max_values))
@@ -638,7 +638,7 @@ contains
         f%elements(n) = token
         f%coefficients(n) = scanner%read_real()
 
-        do n = 2,size(f%elements)
+        do i = 2,size(f%elements)
             word = scanner%peek_word(ierr)
             if (ierr /= 0) exit  ! Buffer empty
             select case(word(1:1))
@@ -647,8 +647,9 @@ contains
                     if (len_trim(word) > en) then
                         call abort('parse_formula: element symbol too long: '//trim(word))
                     end if
-                    f%elements(n) = word
-                    f%coefficients(n) = scanner%read_real()
+                    f%elements(i) = word
+                    f%coefficients(i) = scanner%read_real()
+                    n = i
                 case default
                     exit  ! Start of new keyword
             end select
