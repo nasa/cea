@@ -6,24 +6,54 @@ on:
   workflow_dispatch:
 jobs:
   build:
-    name: Build (${{ matrix.os }} / ${{ matrix.toolchain.compiler }} ${{ matrix.toolchain.version }})
-    runs-on: ${{ matrix.runs-on || matrix.os }}
+    name: Build (${{ matrix.label }})
+    runs-on: ${{ matrix.runs_on }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-latest, windows-latest]
-        toolchain:
-          - compiler: gcc
-            version: "11"
         include:
-          - os: ubuntu-22.04
-            toolchain:
-              compiler: intel
-              version: "2023.1"
-          - os: ubuntu-22.04
-            toolchain:
-              compiler: intel-classic
-              version: "2021.9"
+          - label: linux-x86_64-gfortran
+            runs_on: ubuntu-22.04
+            arch: x86_64
+            compiler: gcc
+            version: "11"
+            fc: gfortran
+          - label: linux-aarch64-gfortran
+            runs_on: ubuntu-22.04-arm
+            arch: aarch64
+            compiler: gcc
+            version: "13"
+            fc: gfortran
+          - label: macos-x86_64-gfortran
+            runs_on: macos-13
+            arch: x86_64
+            compiler: gcc
+            version: "14"
+            fc: gfortran
+          - label: macos-arm64-gfortran
+            runs_on: macos-14
+            arch: arm64
+            compiler: gcc
+            version: "14"
+            fc: gfortran
+          - label: windows-amd64-ifx
+            runs_on: windows-2022
+            arch: AMD64
+            compiler: intel
+            version: "2025.2"
+            fc: ifx
+          - label: windows-amd64-ifort
+            runs_on: windows-2022
+            arch: AMD64
+            compiler: intel-classic
+            version: "2021.10"
+            fc: ifort
+          - label: windows-amd64-gfortran
+            runs_on: windows-2022
+            arch: AMD64
+            compiler: gcc
+            version: "13"
+            fc: gfortran
     defaults:
       run:
         shell: bash
@@ -37,32 +67,33 @@ jobs:
           python-version: "3.12"
 
       - name: Set up Fortran compiler (Unix)
-        if: runner.os != 'Windows'
+        if: runner.os != 'Windows' && matrix.compiler == 'gcc'
         uses: fortran-lang/setup-fortran@v1
         with:
-          compiler: ${{ matrix.toolchain.compiler }}
-          version: ${{ matrix.toolchain.version }}
+          compiler: ${{ matrix.compiler }}
+          version: ${{ matrix.version }}
 
-      - name: Set up Fortran compiler (Windows)
-        if: runner.os == 'Windows'
+      - name: Set up Intel oneAPI compiler (Windows)
+        if: runner.os == 'Windows' && (matrix.compiler == 'intel' || matrix.compiler == 'intel-classic')
+        uses: fortran-lang/setup-fortran@v1
+        with:
+          compiler: ${{ matrix.compiler }}
+          version: ${{ matrix.version }}
+
+      - name: Set up MSYS2 (Windows gfortran)
+        if: runner.os == 'Windows' && matrix.compiler == 'gcc'
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc-fortran
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+
+      - name: Export MinGW gfortran path
+        if: runner.os == 'Windows' && matrix.compiler == 'gcc'
         run: |
-          # Use pre-installed MinGW on Windows runners to avoid Chocolatey issues
-          # GitHub Actions windows-latest runners include MinGW in C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
-          $mingwPath = "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin"
-          if (Test-Path $mingwPath) {
-            echo "$mingwPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-            echo "FC=$mingwPath\gfortran.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          } else {
-            # Fallback: search for gfortran in common locations
-            $gfortran = Get-Command gfortran -ErrorAction SilentlyContinue
-            if ($gfortran) {
-              echo "FC=$($gfortran.Source)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-            } else {
-              Write-Error "gfortran not found on Windows runner"
-              exit 1
-            }
-          }
-        shell: pwsh
+          echo "C:/msys64/ucrt64/bin" >> "$GITHUB_PATH"
 
       - name: Install build tools
         run: |
@@ -78,11 +109,14 @@ jobs:
           if [ -n "${FC}" ]; then "${FC}" --version; fi
 
       - name: Configure
+        env:
+          FC: ${{ matrix.fc }}
         run: |
           cmake -S . -B build -G Ninja \
+            -DCMAKE_Fortran_COMPILER="${FC}" \
             -DCMAKE_BUILD_TYPE=Release \
             -DCEA_BUILD_TESTING=OFF \
-            -DCEA_ENABLE_BIND_C=OFF \
+            -DCEA_ENABLE_BIND_C=ON \
             -DCEA_ENABLE_BIND_CXX=OFF \
             -DCEA_ENABLE_BIND_PYTHON=OFF \
             -DCEA_ENABLE_BIND_MATLAB=OFF \
@@ -101,6 +135,43 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           ./build/source/cea.exe -h
+
+      - name: Verify C ABI library output (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          ls -la build/source/bind/c
+          ls -la build/source/bind/c/libcea_bindc.* || ls -la build/source/bind/c/cea_bindc.*
+
+      - name: Verify C ABI library output (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          ls -la build/source/bind/c
+          ls -la build/source/bind/c/*cea_bindc*
+
+      - name: Upload CLI executable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cea-cli-${{ matrix.label }}
+          if-no-files-found: error
+          path: |
+            build/source/cea
+            build/source/cea.exe
+            build/thermo.lib
+            build/trans.lib
+
+      - name: Upload C ABI library artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cea-bindc-${{ matrix.label }}
+          if-no-files-found: error
+          path: |
+            source/bind/c/cea.h
+            source/bind/c/cea_enum.h
+            build/source/bind/c/libcea_bindc.so
+            build/source/bind/c/libcea_bindc.dylib
+            build/source/bind/c/cea_bindc.dll
+            build/source/bind/c/cea_bindc.lib
+            build/source/bind/c/libcea_bindc.dll.a
 
   pfunit-tests:
     name: pFUnit (ubuntu-22.04 / gcc 11)
@@ -186,3 +257,29 @@ jobs:
           CEA_DATA_DIR: ${{ github.workspace }}/data
         run: |
           pytest source/bind/python/tests
+
+  release-artifacts:
+    name: Release CLI + C ABI Artifacts
+    needs: build
+    runs-on: ubuntu-22.04
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-dist
+          merge-multiple: false
+
+      - name: Generate SHA256 checksums
+        run: |
+          cd release-dist
+          find . -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Publish GitHub release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-dist/**
+          generate_release_notes: true
