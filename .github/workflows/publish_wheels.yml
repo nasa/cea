@@ -68,6 +68,7 @@ jobs:
       - name: Build wheels
         env:
           CIBW_BUILD: "cp311-* cp312-* cp313-*"
+          CIBW_BUILD_VERBOSITY: "1"
           CIBW_SKIP: "*-musllinux_*"
           CIBW_ARCHS_LINUX: "x86_64"
           CIBW_ARCHS_MACOS: ${{ matrix.os == 'macos-15-intel' && 'x86_64' || matrix.os == 'macos-14' && 'arm64' || 'x86_64 arm64' }}

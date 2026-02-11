@@ -267,56 +267,74 @@ endif()
 include(targetLinkLibrariesWithDynamicLookup)
 
 set(_command "
-import distutils.sysconfig
-import itertools
 import os
 import os.path
 import site
 import sys
+import sysconfig
 
 result = None
 rel_result = None
 candidate_lists = []
 
 try:
-    candidate_lists.append((distutils.sysconfig.get_python_lib(),))
-except AttributeError: pass
-
-try:
     candidate_lists.append(site.getsitepackages())
-except AttributeError: pass
+except Exception:
+    pass
 
 try:
     candidate_lists.append((site.getusersitepackages(),))
-except AttributeError: pass
+except Exception:
+    pass
 
-candidates = itertools.chain.from_iterable(candidate_lists)
-
-for candidate in candidates:
-    rel_candidate = os.path.relpath(
-      candidate, sys.prefix)
-    if not rel_candidate.startswith(\"..\"):
-        result = candidate
-        rel_result = rel_candidate
+for lst in candidate_lists:
+    for candidate in lst:
+        try:
+            rel_candidate = os.path.relpath(candidate, sys.prefix)
+            if not rel_candidate.startswith('..'):
+                result = candidate
+                rel_result = rel_candidate
+                break
+        except Exception:
+            pass
+    if result is not None:
         break
 
-ext_suffix_var = 'SO'
-if sys.version_info[:2] >= (3, 5):
-    ext_suffix_var = 'EXT_SUFFIX'
+if result is None:
+    result = sysconfig.get_paths().get('purelib', '')
+if rel_result is None:
+    try:
+        rel_result = os.path.relpath(result, sys.prefix)
+    except Exception:
+        rel_result = ''
 
-sys.stdout.write(\";\".join((
+ext_suffix = sysconfig.get_config_var('EXT_SUFFIX')
+if not ext_suffix:
+    ext_suffix = sysconfig.get_config_var('SO')
+if not ext_suffix:
+    ext_suffix = '.so' if os.name != 'nt' else '.pyd'
+
+sys.stdout.write('\\n'.join((
     os.sep,
     os.pathsep,
     sys.prefix,
     result,
     rel_result,
-    distutils.sysconfig.get_config_var(ext_suffix_var)
+    ext_suffix
 )))
 ")
 
 execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c "${_command}"
-                OUTPUT_VARIABLE _list
+                OUTPUT_VARIABLE _python_ext_info
                 RESULT_VARIABLE _result)
+
+if(NOT _result EQUAL 0)
+  message(FATAL_ERROR "Failed querying Python extension metadata using ${PYTHON_EXECUTABLE}")
+endif()
+
+string(REPLACE "\r\n" "\n" _python_ext_info "${_python_ext_info}")
+string(REPLACE "\r" "\n" _python_ext_info "${_python_ext_info}")
+string(REPLACE "\n" ";" _list "${_python_ext_info}")
 
 list(GET _list 0 _item)
 set(PYTHON_SEPARATOR "${_item}")
