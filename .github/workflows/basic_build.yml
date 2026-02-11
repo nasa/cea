@@ -17,13 +17,13 @@ jobs:
             arch: x86_64
             compiler: gcc
             version: "11"
-            fc: gfortran
+            fc: gfortran-11
           - label: linux-aarch64-gfortran
             runs_on: ubuntu-22.04-arm
             arch: aarch64
             compiler: gcc
             version: "13"
-            fc: gfortran
+            fc: gfortran-13
           - label: macos-x86_64-gfortran
             runs_on: macos-13
             arch: x86_64
@@ -66,12 +66,11 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Set up Fortran compiler (Unix)
+      - name: Set up GNU Fortran compiler (Linux)
         if: runner.os == 'Linux' && matrix.compiler == 'gcc'
-        uses: fortran-lang/setup-fortran@v1
-        with:
-          compiler: ${{ matrix.compiler }}
-          version: ${{ matrix.version }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-${{ matrix.version }} g++-${{ matrix.version }} gfortran-${{ matrix.version }}
 
       - name: Set up Fortran compiler (macOS)
         if: runner.os == 'macOS' && matrix.compiler == 'gcc'
@@ -100,6 +99,12 @@ jobs:
         if: runner.os == 'Windows' && matrix.compiler == 'gcc'
         run: |
           echo "C:/msys64/ucrt64/bin" >> "$GITHUB_PATH"
+
+      - name: Remove MinGW/MSYS paths for Intel Windows builds
+        if: runner.os == 'Windows' && (matrix.compiler == 'intel' || matrix.compiler == 'intel-classic')
+        run: |
+          CLEAN_PATH="$(printf '%s' "$PATH" | tr ':' '\n' | grep -viE 'mingw|msys' | paste -sd ':' -)"
+          echo "PATH=${CLEAN_PATH}" >> "$GITHUB_ENV"
 
       - name: Install build tools
         run: |
