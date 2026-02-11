@@ -53,8 +53,8 @@ jobs:
         if: runner.os == 'Windows'
         uses: fortran-lang/setup-fortran@v1
         with:
-          compiler: intel-classic
-          version: "2021.10"
+          compiler: intel
+          version: "2025.2"
 
       - name: Remove MinGW/MSYS paths (Windows)
         if: runner.os == 'Windows'
@@ -74,7 +74,7 @@ jobs:
           CIBW_ARCHS_WINDOWS: "AMD64"
           CIBW_BEFORE_ALL_LINUX: "yum -y install gcc-gfortran"
           CIBW_ENVIRONMENT_MACOS: ${{ matrix.os == 'macos-14' && 'FC=gfortran-14 MACOSX_DEPLOYMENT_TARGET=14.0' || 'FC=gfortran-14 MACOSX_DEPLOYMENT_TARGET=15.0' }}
-          CIBW_ENVIRONMENT_WINDOWS: "FC=ifort CC=icl CXX=icl CFLAGS=/Qstd=c99"
+          CIBW_ENVIRONMENT_WINDOWS: "FC=ifx CC=icx CXX=icx"
           CMAKE_ARGS: "-DCEA_BUILD_TESTING=OFF"
         run: |
           cibuildwheel --output-dir dist
