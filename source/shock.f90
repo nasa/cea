@@ -237,7 +237,8 @@ contains
             call self%update_solution(soln, X(1), X(2), p21, t21, i)
 
             if (i == 1 .and. .not. soln%converged .and. t21 >= ttmax) then
-                call log_warning("ShockSolver_solve_incident: first-iteration update hit temperature cap; marking incident point as failed.")
+                call log_warning("ShockSolver_solve_incident: first-iteration update hit " // &
+                                 "temperature cap; marking incident point as failed.")
                 soln%eq_soln(idx)%T = 0.0d0
                 soln%pressure(idx) = 0.0d0
                 return
@@ -386,7 +387,8 @@ contains
             call self%update_solution(soln, X(1), X(2), p21, t21, i)
 
             if (i == 1 .and. .not. soln%converged .and. t21 >= ttmax) then
-                call log_warning("ShockSolver_solve_incident_frozen: first-iteration update hit temperature cap; marking incident point as failed.")
+                call log_warning("ShockSolver_solve_incident_frozen: first-iteration update hit " // &
+                                 "temperature cap; marking incident point as failed.")
                 soln%eq_soln(idx)%T = 0.0d0
                 soln%pressure(idx) = 0.0d0
                 return
@@ -521,7 +523,8 @@ contains
             call self%update_solution(soln, X(1), X(2), p52, t52, i)
 
             if (i == 1 .and. .not. soln%converged .and. t52 >= ttmax) then
-                call log_warning("ShockSolver_solve_reflected: first-iteration update hit temperature cap; marking reflected point as failed.")
+                call log_warning("ShockSolver_solve_reflected: first-iteration update hit " // &
+                                 "temperature cap; marking reflected point as failed.")
                 soln%eq_soln(idx)%T = 0.0d0
                 soln%pressure(idx) = 0.0d0
                 return
@@ -666,7 +669,8 @@ contains
             call self%update_solution(soln, X(1), X(2), p52, t52, i)
 
             if (i == 1 .and. .not. soln%converged .and. t52 >= ttmax) then
-                call log_warning("ShockSolver_solve_reflected_frozen: first-iteration update hit temperature cap; marking reflected point as failed.")
+                call log_warning("ShockSolver_solve_reflected_frozen: first-iteration update hit " // &
+                                 "temperature cap; marking reflected point as failed.")
                 soln%eq_soln(idx)%T = 0.0d0
                 soln%pressure(idx) = 0.0d0
                 return
