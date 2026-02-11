@@ -2218,7 +2218,9 @@ contains
         do i = 1, nc
             if (.not. self%is_active(i)) cycle
             r = self%active_rank(i)
-            if (r >= 1 .and. r <= na .and. active_idx(r) == 0) active_idx(r) = i
+            if (r >= 1 .and. r <= na) then
+                if (active_idx(r) == 0) active_idx(r) = i
+            end if
         end do
 
         if (any(active_idx == 0)) then
@@ -2826,8 +2828,8 @@ contains
         num_match = 0
         do i = 1, size(products%species_names(ng+1:))
 
-            ! Exclude the current phase itself; caller needs only alternate phases.
-            if (trim(products%species_names(ng+i)) == trim(name)) cycle
+            ! Keep the current phase in this list to preserve legacy phase-pair logic.
+            ! Downstream checks rely on seeing the active phase while iterating candidates.
 
             test_name = trim_phase(products%species_names(ng+i))
             if (trim_name == test_name) then
