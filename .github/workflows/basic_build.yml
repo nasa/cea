@@ -14,45 +14,33 @@ jobs:
         include:
           - label: linux-x86_64-gfortran
             runs_on: ubuntu-22.04
-            arch: x86_64
             compiler: gcc
-            version: "11"
             fc: gfortran
           - label: linux-aarch64-gfortran
             runs_on: ubuntu-22.04-arm
-            arch: aarch64
             compiler: gcc
-            version: "11"
             fc: gfortran
           - label: macos-x86_64-gfortran
             runs_on: macos-15-intel
-            arch: x86_64
             compiler: gcc
-            version: "14"
             fc: gfortran-14
           - label: macos-arm64-gfortran
             runs_on: macos-14
-            arch: arm64
             compiler: gcc
-            version: "14"
             fc: gfortran-14
           - label: windows-amd64-ifx
             runs_on: windows-2022
-            arch: AMD64
             compiler: intel
             version: "2025.2"
             fc: ifx
           - label: windows-amd64-ifort
             runs_on: windows-2022
-            arch: AMD64
             compiler: intel-classic
             version: "2021.10"
             fc: ifort
           - label: windows-amd64-gfortran
             runs_on: windows-2022
-            arch: AMD64
             compiler: gcc
-            version: "13"
             fc: gfortran
     defaults:
       run:

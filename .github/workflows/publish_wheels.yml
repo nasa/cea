@@ -25,14 +25,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install build tools (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install cibuildwheel build
-
-      - name: Install build tools (macOS)
-        if: runner.os == 'macOS'
+      - name: Install build tools
         run: |
           python -m pip install --upgrade pip
           python -m pip install cibuildwheel build
@@ -42,12 +35,6 @@ jobs:
         run: |
           brew update
           brew install gcc@14
-
-      - name: Install build tools (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install cibuildwheel build
 
       - name: Set up Intel oneAPI Fortran (Windows)
         if: runner.os == 'Windows'
