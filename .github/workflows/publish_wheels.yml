@@ -37,6 +37,13 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install cibuildwheel build
 
+      - name: Set up Fortran compiler (macOS)
+        if: runner.os == 'macOS'
+        uses: fortran-lang/setup-fortran@v1
+        with:
+          compiler: gcc
+          version: "14"
+
       - name: Install build tools (Windows)
         if: runner.os == 'Windows'
         run: |
@@ -58,10 +65,10 @@ jobs:
           CIBW_BUILD: "cp311-* cp312-* cp313-*"
           CIBW_SKIP: "*-musllinux_*"
           CIBW_ARCHS_LINUX: "x86_64"
-          CIBW_ARCHS_MACOS: "x86_64 arm64"
+          CIBW_ARCHS_MACOS: ${{ matrix.os == 'macos-13' && 'x86_64' || matrix.os == 'macos-14' && 'arm64' || 'x86_64 arm64' }}
           CIBW_ARCHS_WINDOWS: "AMD64"
           CIBW_BEFORE_ALL_LINUX: "yum -y install gcc-gfortran"
-          CIBW_BEFORE_ALL_MACOS: "brew install gcc"
+          CIBW_ENVIRONMENT_MACOS: "PATH=${PATH} FC=gfortran CC=gcc CXX=g++"
           CIBW_ENVIRONMENT_WINDOWS: "PATH=C:\\\\msys64\\\\mingw64\\\\bin;${PATH} FC=gfortran CC=gcc CXX=g++"
           CMAKE_ARGS: "-DCEA_BUILD_TESTING=OFF"
         run: |

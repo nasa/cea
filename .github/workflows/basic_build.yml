@@ -29,13 +29,13 @@ jobs:
             arch: x86_64
             compiler: gcc
             version: "14"
-            fc: gfortran
+            fc: gfortran-14
           - label: macos-arm64-gfortran
             runs_on: macos-14
             arch: arm64
             compiler: gcc
             version: "14"
-            fc: gfortran
+            fc: gfortran-14
           - label: windows-amd64-ifx
             runs_on: windows-2022
             arch: AMD64
@@ -67,11 +67,17 @@ jobs:
           python-version: "3.12"
 
       - name: Set up Fortran compiler (Unix)
-        if: runner.os != 'Windows' && matrix.compiler == 'gcc'
+        if: runner.os == 'Linux' && matrix.compiler == 'gcc'
         uses: fortran-lang/setup-fortran@v1
         with:
           compiler: ${{ matrix.compiler }}
           version: ${{ matrix.version }}
+
+      - name: Set up Fortran compiler (macOS)
+        if: runner.os == 'macOS' && matrix.compiler == 'gcc'
+        run: |
+          brew update
+          brew install gcc@14
 
       - name: Set up Intel oneAPI compiler (Windows)
         if: runner.os == 'Windows' && (matrix.compiler == 'intel' || matrix.compiler == 'intel-classic')
@@ -106,7 +112,16 @@ jobs:
           cmake --version
           ninja --version
           if command -v gfortran &> /dev/null; then gfortran --version; fi
-          if [ -n "${FC}" ]; then "${FC}" --version; fi
+          if [ -n "${FC}" ]; then
+            case "${FC}" in
+              ifort|ifx)
+                "${FC}" /help > /dev/null || true
+                ;;
+              *)
+                "${FC}" --version || true
+                ;;
+            esac
+          fi
 
       - name: Configure
         env:
