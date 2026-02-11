@@ -42,6 +42,10 @@ if (CEA_ENABLE_BIND_PYTHON)
     add_cython_target(libcea libcea.pyx)
     add_library(libcea MODULE ${libcea})
     python_extension_module(libcea)
+    if(APPLE)
+        # Ensure Python symbols are resolved by the interpreter at load time.
+        target_link_options(libcea PRIVATE "-undefined" "dynamic_lookup")
+    endif()
 
     # Ensure proper linking on Windows
     if (WIN32)
