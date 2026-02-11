@@ -244,8 +244,21 @@
 # limitations under the License.
 #=============================================================================
 
-find_package(PythonInterp REQUIRED)
-find_package(PythonLibs)
+find_package(Python3 COMPONENTS Interpreter Development.Module QUIET)
+if(Python3_Interpreter_FOUND)
+  set(PYTHON_EXECUTABLE "${Python3_EXECUTABLE}")
+  set(PYTHON_INCLUDE_DIRS "${Python3_INCLUDE_DIRS}")
+  if(Python3_LIBRARIES)
+    set(PYTHON_LIBRARIES "${Python3_LIBRARIES}")
+  else()
+    set(PYTHON_LIBRARIES "")
+  endif()
+  set(PYTHONLIBS_VERSION_STRING "${Python3_VERSION}")
+  set(PYTHON_VERSION_MAJOR "${Python3_VERSION_MAJOR}")
+else()
+  find_package(PythonInterp REQUIRED)
+  find_package(PythonLibs)
+endif()
 include(targetLinkLibrariesWithDynamicLookup)
 
 set(_command "

@@ -130,9 +130,9 @@ contains
         logical :: finalized                 ! True if frozen properties were finalized in-loop
         logical :: in_range                  ! True if frozen point is within condensed species temperature ranges
         real(dp) :: dlpm
-        real(dp), parameter :: tol = 0.5d-4  ! Legacy tolerance for frozen convergence
+        real(dp), parameter :: tol = 0.5d-4  ! Tolerance for frozen convergence
         real(dp), parameter :: approx_zero_tol = 1.0d-12  ! Tolerance to check if a value is approximately zero
-        real(dp), parameter :: phase_gap = 50.0d0  ! Legacy condensed phase guard band [K]
+        real(dp), parameter :: phase_gap = 50.0d0  ! Condensed phase guard band [K]
         real(dp) :: cpsum, ssum              ! Temporary variables for mixture properties
         real(dp) :: cpj, sj                  ! Temporary variables for species properties
         real(dp) :: dlnt                     ! Update variable for log-temperature
@@ -185,7 +185,7 @@ contains
                 soln%eq_partials(idx)%dlnV_dlnT = 1.0d0
                 call self%eq_solver%products%calc_thermo(soln%eq_soln(idx)%thermo, soln%eq_soln(idx)%T)
 
-                ! Legacy guard: stop if any frozen condensed species is outside its
+                ! Stop if any frozen condensed species is outside its
                 ! valid temperature range by more than 50 K.
                 in_range = .true.
                 do j = 1, self%eq_solver%num_condensed
@@ -532,7 +532,7 @@ contains
         ! Locals
         integer :: i, j                      ! Loop index
         integer, parameter :: max_iter_area = 10  ! Maximum number of iterations for exit condition using area ratio
-        real(dp), parameter :: area_tol = 4.0d-5  ! Legacy area-ratio convergence tolerance
+        real(dp), parameter :: area_tol = 4.0d-5  ! Area-ratio convergence tolerance
         real(dp) :: usq, asq                 ! velocity squared; sonic velocity squared
         real(dp) :: h                        ! Enthalpy at any other station (temporary)
         real(dp) :: gamma_s                  ! Temp variable for isentropic exponent gamma_s
@@ -581,7 +581,7 @@ contains
                 dln_pinf_pe_dln_aeat = gamma_s*usq/(usq - asq)  ! (Eq. 6.23)
                 dln_pinf_pe = dln_pinf_pe_dln_aeat*(log(subar(i)) - log(soln%ae_at(idx)))
 
-                ! Legacy convergence test for assigned area ratio:
+                ! Convergence test for assigned area ratio:
                 ! relative Ae/At error OR small pressure-ratio update.
                 if (abs(soln%ae_at(idx)-subar(i))/subar(i) <= area_tol) exit
                 if (abs(dln_pinf_pe) < area_tol) exit
@@ -619,7 +619,7 @@ contains
         ! Locals
         integer :: i, j                      ! Loop index
         integer, parameter :: max_iter_area = 10  ! Maximum number of iterations for exit condition using area ratio
-        real(dp), parameter :: area_tol = 4.0d-5  ! Legacy area-ratio convergence tolerance
+        real(dp), parameter :: area_tol = 4.0d-5  ! Area-ratio convergence tolerance
         real(dp) :: usq, asq                 ! velocity squared; sonic velocity squared
         real(dp) :: h                        ! Enthalpy at any other station (temporary)
         real(dp) :: gamma_s                  ! Temp variable for isentropic exponent gamma_s
@@ -667,7 +667,7 @@ contains
                 dln_pinf_pe_dln_aeat = gamma_s*usq/(usq - asq)  ! (Eq. 6.23)
                 dln_pinf_pe = dln_pinf_pe_dln_aeat*(log(supar(i)) - log(soln%ae_at(idx)))
 
-                ! Legacy convergence test for assigned area ratio:
+                ! Convergence test for assigned area ratio:
                 ! relative Ae/At error OR small pressure-ratio update.
                 if (abs(soln%ae_at(idx)-supar(i))/supar(i) <= area_tol) exit
                 if (abs(dln_pinf_pe) < area_tol) exit
@@ -705,7 +705,7 @@ contains
         ! Locals
         integer :: i, j                      ! Loop index
         integer, parameter :: max_iter_area = 10  ! Maximum number of iterations for exit condition using area ratio
-        real(dp), parameter :: area_tol = 4.0d-5  ! Legacy area-ratio convergence tolerance
+        real(dp), parameter :: area_tol = 4.0d-5  ! Area-ratio convergence tolerance
         real(dp) :: usq, asq                 ! velocity squared; sonic velocity squared
         real(dp) :: h                        ! Enthalpy at any other station (temporary)
         real(dp) :: gamma_s                  ! Temp variable for isentropic exponent gamma_s
@@ -716,7 +716,7 @@ contains
         call log_debug("Starting frozen supar calculations")
 
         do i = 1, size(supar)
-            ! Legacy frozen scheduling: omit assigned supersonic area ratios
+            ! Frozen scheduling: omit assigned supersonic area ratios
             ! that are not greater than the value at the freeze point.
             if (n_frz >= 3 .and. supar(i) <= soln%ae_at(n_frz)) then
                 call log_info('RocketSolver: WARNING!!  FOR FROZEN PERFORMANCE, POINT OMITTED BECAUSE '// &
@@ -761,7 +761,7 @@ contains
                 dln_pinf_pe_dln_aeat = gamma_s*usq/(usq - asq)  ! (Eq. 6.23)
                 dln_pinf_pe = dln_pinf_pe_dln_aeat*(log(supar(i)) - log(soln%ae_at(idx)))
 
-                ! Legacy convergence test for assigned area ratio:
+                ! Convergence test for assigned area ratio:
                 ! relative Ae/At error OR small pressure-ratio update.
                 if (abs(soln%ae_at(idx)-supar(i))/supar(i) <= area_tol) exit
                 if (abs(dln_pinf_pe) < area_tol) exit
@@ -963,7 +963,7 @@ contains
         integer :: n_frz_                    ! Temporary variable for frozen index
         integer :: num_pts                   ! Total number of evaluation points
         integer, parameter :: max_iter_area = 10  ! Maximum number of iterations for exit condition using area ratio
-        real(dp), parameter :: area_tol = 4.0d-5  ! Legacy area-ratio convergence tolerance
+        real(dp), parameter :: area_tol = 4.0d-5  ! Area-ratio convergence tolerance
         character(len=2) :: prob_type        ! Equilibrium problem type
         real(dp) :: state1                   ! Chamber temperature or enthalpy, or entropy at other stations
         real(dp) :: S_ref                    ! Reference entropy
@@ -1145,7 +1145,7 @@ contains
                 dln_pinf_pc_dln_acat = gamma_s*usq/(usq - asq)  ! (Eq. 6.23)
                 dln_pinf_pc = dln_pinf_pc_dln_acat*(log(ac_at_) - log(soln%ae_at(idx)))
 
-                ! Legacy convergence test for assigned area ratio:
+                ! Convergence test for assigned area ratio:
                 ! relative Ac/At error OR small pressure-ratio update.
                 if (abs(soln%ae_at(idx)-ac_at_)/ac_at_ <= area_tol) exit
                 if (abs(dln_pinf_pc) < area_tol) exit

@@ -112,7 +112,7 @@ contains
         real(dp) :: cormax, ax  ! Max correction factor; correction coefficient
 
         ax = max(abs(X1), abs(X2))
-        if (ax >= 0.00005d0) then  ! Legacy SHCK threshold (.00005)
+        if (ax >= 0.00005d0) then  ! Shock threshold for update damping
             cormax = .40546511d0
             if (iter > 4) then
                 cormax = .22314355d0
@@ -173,8 +173,7 @@ contains
         soln%converged = .false.
         u1 = soln%u(1)
         mach1 = soln%mach(1)
-        ! Seed incident-equilibrium solve from the unshocked reactant
-        ! composition, matching legacy SHCK/HCALC initialization behavior.
+        ! Seed incident-equilibrium solve from the unshocked reactant composition
         soln%eq_soln(idx) = EqSolution(self%eq_solver, T_init=T0, nj_init=soln%eq_soln(1)%nj)
 
         ! Compute the molecular weight of the initial mixture
@@ -637,7 +636,6 @@ contains
             call self%eq_solver%products%calc_thermo(soln%eq_soln(idx)%thermo, soln%eq_soln(idx)%T, condensed=.false.)
 
             ! Update frozen properties from the incident (state-2) frozen composition.
-            ! Legacy SHCK reflected-frozen path evaluates gas-only frozen cp and h at T5.
             cp = dot_product(soln%eq_soln(idx)%nj(:ng), soln%eq_soln(idx)%thermo%cp(:ng))
             h0 = dot_product(soln%eq_soln(idx)%nj(:ng), soln%eq_soln(idx)%thermo%enthalpy(:ng))*T5
             dlnV_dlnP = soln%eq_partials(idx)%dlnV_dlnP
