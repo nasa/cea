@@ -3,6 +3,7 @@ module cea_equilibrium
 
     use cea_param, only: dp, empty_dp, R=>gas_constant, &
                          snl=>species_name_len, &
+                         enl=>element_name_len, &
                          Avgdr=>avogadro, &
                          Boltz=>boltzmann, &
                          pi
@@ -46,6 +47,8 @@ module cea_equilibrium
             !! Flag if ions should be included
         logical :: active_ions = .true.
             !! Flag if ions are currently active
+        integer :: reduced_elements = 0
+            !! Number of temporarily reduced element equations in singular recovery
         logical :: transport = .false.
             !! Flag if transport properties should be computed
         character(snl), allocatable :: insert(:)
@@ -75,6 +78,7 @@ module cea_equilibrium
 
     contains
 
+        procedure :: num_active_elements => EqSolver_num_active_elements
         procedure :: compute_damped_update_factor => EqSolver_compute_damped_update_factor
         procedure :: get_solution_vars => EqSolver_get_solution_vars
         procedure :: update_solution => EqSolver_update_solution
@@ -159,6 +163,8 @@ module cea_equilibrium
             !! State and element constraints
         logical, allocatable :: is_active(:)
             !! True if condensed species included in G
+        integer, allocatable :: active_rank(:)
+            !! Active condensed ordering rank (1 = newest/front), 0 = inactive
         integer :: j_liq = 0
             !! Index of liquid phase if two phases are present for same species
         integer :: j_sol = 0
@@ -258,6 +264,11 @@ module cea_equilibrium
         !   and then only work with the "active" subset of the G array.
     contains
         procedure :: set_nj => EqSolution_set_nj
+        procedure :: activate_condensed => EqSolution_activate_condensed
+        procedure :: activate_condensed_front => EqSolution_activate_condensed_front
+        procedure :: deactivate_condensed => EqSolution_deactivate_condensed
+        procedure :: replace_active_condensed => EqSolution_replace_active_condensed
+        procedure :: active_condensed_indices => EqSolution_active_condensed_indices
         procedure :: num_equations => EqSolution_num_equations
         procedure :: calc_pressure => EqSolution_calc_pressure
         procedure :: calc_volume => EqSolution_calc_volume
@@ -445,6 +456,7 @@ contains
         type(TransportDB), intent(in), optional :: all_transport
         character(*), intent(in), optional :: insert(:)  ! List of condensed species to insert
         integer :: i
+        integer :: ngc_equiv
 
         ! Initialize reactant data
         self%products = products
@@ -475,19 +487,21 @@ contains
 
         ! Update size parameters
         if (self%trace > 0.0d0) then
-            ! Note: this results in slightly fewer iterations than CEA2; CEA2 "num_products" equivalent (Ngc)
-            !       includes one condensed species per temperature interval, and we use one total per species.
-            !       This should be fine, since problems rarely use this many iterations.
-            self%max_iterations = 50 + self%num_products/2
+            ! Match CEA2 scaling (maxitn = 50 + Ngc/2), where Ngc counts condensed
+            ! species by temperature interval. Approximate Ngc from this data model.
+            ngc_equiv = self%num_gas
+            do i = 1, self%num_condensed
+                ngc_equiv = ngc_equiv + max(1, self%products%species(self%num_gas+i)%num_intervals)
+            end do
+            self%max_iterations = 50 + ngc_equiv/2
             self%xsize = -log(self%trace)
             if (self%xsize < self%size) self%xsize = self%size + 0.1d0
         end if
 
         if (self%xsize > 80.0d0) self%xsize = 80.0d0
 
-        if (self%trace < 1.0d-8) then
-            self%esize = min(80.0d0, self%xsize + 6.90775528d0)  ! -ln(xsize * 1.d-3)
-        end if
+        ! Match legacy CEA2 behavior: always derive esize from xsize.
+        self%esize = min(80.0d0, self%xsize + 6.90775528d0)
 
         ! Set the max number of times that the solution can converge without establishing a set of condensed species
         self%max_converged = 3*self%products%num_elements
@@ -506,6 +520,68 @@ contains
         end if
 
     end function
+
+    function EqSolver_num_active_elements(self) result(ne)
+        class(EqSolver), intent(in) :: self
+        integer :: ne
+
+        ne = self%num_elements - self%reduced_elements
+        if (self%ions .and. .not. self%active_ions) ne = max(0, ne-1)
+        ne = max(0, ne)
+    end function
+
+    subroutine EqSolver_swap_elements(self, soln, i, j)
+        ! Swap two element equations/columns in the solver state.
+        class(EqSolver), intent(inout), target :: self
+        type(EqSolution), intent(inout), target :: soln
+        integer, intent(in) :: i
+        integer, intent(in) :: j
+        real(dp) :: tmp_col(self%num_products)
+        real(dp) :: tmp
+        character(enl) :: tmp_name
+
+        if (i == j) return
+        if (i < 1 .or. i > self%num_elements .or. j < 1 .or. j > self%num_elements) then
+            call abort('EqSolver_swap_elements: index out of bounds.')
+        end if
+
+        tmp_col = self%products%stoich_matrix(:, i)
+        self%products%stoich_matrix(:, i) = self%products%stoich_matrix(:, j)
+        self%products%stoich_matrix(:, j) = tmp_col
+
+        tmp_name = self%products%element_names(i)
+        self%products%element_names(i) = self%products%element_names(j)
+        self%products%element_names(j) = tmp_name
+
+        tmp = soln%constraints%b0(i)
+        soln%constraints%b0(i) = soln%constraints%b0(j)
+        soln%constraints%b0(j) = tmp
+
+        tmp = soln%pi(i)
+        soln%pi(i) = soln%pi(j)
+        soln%pi(j) = tmp
+
+        tmp = soln%pi_prev(i)
+        soln%pi_prev(i) = soln%pi_prev(j)
+        soln%pi_prev(j) = tmp
+    end subroutine
+
+    subroutine EqSolver_restore_reduced_elements(self, soln, num_swaps, swap_from, swap_to)
+        ! Restore element ordering after solve-local component reduction.
+        class(EqSolver), intent(inout), target :: self
+        type(EqSolution), intent(inout), target :: soln
+        integer, intent(in) :: num_swaps
+        integer, intent(in) :: swap_from(:)
+        integer, intent(in) :: swap_to(:)
+        integer :: i
+
+        if (num_swaps > 0) then
+            do i = num_swaps, 1, -1
+                call EqSolver_swap_elements(self, soln, swap_from(i), swap_to(i))
+            end do
+        end if
+        self%reduced_elements = 0
+    end subroutine
 
     function EqSolver_compute_damped_update_factor(self, soln) result(lambda)
         ! Compute the damped update factor, lambda, for the Newton solver
@@ -535,7 +611,7 @@ contains
 
         ! Define shorthand
         ng = self%num_gas
-        ne = self%num_elements
+        ne = self%num_active_elements()
         cons => soln%constraints
         ln_nj => soln%ln_nj
         dln_nj => soln%dln_nj
@@ -584,6 +660,7 @@ contains
         integer :: i                          ! Indices
         integer :: ng                         ! Number of gas species
         integer :: ne                         ! Number of elements
+        integer :: ne_full                    ! Total number of elements (including electron)
         integer :: na                         ! Number of active condensed species
         integer :: num_eqn                    ! Number of equations in the matrix system
         real(dp), pointer :: x(:)             ! Solution vector
@@ -599,7 +676,8 @@ contains
 
         ! Define shorthand
         ng = self%num_gas
-        ne = self%num_elements
+        ne = self%num_active_elements()
+        ne_full = self%num_elements
         na = count(soln%is_active)
         num_eqn = soln%num_equations(self)
         cons => soln%constraints
@@ -625,18 +703,25 @@ contains
         mu_g = h_g - s_g + ln_nj + log(P/n)
 
         ! Get the pi variables
-        soln%pi = x(:ne)
+        soln%pi = 0.0d0
+        if (ne > 0) soln%pi(:ne) = x(:ne)
 
         ! Check on removing ions: if all ionized species have a concentration of 0, remove ions entirely
-        if (self%ions .and. self%active_ions) then
+        if (self%ions .and. self%active_ions .and. ne_full > 0) then
             self%active_ions = .false.
             do i = 1, self%num_products
-                if (A(i, ne) /= 0.0d0) then
+                if (A(i, ne_full) /= 0.0d0) then
                     if (soln%nj(i) > 0.0d0) self%active_ions = .true.
                     if (soln%nj(i) > 0.0d0) exit  ! * I get a compile error when this is included with the above line *
                 end if
             end do
-            if (self%active_ions .and. soln%converged .and. .not. soln%ions_converged) soln%pi_e = x(ne)
+            if (self%active_ions .and. soln%converged .and. .not. soln%ions_converged) then
+                soln%pi_e = x(ne)
+            else
+                soln%pi_e = 0.0d0
+            end if
+        else
+            soln%pi_e = 0.0d0
         end if
 
         ! Get the updates to the condensed species concentrations
@@ -660,12 +745,12 @@ contains
         do i = 1, ng
             ! TODO: Skip the update here for species with removed elements
 
-            soln%dln_nj(i) = -mu_g(i) + soln%dln_n + dot_product(A_g(i, :), soln%pi) + soln%dln_T*h_g(i)
+            soln%dln_nj(i) = -mu_g(i) + soln%dln_n + dot_product(A_g(i, :ne), soln%pi(:ne)) + soln%dln_T*h_g(i)
             if (.not. const_p) soln%dln_nj(i) = soln%dln_nj(i) - soln%dln_T
 
             ! Ionized species update
-            if (self%ions .and. soln%pi_e /= 0.0d0) then
-                soln%dln_nj(i) = soln%dln_nj(i) + A_g(i, ne)*soln%pi_e
+            if (self%ions .and. self%active_ions .and. ne_full > 0 .and. soln%pi_e /= 0.0d0) then
+                soln%dln_nj(i) = soln%dln_nj(i) + A_g(i, ne_full)*soln%pi_e
             end if
         end do
 
@@ -683,6 +768,7 @@ contains
         integer  :: nc                        ! Number of condensed species
         integer  :: na                        ! Number of active condensed species
         integer  :: ne                        ! Number of elements
+        integer  :: ne_full                   ! Total number of elements (including electron)
         integer  :: num_eqn                   ! Number of equations in the matrix system
         real(dp), pointer :: nj_g(:), nj_c(:) ! Gas/condensed species concentrations [kmol-per-kg]
         real(dp) :: n                         ! Total moles of mixture
@@ -697,6 +783,7 @@ contains
         real(dp) :: dln_n                     ! 𝛥ln(n)
         real(dp) :: dln_T                     ! 𝛥ln(T)
         integer :: i, idx_c                   ! Indices
+        integer, allocatable :: active_idx(:) ! Active condensed indices in legacy order
         logical :: const_p, const_t           ! Flags enabling/disabling matrix equations
         type(EqConstraints), pointer :: cons  ! Abbreviation for soln%constraints
         real(dp) :: lambda                    ! Damped update factor
@@ -708,7 +795,8 @@ contains
         ng = self%num_gas
         nc = self%num_condensed
         na = count(soln%is_active)
-        ne = self%num_elements
+        ne = self%num_active_elements()
+        ne_full = self%num_elements
         num_eqn = soln%num_equations(self)
         cons => soln%constraints
         dln_nj => soln%dln_nj
@@ -743,9 +831,9 @@ contains
         end do
 
         ! Use a lower threshold for ionized species before truncating the concentrations
-        if (self%ions .and. self%active_ions) then
+        if (self%ions .and. self%active_ions .and. ne_full > 0) then
             do i = 1, ng
-                if (A_g(i, ne) /= 0.0d0 .and. nj_g(i) == 0.0d0) then
+                if (A_g(i, ne_full) /= 0.0d0 .and. nj_g(i) == 0.0d0) then
                     if (ln_nj(i) - ln_n + self%esize > 0.0d0) then
                         nj_g(i) = exp(ln_nj(i))
                     end if
@@ -754,12 +842,10 @@ contains
         end if
 
         ! Condensed species concentrations
-        idx_c = 1  ! Index into active set of condensed species
-        do i = 1, nc
-            if (soln%is_active(i)) then
-                nj_c(i) = nj_c(i) + lambda*dnj_c(idx_c)
-                idx_c = idx_c + 1
-            end if
+        active_idx = soln%active_condensed_indices()
+        do idx_c = 1, size(active_idx)
+            i = active_idx(idx_c)
+            nj_c(i) = nj_c(i) + lambda*dnj_c(idx_c)
         end do
 
         ! Total moles
@@ -790,6 +876,7 @@ contains
         integer  :: ng                        ! Number of gas species
         integer  :: na                        ! Number of active condensed species
         integer  :: ne                        ! Number of elements
+        integer  :: ne_full                   ! Total number of elements (including electron)
         real(dp) :: b_delta(self%num_elements)! Residual for element contraints
         real(dp) :: s_delta                   ! Residual for entropy state
         real(dp), pointer :: b0(:)            ! Fixed element concentrations
@@ -819,7 +906,8 @@ contains
 
         ! Define shorthand
         ng = self%num_gas
-        ne = self%num_elements
+        ne = self%num_active_elements()
+        ne_full = self%num_elements
         na = count(soln%is_active)
         cons => soln%constraints
         nj => soln%nj
@@ -883,7 +971,7 @@ contains
 
         ! Check total moles update
         if (const_p) then
-            if (n*dln_n/sum(nj(1:ng)) > nj_tol) then
+            if (abs(n*dln_n/sum(nj(1:ng))) > nj_tol) then
                 soln%moles_converged = .false.
                 return
             end if
@@ -922,9 +1010,12 @@ contains
         ! ---------------------------------------------------------------------------
         if (self%trace > 0.0d0) then
             do i = 1, ne
-                if (abs((pi_prev(i) - pi(i))/pi(i)) > pi_tol) then
-                    soln%pi_converged = .false.
-                    return
+                ! Match CEA2 behavior: if denominator is zero, skip ratio check.
+                if (abs(pi(i)) > tiny(1.0d0)) then
+                    if (abs((pi_prev(i) - pi(i))/pi(i)) > pi_tol) then
+                        soln%pi_converged = .false.
+                        return
+                    end if
                 end if
             end do
         end if
@@ -946,13 +1037,13 @@ contains
         ! If everything converged, check ion convergence: Equation (3.14)
         ! ---------------------------------------------------------------
         soln%ions_converged = .false.
-        if (self%ions .and. self%active_ions) then
+        if (self%ions .and. self%active_ions .and. ne_full > 0) then
             ! Check on electron balance
             do i = 1, 80  ! Max iterations
                 sum1 = 0.0d0
                 sum2 = 0.0d0
                 do j = 1, ng
-                    if (A_g(j, ne) /= 0.0d0) then
+                    if (A_g(j, ne_full) /= 0.0d0) then
                         soln%nj(j) = 0.0d0
                         temp = 0.0d0
                         if (soln%ln_nj(j) > -87.0d0) temp = exp(soln%ln_nj(j))
@@ -960,16 +1051,16 @@ contains
                             !soln%pi_e = 0.0d0
                             soln%nj(j) = temp
                         end if
-                        aa = A_g(j, ne)*temp
+                        aa = A_g(j, ne_full)*temp
                         sum1 = sum1 + aa
-                        sum2 = sum2 + aa*A_g(j, ne)
+                        sum2 = sum2 + aa*A_g(j, ne_full)
                     end if
                 end do
                 if (sum2 /= 0.0d0) then
                     soln%dpi_e = -sum1/sum2
                     do j = 1, ng
-                        if (A_g(j, ne) /= 0.0d0) then
-                            soln%ln_nj(j) = soln%ln_nj(j) + A_g(j, ne)*soln%dpi_e
+                        if (A_g(j, ne_full) /= 0.0d0) then
+                            soln%ln_nj(j) = soln%ln_nj(j) + A_g(j, ne_full)*soln%dpi_e
                         end if
                     end do
                 end if
@@ -1016,14 +1107,16 @@ contains
         real(dp), pointer :: h_or_s_or_u(:)     ! For evaluating Eq 2.27/2.28
         integer :: r, c                         ! Iteration matrix row/column indices
         integer :: i, j                         ! Loop counters
+        integer, allocatable :: active_idx(:)   ! Active condensed indices in legacy order
         logical :: const_p, const_t, const_s, const_h, const_u  ! Flags enabling/disabling matrix equations
         type(EqConstraints), pointer :: cons    ! Abbreviation for soln%constraints
 
         ! Define shorthand
         ng = self%num_gas
         nc = self%num_condensed
-        ne = self%num_elements
+        ne = self%num_active_elements()
         na = count(soln%is_active)
+        active_idx = soln%active_condensed_indices()
         num_eqn = soln%num_equations(self)
         cons => soln%constraints
         const_p = cons%is_constant_pressure()
@@ -1115,15 +1208,15 @@ contains
         !-------------------------------------------------------
         ! Equation (2.25/2.46): Condensed phase constraints
         !-------------------------------------------------------
-        do i = 1,nc
-            if (.not. soln%is_active(i)) cycle
+        do j = 1, na
+            i = active_idx(j)
             r = r+1
             c = 0
 
             ! Pi derivatives
             ! Symmetric with (2.24) condensed derivatives
-            G(r,:ne) = A_c(i,:)
-            G(:ne,r) = A_c(i,:)
+            G(r,:ne) = A_c(i,:ne)
+            G(:ne,r) = A_c(i,:ne)
             c = c+ne
 
             ! Condensed derivatives
@@ -1208,10 +1301,10 @@ contains
             end do
 
             ! Condensed derivatives
-            do j = 1,nc
-                if (.not. soln%is_active(j)) cycle
+            do j = 1, na
+                i = active_idx(j)
                 c = c+1
-                G(r,c) = h_or_s_or_u(j)
+                G(r,c) = h_or_s_or_u(i)
             end do
 
             ! Delta ln(n) derivative
@@ -1259,6 +1352,7 @@ contains
         integer :: nc                              ! Number of condensed species
         integer :: na                              ! Number of active condensed species
         integer :: i, j, idx_c                     ! Index
+        integer, allocatable :: active_idx(:)      ! Active condensed indices in legacy order
         real(dp) :: T_low_i, T_high_i              ! Low and high temperature limits for a species [K]
         real(dp) :: T_low_j, T_high_j              ! Low and high temperature limits for a species [K]
         real(dp) :: max_T_j                        ! Max melting temperature of the candidate phase [K]
@@ -1275,17 +1369,15 @@ contains
 
         made_change = .false.
 
-        if (na == 0 .or. soln%constraints%is_constant_temperature()) return
+        ! Legacy CEA applies condensed-phase validity checks during TP solves too.
+        if (na == 0) return
 
         ! Update condensed thermodynamic properties
         ! call self%products%calc_thermo(soln%thermo, soln%T, condensed=.true.)
 
-        idx_c = 0  ! Index into the active set of condensed species
-
-        do i = 1, nc
-
-            if (.not. soln%is_active(i)) cycle
-            idx_c = idx_c + 1
+        active_idx = soln%active_condensed_indices()
+        do idx_c = 1, na
+            i = active_idx(idx_c)
 
             if (i == soln%j_sol .or. i == soln%j_liq) cycle
 
@@ -1318,8 +1410,7 @@ contains
                             ! Switch phase
                             call log_info("Phase change: replace "//trim(self%products%species_names(ng+i))//&
                                           " with "//self%products%species_names(ng+idx_other_phase(j)))
-                            soln%is_active(i) = .false.
-                            soln%is_active(idx_other_phase(j)) = .true.
+                            call soln%replace_active_condensed(i, idx_other_phase(j))
                             soln%nj(ng+idx_other_phase(j)) = soln%nj(ng+i)
                             soln%nj(ng+i) = 0.0d0
                             soln%converged = .false.
@@ -1344,7 +1435,7 @@ contains
                                 soln%j_sol = i
                                 soln%j_liq = idx_other_phase(j)
                             end if
-                            soln%is_active(idx_other_phase(j)) = .true.
+                            call soln%activate_condensed_front(idx_other_phase(j))
                             soln%nj(ng+idx_other_phase(j)) = 0.5d0*soln%nj(ng+i)
                             soln%nj(ng+i)                  = 0.5d0*soln%nj(ng+i)
                             soln%converged = .false.
@@ -1358,8 +1449,7 @@ contains
                             ! Switch phase
                             call log_info("Phase change: replace "//trim(self%products%species_names(ng+i))//&
                                           " with "//self%products%species_names(ng+idx_other_phase(j)))
-                            soln%is_active(i) = .false.
-                            soln%is_active(idx_other_phase(j)) = .true.
+                            call soln%replace_active_condensed(i, idx_other_phase(j))
                             soln%nj(ng+idx_other_phase(j)) = soln%nj(ng+i)
                             soln%nj(ng+i) = 0.0d0
                             soln%converged = .false.
@@ -1381,7 +1471,7 @@ contains
                             soln%j_sol = i
                             soln%j_liq = idx_other_phase(j)
                         end if
-                        soln%is_active(idx_other_phase(j)) = .true.
+                        call soln%activate_condensed_front(idx_other_phase(j))
                         soln%nj(ng+idx_other_phase(j)) = 0.5d0*soln%nj(ng+i)
                         soln%nj(ng+i)                  = 0.5d0*soln%nj(ng+i)
                         soln%converged = .false.
@@ -1398,7 +1488,7 @@ contains
             if (soln%T > 1.2d0*max_T_j) then
                 ! Remove condensed species
                 call log_info("Removing condensed species: "//self%products%species_names(ng+i))
-                Soln%is_active(i) = .false.
+                call soln%deactivate_condensed(i)
                 soln%nj(ng+i) = 0.0d0
                 soln%converged = .false.
                 soln%j_switch = 0
@@ -1424,11 +1514,12 @@ contains
 
         ! Locals
         integer :: ng                             ! Number of gas species
+        integer :: ne                             ! Number of active elements
         integer :: na                             ! Number of active condensed species
         integer :: nc                             ! Number of total condensed species
         real(dp), pointer :: nj_c(:)              ! Condensed species concentrations [kmol-per-kg]
         real(dp), pointer :: cp_c(:)              ! Condensed pecies heat capacities [unitless]
-        integer :: i                              ! Index
+        integer :: i, j                           ! Indices
         integer :: cond_idx                       ! Index of condensed species to add/remove
         integer :: singular_index_                ! Index of condensed species that caused a singular matrix
         real(dp) :: temp                          ! Temp value to select condensed species
@@ -1439,12 +1530,14 @@ contains
         real(dp), pointer :: s_c(:)               ! Condensed entropies [unitless]
         real(dp), pointer :: A_c(:,:)             ! Condensed stoichiometric matrices
         real(dp), pointer :: pi(:)                ! 𝛑_j (k-th iteration)
+        integer, allocatable :: active_idx(:)     ! Active condensed indices in legacy order
         logical :: made_change                    ! Flag to indicate if a species was added or removed (used for other subroutine calls)
         real(dp), parameter :: T_min = 200.0d0    ! Minimum gas temperature defined in thermo data [K]
         real(dp), parameter :: tol = 1d-12
 
         ! Shorthand
         ng = self%num_gas
+        ne = self%num_active_elements()
         na = count(soln%is_active)
         nc = self%num_condensed
 
@@ -1467,12 +1560,13 @@ contains
         if (na > 0) then
             temp = 0.0d0
             cond_idx = 0
+            active_idx = soln%active_condensed_indices()
 
-            do i = 1, nc
-                if (.not. soln%is_active(i)) cycle
-                if (nj_c(i)*cp_c(i) <= temp) then
-                    temp = nj_c(i)*cp_c(i)
-                    cond_idx = i
+            do i = 1, size(active_idx)
+                j = active_idx(i)
+                if (nj_c(j)*cp_c(j) <= temp) then
+                    temp = nj_c(j)*cp_c(j)
+                    cond_idx = j
                 end if
             end do
 
@@ -1481,7 +1575,7 @@ contains
                     soln%j_sol = 0
                     soln%j_liq = 0
                 end if
-                soln%is_active(cond_idx) = .false.
+                call soln%deactivate_condensed(cond_idx)
                 soln%nj(ng+cond_idx) = 0.0d0
                 soln%converged = .false.
                 iter = -1
@@ -1508,8 +1602,9 @@ contains
                 T_min == minval(self%products%species(ng+i)%T_fit(:, 1))) then
                 if (soln%T <= maxval(self%products%species(ng+i)%T_fit(:, 2))) then
 
-                    temp = dot_product(A_c(i,:), pi)
-                    delg = (h_c(i) - s_c(i) - temp)/self%products%species(i)%molecular_weight
+                    temp = 0.0d0
+                    if (ne > 0) temp = dot_product(A_c(i,:ne), pi(:ne))
+                    delg = (h_c(i) - s_c(i) - temp)/self%products%species(ng+i)%molecular_weight
 
                     if (delg < min_delg .and. delg < 0.0d0) then
                         if (i /= singular_index_) then
@@ -1529,7 +1624,7 @@ contains
 
         ! Insert the selected condensed species
         if (abs(min_delg) > tol) then
-            soln%is_active(cond_idx) = .true.
+            call soln%activate_condensed_front(cond_idx)
             soln%converged = .false.
             iter = -1
             soln%last_cond_idx = cond_idx
@@ -1542,7 +1637,7 @@ contains
 
     end subroutine
 
-    subroutine EqSolver_correct_singular(self, soln, iter, ierr)
+    subroutine EqSolver_correct_singular(self, soln, iter, ierr, singular_index, reduced_from, reduced_to)
         ! Try to correct the singular Jacobian matrix
 
         ! Arguments
@@ -1550,35 +1645,51 @@ contains
         type(EqSolution), intent(inout), target :: soln
         integer, intent(inout) :: iter
         integer, intent(in) :: ierr
+        integer, intent(out), optional :: singular_index
+        integer, intent(out), optional :: reduced_from
+        integer, intent(out), optional :: reduced_to
 
         ! Locals
-        integer :: i, j                      ! Iterators
+        integer :: i, j, k                   ! Iterators
         real(dp) :: temp                     ! Temporary summation value
-        integer :: idx                       ! Index variable
+        integer :: idx                       ! Condensed species index
+        integer :: idx_active                ! Active condensed row index in the Jacobian
         integer :: ng                        ! Number of gas species
         integer :: nc                        ! Number of condensed species
         integer :: ne                        ! Number of elements
         integer :: na                        ! Number of active condensed species
+        integer, allocatable :: active_idx(:)! Active condensed indices in legacy order
         real(dp), pointer :: A(:,:)          ! Stoichiometric matrix
+        real(dp), pointer :: A_all(:,:)      ! Full stoichiometric matrix
         real(dp), parameter :: tol = 1.d-8   ! Tolerance to check if value ~0
+        real(dp), parameter :: smalno = 1.0d-6
+        real(dp), parameter :: smnol = -13.815511d0
+        logical :: made_change
 
 
         ! Shorthand
         ng = self%num_gas
-        ne = self%num_elements
+        nc = self%num_condensed
+        ne = self%num_active_elements()
         na = count(soln%is_active)
-        A => self%products%stoich_matrix(:,:)
+        active_idx = soln%active_condensed_indices()
+        A => self%products%stoich_matrix(ng+1:,:)
+        A_all => self%products%stoich_matrix(:,:)
 
         self%xsize = 80.0d0
         self%tsize = 80.0d0
+        if (present(singular_index)) singular_index = 0
+        if (present(reduced_from)) reduced_from = 0
+        if (present(reduced_to)) reduced_to = 0
+        made_change = .false.
 
-        if (ierr > self%num_elements .and. iter < 1 .and. na > 1 &
+        if (ierr > ne .and. iter < 1 .and. na > 1 &
             .and. soln%last_cond_idx > 0) then
 
             temp = 1000.0d0
             idx = 0  ! Condensed species index selected to correct singular matrix
-            do i = 1, nc
-                if (.not. soln%is_active(i)) cycle
+            do k = 1, size(active_idx)
+                i = active_idx(k)
 
                 if (i /= soln%last_cond_idx) then
                     do j = 1, ne
@@ -1595,21 +1706,110 @@ contains
             if (idx > 0) then
                 call log_info("Removing condensed species "//self%products%species_names(ng+idx)// &
                               " to correct singular matrix")
-                soln%is_active(idx) = .false.
+                call soln%deactivate_condensed(idx)
                 soln%nj(ng+idx) = 0.0d0
                 soln%converged = .false.
-                soln%j_switch = i
+                soln%j_switch = idx
+                if (present(singular_index)) singular_index = idx
                 iter = -1
+                made_change = .true.
             end if
 
-        ! TODO: singular updates when elements are removed
+        ! Legacy-inspired recovery for element-row singularities:
+        ! remove the smallest active condensed species that participates
+        ! in the singular element equation.
+        else if (ierr >= 1 .and. ierr <= ne .and. na > 0) then
+            temp = huge(1.0d0)
+            idx = 0
+            do k = 1, size(active_idx)
+                i = active_idx(k)
+                if (abs(A(i, ierr)) <= tol) cycle
+                if (soln%nj(ng+i) <= temp) then
+                    temp = soln%nj(ng+i)
+                    idx = i
+                end if
+            end do
+
+            if (idx > 0) then
+                call log_info("Removing condensed species "//self%products%species_names(ng+idx)// &
+                              " to correct element-row singularity")
+                call soln%deactivate_condensed(idx)
+                soln%nj(ng+idx) = 0.0d0
+                soln%converged = .false.
+                soln%j_switch = idx
+                if (present(singular_index)) singular_index = idx
+                iter = -1
+                made_change = .true.
+            end if
 
         ! Remove condensed species to correct singularity
-        else if (ierr > ne .and. ierr < count(soln%is_active)+ne) then
-            idx = ierr - ne
-            if (soln%is_active(idx)) then
-                soln%is_active(idx) = .false.
+        else if (ierr > ne .and. ierr <= na+ne) then
+            ! Map Jacobian active condensed row index to condensed species index.
+            idx_active = ierr - ne
+            idx = 0
+            if (idx_active >= 1 .and. idx_active <= size(active_idx)) idx = active_idx(idx_active)
+
+            if (idx > 0 .and. soln%is_active(idx)) then
+                call soln%deactivate_condensed(idx)
                 soln%nj(self%num_gas+idx) = 0.0d0
+                soln%converged = .false.
+                soln%j_switch = idx
+                if (present(singular_index)) singular_index = idx
+                iter = -1
+                made_change = .true.
+            end if
+        end if
+
+        ! Legacy ion-row fallback: if the electron equation is singular, remove
+        ! ionized species from the active iterate and disable ion solving.
+        if (.not. made_change .and. ierr >= 1 .and. ierr <= ne .and. &
+            self%ions .and. self%active_ions .and. self%num_elements > 0) then
+            if (trim(self%products%element_names(self%num_elements)) == 'E' .and. ierr == ne) then
+                do i = 1, ng
+                    if (A_all(i, self%num_elements) /= 0.0d0) then
+                        soln%nj(i) = 0.0d0
+                        soln%ln_nj(i) = smnol
+                        made_change = .true.
+                    end if
+                end do
+                if (made_change) then
+                    self%active_ions = .false.
+                    soln%pi_e = 0.0d0
+                    soln%dpi_e = 0.0d0
+                    soln%converged = .false.
+                    iter = -1
+                end if
+            end if
+        end if
+
+        ! Legacy component-reduction fallback for persistent element-row singularities.
+        if (.not. made_change .and. ierr >= 1 .and. ierr <= ne .and. iter < 1 .and. &
+            ne > 1 .and. .not. (self%ions .and. self%active_ions)) then
+            call log_info("Reducing active element equations after singular restart on "// &
+                          trim(self%products%element_names(ierr)))
+            if (ierr /= ne) call EqSolver_swap_elements(self, soln, ierr, ne)
+            self%reduced_elements = self%reduced_elements + 1
+            soln%pi(ne) = 0.0d0
+            soln%pi_prev(ne) = 0.0d0
+            soln%converged = .false.
+            iter = -1
+            made_change = .true.
+            if (present(reduced_from)) reduced_from = ierr
+            if (present(reduced_to)) reduced_to = ne
+        end if
+
+        ! Legacy fallback path: seed trace gas species to break persistent singularity.
+        if (.not. made_change) then
+            do i = 1, ng
+                if (soln%nj(i) <= 0.0d0) then
+                    soln%nj(i) = smalno
+                    soln%ln_nj(i) = smnol
+                    made_change = .true.
+                end if
+            end do
+            if (made_change) then
+                soln%converged = .false.
+                iter = -1
             end if
         end if
 
@@ -1679,8 +1879,16 @@ contains
 
         ! Locals
         integer :: i, iter, ierr, num_eqn, times_singular
+        integer :: cond_idx
+        integer :: singular_index, singular_index_iter
+        integer :: reduced_from_iter, reduced_to_iter
+        integer :: num_reduced
+        integer :: reduced_from(self%num_elements), reduced_to(self%num_elements)
+        integer :: phase_iter, phase_pass
+        real(dp) :: gas_moles, xi, xln
         real(dp), pointer :: G(:, :)
         type(EqPartials) :: partials_
+        logical :: made_change, max_iter_fallback_used
 
         call log_debug("Starting Eq. Solve.")
 
@@ -1701,12 +1909,29 @@ contains
         times_singular = 0  ! Number of times a singular matrix was encountered ("ixsing" in CEA2)
         soln%times_converged = 0  ! Number of times initial convergence was established
         soln%j_switch = 0  ! Make sure this is reset every time
+        self%active_ions = self%ions
+        self%reduced_elements = 0
+        soln%pi_e = 0.0d0
+        num_reduced = 0
+        reduced_from = 0
+        reduced_to = 0
 
-        ! Initial call of the thermodynamic properties
-        call self%products%calc_thermo(soln%thermo, soln%T, condensed=.false.)
+        ! Pre-check active condensed phases before the first Newton matrix build.
+        phase_iter = 0
+        do phase_pass = 1, self%num_condensed + 1
+            call self%check_condensed_phases(soln, phase_iter, made_change)
+            if (.not. made_change) exit
+        end do
+
+        ! Initial call of the thermodynamic properties.
+        ! Compute condensed thermo too so the first Newton build does not use
+        ! stale condensed values when active condensed species are present.
+        call self%products%calc_thermo(soln%thermo, soln%T, condensed=.true.)
 
         ierr = 0
         iter = 0
+        singular_index = 0
+        max_iter_fallback_used = .false.
         do while (self%max_iterations > iter)
 
             iter = iter + 1
@@ -1734,28 +1959,35 @@ contains
 
                 times_singular = times_singular + 1
                 if (times_singular > 8) then
+                    call EqSolver_restore_reduced_elements(self, soln, num_reduced, reduced_from, reduced_to)
                     call abort('EqSolver_solve: Too many singular matrices encountered.')
                 end if
 
                 ! Try to correct the singular matrix
-                call self%correct_singular(soln, iter, ierr)
+                singular_index_iter = 0
+                reduced_from_iter = 0
+                reduced_to_iter = 0
+                call self%correct_singular(soln, iter, ierr, singular_index_iter, reduced_from_iter, reduced_to_iter)
+                if (singular_index_iter > 0) singular_index = singular_index_iter
+                if (reduced_to_iter > 0) then
+                    num_reduced = num_reduced + 1
+                    reduced_from(num_reduced) = reduced_from_iter
+                    reduced_to(num_reduced) = reduced_to_iter
+                end if
 
                 ! Start next iteration
                 cycle
 
             end if
 
-            if (soln%converged) then
-                soln%times_converged = soln%times_converged + 1
-            end if
-
-            if (soln%times_converged > 3*self%num_elements) then
+            if (soln%times_converged > 3*self%num_active_elements()) then
                 soln%converged = .false.
+                call EqSolver_restore_reduced_elements(self, soln, num_reduced, reduced_from, reduced_to)
                 call abort("Convergence failed to establish set of condensed species.")
             end if
 
             ! Initial convergence; check on adding or removing condensed species
-            call self%test_condensed(soln, iter)  ! TODO: singular_index
+            call self%test_condensed(soln, iter, singular_index)
 
             if (soln%converged .or. (iter == self%max_iterations)) then
 
@@ -1766,8 +1998,40 @@ contains
                 end do
 
                 if (.not. soln%converged) then
-                    ! High temperature, included condensed condition
+                    ! Legacy-style fallback for high-temperature condensed edge cases.
+                    gas_moles = sum(soln%nj(:self%num_gas))
+                    if (.not. max_iter_fallback_used) then
+                        if (self%num_gas > 0 .and. &
+                            (.not. soln%constraints%is_constant_enthalpy() .or. soln%T > 100.0d0) .and. &
+                            (count(soln%is_active) == 1) .and. (gas_moles <= 1.0d-4)) then
+                            max_iter_fallback_used = .true.
+                            soln%n = 0.1d0
+                            xi = soln%n / self%num_gas
+                            xln = log(xi)
+                            do i = 1, self%num_gas
+                                soln%nj(i) = xi
+                                soln%ln_nj(i) = xln
+                            end do
+                            do cond_idx = 1, self%num_condensed
+                                if (soln%is_active(cond_idx)) then
+                                    call soln%deactivate_condensed(cond_idx)
+                                    soln%nj(self%num_gas+cond_idx) = 0.0d0
+                                    soln%j_switch = cond_idx
+                                    exit
+                                end if
+                            end do
+                            soln%j_sol = 0
+                            soln%j_liq = 0
+                            soln%converged = .false.
+                            soln%times_converged = 0
+                            iter = -1
+                            call self%products%calc_thermo(soln%thermo, soln%T, condensed=.false.)
+                            cycle
+                        end if
+                    end if
+
                     call self%post_process(soln, .false.)
+                    call EqSolver_restore_reduced_elements(self, soln, num_reduced, reduced_from, reduced_to)
                     call abort('EqSolver_solve: Maximum iterations reached without convergence')
                 end if
 
@@ -1796,10 +2060,13 @@ contains
                     soln%converged = .false.
                 end if
 
+                call EqSolver_restore_reduced_elements(self, soln, num_reduced, reduced_from, reduced_to)
                 return
             end if
 
         end do
+
+        call EqSolver_restore_reduced_elements(self, soln, num_reduced, reduced_from, reduced_to)
 
     end subroutine
 
@@ -3232,6 +3499,7 @@ contains
         allocate(self%G(solver%max_equations, solver%max_equations+1), source=empty_dp)
         allocate(self%is_active(solver%num_condensed), source=.false.)
         allocate(self%w0(solver%num_reactants), source=0.0d0)
+        allocate(self%active_rank(solver%num_condensed), source=0)
         self%constraints = EqConstraints(solver%num_elements)
 
         ! Set initial guess
@@ -3265,7 +3533,7 @@ contains
                     ! Only count this as an "insert" if it is condensed; no effect otherwise
                     if (solver%products%species(j)%i_phase > 0) then
                         call log_info("Inserting "//solver%products%species_names(j))
-                        self%is_active(j-solver%num_gas) = .true.
+                        call self%activate_condensed_front(j-solver%num_gas)
                     end if
                 end if
             end do
@@ -3317,6 +3585,115 @@ contains
 
     end subroutine
 
+    subroutine EqSolution_activate_condensed(self, idx, rank)
+        class(EqSolution), intent(inout) :: self
+        integer, intent(in) :: idx
+        integer, intent(in), optional :: rank
+        integer :: i, na, target_rank
+
+        if (idx < 1 .or. idx > size(self%is_active)) then
+            call abort('EqSolution_activate_condensed: idx out of bounds.')
+        end if
+
+        if (self%is_active(idx)) call self%deactivate_condensed(idx)
+
+        na = count(self%is_active)
+        target_rank = 1
+        if (present(rank)) target_rank = rank
+        target_rank = max(1, min(target_rank, na+1))
+
+        do i = 1, size(self%is_active)
+            if (self%is_active(i) .and. self%active_rank(i) >= target_rank) then
+                self%active_rank(i) = self%active_rank(i) + 1
+            end if
+        end do
+
+        self%is_active(idx) = .true.
+        self%active_rank(idx) = target_rank
+    end subroutine
+
+    subroutine EqSolution_activate_condensed_front(self, idx)
+        class(EqSolution), intent(inout) :: self
+        integer, intent(in) :: idx
+        call self%activate_condensed(idx, 1)
+    end subroutine
+
+    subroutine EqSolution_deactivate_condensed(self, idx)
+        class(EqSolution), intent(inout) :: self
+        integer, intent(in) :: idx
+        integer :: i, old_rank
+
+        if (idx < 1 .or. idx > size(self%is_active)) then
+            call abort('EqSolution_deactivate_condensed: idx out of bounds.')
+        end if
+
+        if (.not. self%is_active(idx)) return
+
+        old_rank = max(1, self%active_rank(idx))
+        self%is_active(idx) = .false.
+        self%active_rank(idx) = 0
+
+        do i = 1, size(self%is_active)
+            if (self%is_active(i) .and. self%active_rank(i) > old_rank) then
+                self%active_rank(i) = self%active_rank(i) - 1
+            end if
+        end do
+    end subroutine
+
+    subroutine EqSolution_replace_active_condensed(self, old_idx, new_idx)
+        class(EqSolution), intent(inout) :: self
+        integer, intent(in) :: old_idx, new_idx
+        integer :: old_rank
+
+        old_rank = 1
+        if (old_idx >= 1 .and. old_idx <= size(self%is_active)) then
+            if (self%is_active(old_idx)) old_rank = max(1, self%active_rank(old_idx))
+        end if
+
+        if (old_idx >= 1 .and. old_idx <= size(self%is_active)) then
+            call self%deactivate_condensed(old_idx)
+        end if
+        call self%activate_condensed(new_idx, old_rank)
+    end subroutine
+
+    function EqSolution_active_condensed_indices(self) result(active_idx)
+        class(EqSolution), intent(in) :: self
+        integer, allocatable :: active_idx(:)
+        integer, allocatable :: used(:)
+        integer :: na, nc, i, r, next_slot
+
+        na = count(self%is_active)
+        nc = size(self%is_active)
+        allocate(active_idx(na))
+        if (na == 0) return
+        active_idx = 0
+
+        do i = 1, nc
+            if (.not. self%is_active(i)) cycle
+            r = self%active_rank(i)
+            if (r >= 1 .and. r <= na) then
+                if (active_idx(r) == 0) active_idx(r) = i
+            end if
+        end do
+
+        if (any(active_idx == 0)) then
+            allocate(used(nc), source=0)
+            do i = 1, na
+                if (active_idx(i) > 0) used(active_idx(i)) = 1
+            end do
+            next_slot = 1
+            do i = 1, nc
+                if (.not. self%is_active(i)) cycle
+                if (used(i) /= 0) cycle
+                do while (next_slot <= na .and. active_idx(next_slot) /= 0)
+                    next_slot = next_slot + 1
+                end do
+                if (next_slot > na) exit
+                active_idx(next_slot) = i
+            end do
+        end if
+    end function
+
     function EqSolution_num_equations(self, solver) result(num_equations)
         ! Compute the number of equations in the current equilibrium problem
 
@@ -3334,7 +3711,7 @@ contains
         type(EqConstraints), pointer :: cons  ! Abbreviation for soln%constraints
 
         ! Shorthand
-        ne = solver%num_elements
+        ne = solver%num_active_elements()
         na = count(self%is_active)
         cons => self%constraints
         const_p = cons%is_constant_pressure()
@@ -3457,13 +3834,15 @@ contains
         real(dp), pointer :: h_g(:), h_c(:)     ! Gas/condensed enthalpies [unitless]
         real(dp), pointer :: A_g(:,:), A_c(:,:) ! Gas/condensed stoichiometric matrices
         integer :: r, c                         ! Iteration matrix row/column indices
-        integer :: i, k                         ! Loop counters
+        integer :: i, k, ic                     ! Loop counters
+        integer, allocatable :: active_idx(:)   ! Active condensed indices in legacy order
 
         ! Define shorthand
         ng = solver%num_gas
         nc = solver%num_condensed
-        ne = solver%num_elements
+        ne = solver%num_active_elements()
         na = count(soln%is_active)
+        active_idx = soln%active_condensed_indices()
         num_eqn = ne+na+1
 
         ! Associate subarray pointers
@@ -3484,8 +3863,8 @@ contains
         !-------------------------------------------------------
         ! Equation (2.56)
         !-------------------------------------------------------
-        do i = 1,ne
-            tmp = nj_g*A_g(:,i)
+        do ic = 1,ne
+            tmp = nj_g*A_g(:,ic)
             r = r+1
             c = 0
 
@@ -3496,10 +3875,10 @@ contains
             end do
 
             ! ∂n,c_i/∂lnT
-            do k = 1,nc
-                if (.not. soln%is_active(k)) cycle
+            do k = 1,na
+                i = active_idx(k)
                 c = c+1
-                J(r,c) = A_c(k,i)
+                J(r,c) = A_c(i, ic)
                 J(c,r) = J(r,c)  ! Symmetric
             end do
 
@@ -3516,8 +3895,8 @@ contains
         !-------------------------------------------------------
         ! Equation (2.57)
         !-------------------------------------------------------
-        do i = 1,nc
-            if (.not. soln%is_active(i)) cycle
+        do k = 1,na
+            i = active_idx(k)
             r = r+1
 
             ! Right hand size
@@ -3554,13 +3933,15 @@ contains
         real(dp), pointer :: ln_nj(:)           ! Log of gas species concentrations [kmol-per-kg]
         real(dp), pointer :: A_g(:,:), A_c(:,:) ! Gas/condensed stoichiometric matrices
         integer :: r, c                         ! Iteration matrix row/column indices
-        integer :: i, k                         ! Loop counters
+        integer :: i, k, ic                     ! Loop counters
+        integer, allocatable :: active_idx(:)   ! Active condensed indices in legacy order
 
         ! Define shorthand
         ng = solver%num_gas
         nc = solver%num_condensed
-        ne = solver%num_elements
+        ne = solver%num_active_elements()
         na = count(soln%is_active)
+        active_idx = soln%active_condensed_indices()
         num_eqn = ne+na+1
 
         ! Associate subarray pointers
@@ -3579,8 +3960,8 @@ contains
         !-------------------------------------------------------
         ! Equation (2.64)
         !-------------------------------------------------------
-        do i = 1,ne
-            tmp = nj_g*A_g(:,i)
+        do ic = 1,ne
+            tmp = nj_g*A_g(:,ic)
             r = r+1
             c = 0
 
@@ -3591,10 +3972,10 @@ contains
             end do
 
             ! ∂n,c_i/∂lnP
-            do k = 1,nc
-                if (.not. soln%is_active(k)) cycle
+            do k = 1,na
+                i = active_idx(k)
                 c = c+1
-                J(r,c) = A_c(k,i)
+                J(r,c) = A_c(i, ic)
                 J(c,r) = J(r,c)  ! Symmetric
             end do
 
@@ -3633,7 +4014,8 @@ contains
         ! Locals
         real(dp), allocatable :: J(:,:)
         real(dp) :: nj_solid ! Temporary variables for condensed species
-        integer :: ng, ne, nc, na, ierr, i, idx
+        integer :: ng, ne, nc, na, ierr, i, idx, liq_rank
+        integer, allocatable :: active_idx(:)
         real(dp), pointer :: nj(:), nj_g(:)     ! Total/gas species concentrations [kmol-per-kg]
         real(dp), pointer :: cp(:)              ! Species heat capacity [unitless]
         real(dp), pointer :: h_g(:), h_c(:)     ! Gas/condensed enthalpies [unitless]
@@ -3642,7 +4024,7 @@ contains
         ! Shorthand
         ng = solver%num_gas
         nc = solver%num_condensed
-        ne = solver%num_elements
+        ne = solver%num_active_elements()
         na = count(soln%is_active)
         A_g => solver%products%stoich_matrix(:ng,:) ! NOTE: A is transpose of a_ij in RP-1311
         A_c => solver%products%stoich_matrix(ng+1:,:)
@@ -3669,7 +4051,8 @@ contains
             nj_solid = soln%nj(ng+soln%j_sol)
             soln%nj(ng+soln%j_sol) = soln%nj(ng+soln%j_sol) + soln%nj(ng+soln%j_liq)
             soln%nj(ng+soln%j_liq) = 0.0d0
-            soln%is_active(soln%j_liq) = .false.
+            liq_rank = max(1, soln%active_rank(soln%j_liq))
+            call soln%deactivate_condensed(soln%j_liq)
             na = count(soln%is_active)
             self%dlnV_dlnT = 0.0d0
             self%cp_eq = 0.0d0
@@ -3679,7 +4062,8 @@ contains
             call self%assemble_partials_matrix_const_p(solver, soln, J)
             call gauss(J, ierr)
             if (ierr == 0) then
-                self%dpi_dlnT = J(:ne, ne+na+2)
+                self%dpi_dlnT = 0.0d0
+                if (ne > 0) self%dpi_dlnT(:ne) = J(:ne, ne+na+2)
                 self%dnc_dlnT = J(ne+1:ne+na, ne+na+2)
                 self%dn_dlnT = J(ne+na+1, ne+na+2)
                 self%dlnV_dlnT = 1.0d0 + self%dn_dlnT
@@ -3690,10 +4074,9 @@ contains
                 end do
 
                 ! Term 2: ∑_j^nc H_j/RT (∂n_i/∂lnT)_P
-                idx = 0
-                do i = 1,nc
-                    if (.not. soln%is_active(i)) cycle
-                    idx = idx + 1
+                active_idx = soln%active_condensed_indices()
+                do idx = 1, size(active_idx)
+                    i = active_idx(idx)
                     self%cp_eq = self%cp_eq + h_c(i)*self%dnc_dlnT(idx)
                 end do
 
@@ -3718,7 +4101,8 @@ contains
         call self%assemble_partials_matrix_const_t(solver, soln, J)
         call gauss(J, ierr)
         if (ierr == 0) then
-            self%dpi_dlnP = J(:ne, ne+na+2)
+            self%dpi_dlnP = 0.0d0
+            if (ne > 0) self%dpi_dlnP(:ne) = J(:ne, ne+na+2)
             self%dnc_dlnP = J(ne+1:ne+na, ne+na+2)
             self%dn_dlnP = J(ne+na+1, ne+na+2)
             self%dlnV_dlnP = -1.0d0 + self%dn_dlnP
@@ -3730,7 +4114,7 @@ contains
                 self%gamma_s = -1.0d0/self%dlnV_dlnP
                 soln%nj(ng+soln%j_liq) = soln%nj(ng+soln%j_sol) - nj_solid
                 soln%nj(ng+soln%j_sol) = nj_solid
-                soln%is_active(soln%j_liq) = .true.
+                call soln%activate_condensed(soln%j_liq, liq_rank)
             end if
 
         else
@@ -3897,7 +4281,8 @@ contains
         num_match = 0
         do i = 1, size(products%species_names(ng+1:))
 
-            ! if (trim(products%species_names(ng+i)) == trim(name)) cycle
+            ! Keep the current phase in this list to preserve legacy phase-pair logic.
+            ! Downstream checks rely on seeing the active phase while iterating candidates.
 
             test_name = trim_phase(products%species_names(ng+i))
             if (trim_name == test_name) then

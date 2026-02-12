@@ -112,13 +112,15 @@ contains
         real(dp) :: cormax, ax  ! Max correction factor; correction coefficient
 
         ax = max(abs(X1), abs(X2))
-        if (ax >= 0.0005d0) then  ! * Note: this also serves as the convergence check
+        if (ax >= 0.00005d0) then  ! Shock threshold for update damping
             cormax = .40546511d0
             if (iter > 4) then
                 cormax = .22314355d0
-            else if (iter > 12) then
+            end if
+            if (iter > 12) then
                 cormax = .09531018d0
-            else if (iter > 20) then
+            end if
+            if (iter > 20) then
                 cormax = .04879016d0
             end if
             ax = ax/cormax
@@ -155,7 +157,7 @@ contains
         real(dp) :: wm, wm_k              ! Mixture molecular weight (initial, k-th iteration)
         real(dp) :: h_init, h0            ! Mixture enthalpy (initial, <all other points>)
         real(dp) :: T2                    ! Temperature after incident, reflected shocks [K]
-        real(dp) :: p21, t21              ! Pressure/temperature ratio across the incident shock
+        real(dp) :: p21, t21, ttmax       ! Pressure/temperature ratio across the incident shock
         real(dp) :: G(2, 3)               ! Solution matrix
         real(dp) :: X(3)                  ! Solution vector
         real(dp) :: dlnV_dlnP, dlnV_dlnT  ! Partial derivatives
@@ -171,7 +173,8 @@ contains
         soln%converged = .false.
         u1 = soln%u(1)
         mach1 = soln%mach(1)
-        soln%eq_soln(idx) = EqSolution(self%eq_solver, T_init=T0)
+        ! Seed incident-equilibrium solve from the unshocked reactant composition
+        soln%eq_soln(idx) = EqSolution(self%eq_solver, T_init=T0, nj_init=soln%eq_soln(1)%nj)
 
         ! Compute the molecular weight of the initial mixture
         wm = sum(weights)
@@ -190,7 +193,8 @@ contains
         call self%eq_solver%solve(soln%eq_soln(idx), "hp", h0, soln%pressure(idx), weights, partials=soln%eq_partials(idx))
 
         t21 = soln%eq_soln(idx)%T/T0
-        t21 = min(t21, 1.05*T_gas_max/T0)
+        ttmax = 1.05*T_gas_max/T0
+        t21 = min(t21, ttmax)
 
         do i = 1, max_iter
             ! Update the pressure
@@ -231,6 +235,14 @@ contains
 
             ! Compute the damped update factor, apply the solution update, and check convergence
             call self%update_solution(soln, X(1), X(2), p21, t21, i)
+
+            if (i == 1 .and. .not. soln%converged .and. t21 >= ttmax) then
+                call log_warning("ShockSolver_solve_incident: first-iteration update hit " // &
+                                 "temperature cap; marking incident point as failed.")
+                soln%eq_soln(idx)%T = 0.0d0
+                soln%pressure(idx) = 0.0d0
+                return
+            end if
 
             ! Convergence check and exit
             if (soln%converged) then
@@ -280,7 +292,7 @@ contains
         real(dp) :: wm, wm_k              ! Mixture molecular weight (initial, k-th iteration)
         real(dp) :: h_init, h0            ! Mixture enthalpy (initial, <all other points>)
         real(dp) :: T2                    ! Temperature after incident, reflected shocks [K]
-        real(dp) :: p21, t21              ! Pressure/temperature ratio across the incident shock
+        real(dp) :: p21, t21, ttmax       ! Pressure/temperature ratio across the incident shock
         real(dp) :: G(2, 3)               ! Solution matrix
         real(dp) :: X(3)                  ! Solution vector
         real(dp) :: dlnV_dlnP, dlnV_dlnT  ! Partial derivatives
@@ -333,6 +345,8 @@ contains
         soln%pressure(idx) = p21*P0
 
         t21 = p21*(2.0d0/mach1**2+gamma1 - 1.0d0)/(gamma1 + 1.0d0)
+        ttmax = 1.05*T_gas_max/T0
+        t21 = min(t21, ttmax)
 
         do i = 1, max_iter
             ! Update the pressure
@@ -371,6 +385,14 @@ contains
 
             ! Compute the damped update factor, apply the solution update, and check convergence
             call self%update_solution(soln, X(1), X(2), p21, t21, i)
+
+            if (i == 1 .and. .not. soln%converged .and. t21 >= ttmax) then
+                call log_warning("ShockSolver_solve_incident_frozen: first-iteration update hit " // &
+                                 "temperature cap; marking incident point as failed.")
+                soln%eq_soln(idx)%T = 0.0d0
+                soln%pressure(idx) = 0.0d0
+                return
+            end if
 
             ! Convergence check
             if (soln%converged) then
@@ -422,7 +444,7 @@ contains
         real(dp) :: u1                    ! Incident shock velocity
         real(dp) :: a1                    ! Incident speed of sound
         real(dp) :: T2, T5                ! Temperature after incident, reflected shocks [K]
-        real(dp) :: p52, t52              ! Pressure/temperature ratio across the reflected shock
+        real(dp) :: p52, t52, ttmax       ! Pressure/temperature ratio across the reflected shock
         real(dp) :: b5                    ! Intermediate variable for reflected shock initial state
         real(dp) :: G(2, 3)               ! Solution matrix
         real(dp) :: X(3)                  ! Solution vector
@@ -453,7 +475,8 @@ contains
         t52 = 2.0d0
         b5 = (-1.d0 - mu25rt - t52)/2.0d0
         p52 = -b5 + sqrt(b5**2 - t52)
-        t52 = min(t52, 1.05*T_gas_max/T0)
+        ttmax = 1.05*T_gas_max/T2
+        t52 = min(t52, ttmax)
 
         do i = 1, max_iter
             ! Update the pressure
@@ -499,6 +522,14 @@ contains
             ! Compute the damped update factor
             call self%update_solution(soln, X(1), X(2), p52, t52, i)
 
+            if (i == 1 .and. .not. soln%converged .and. t52 >= ttmax) then
+                call log_warning("ShockSolver_solve_reflected: first-iteration update hit " // &
+                                 "temperature cap; marking reflected point as failed.")
+                soln%eq_soln(idx)%T = 0.0d0
+                soln%pressure(idx) = 0.0d0
+                return
+            end if
+
             ! Convergence check
             if (soln%converged) then
                 soln%rho52 = rho52
@@ -541,13 +572,14 @@ contains
         ! Locals
         integer :: idx  ! Solution index for the incident conditions
         integer :: i                      ! Loop index
+        integer :: ng                     ! Number of gas species
         real(dp) :: cp                    ! Mixture heat capacity
         real(dp) :: wm, wm_k              ! Mixture molecular weight (initial, k-th iteration)
         real(dp) :: h_init, h0            ! Mixture enthalpy (initial, <all other points>)
         real(dp) :: u1                    ! Incident shock velocity
         real(dp) :: u2, u1u2              ! Reflected shock velocity, difference
         real(dp) :: T2, T5                ! Temperature after incident, reflected shocks [K]
-        real(dp) :: p52, t52              ! Pressure/temperature ratio across the reflected shock
+        real(dp) :: p52, t52, ttmax       ! Pressure/temperature ratio across the reflected shock
         real(dp) :: b5                    ! Intermediate variable for reflected shock initial state
         real(dp) :: G(2, 3)               ! Solution matrix
         real(dp) :: X(3)                  ! Solution vector
@@ -585,16 +617,18 @@ contains
         ! Compute the molecular weight of the initial mixture
         wm = 1.0d0/soln%eq_soln(2)%n
         wm_k = wm
+        ng = self%eq_solver%num_gas
 
         ! Initialize the solution for the reflected shock
-        h_init = self%eq_solver%reactants%calc_enthalpy(weights, T2)/R
+        h_init = dot_product(soln%eq_soln(2)%nj, soln%eq_soln(2)%thermo%enthalpy)*T2
         u2 = u1*rho12
         u1u2 = soln%v2
         mu25rt = wm*(u1 - u1*rho12)**2/(R*soln%eq_soln(2)%T)
         t52 = 2.0d0
         b5 = (-1.d0 - mu25rt - t52)/2.0d0
         p52 = -b5 + sqrt(b5**2 - t52)
-        t52 = min(t52, 1.05*T_gas_max/T0)
+        ttmax = 1.05*T_gas_max/T2
+        t52 = min(t52, ttmax)
 
         do i = 1, max_iter
             ! Update the pressure
@@ -604,9 +638,9 @@ contains
             soln%eq_soln(idx)%constraints%state2 = soln%pressure(idx)
             call self%eq_solver%products%calc_thermo(soln%eq_soln(idx)%thermo, soln%eq_soln(idx)%T, condensed=.false.)
 
-            ! Update properties after the equilibrium shock
-            cp = self%eq_solver%reactants%calc_frozen_cp(weights, T5)/R
-            h0 = self%eq_solver%reactants%calc_enthalpy(weights, T5)/R
+            ! Update frozen properties from the incident (state-2) frozen composition.
+            cp = dot_product(soln%eq_soln(idx)%nj(:ng), soln%eq_soln(idx)%thermo%cp(:ng))
+            h0 = dot_product(soln%eq_soln(idx)%nj(:ng), soln%eq_soln(idx)%thermo%enthalpy(:ng))*T5
             dlnV_dlnP = soln%eq_partials(idx)%dlnV_dlnP
             dlnV_dlnT = soln%eq_partials(idx)%dlnV_dlnT
 
@@ -633,6 +667,14 @@ contains
 
             ! Compute the damped update factor
             call self%update_solution(soln, X(1), X(2), p52, t52, i)
+
+            if (i == 1 .and. .not. soln%converged .and. t52 >= ttmax) then
+                call log_warning("ShockSolver_solve_reflected_frozen: first-iteration update hit " // &
+                                 "temperature cap; marking reflected point as failed.")
+                soln%eq_soln(idx)%T = 0.0d0
+                soln%pressure(idx) = 0.0d0
+                return
+            end if
 
             ! Convergence check
             if (soln%converged) then
@@ -798,6 +840,9 @@ contains
         else  ! Equilibrium
             call self%solve_incident(soln, reactant_weights, T0, P0)
         end if
+        if (soln%eq_soln(2)%T <= 0.0d0) then
+            return
+        end if
         call self%eq_solver%post_process(soln%eq_soln(2))
 
         ! Compute the reflected shock solution
@@ -806,6 +851,9 @@ contains
                 call self%solve_reflected_frozen(soln, reactant_weights, T0, P0)
             else  ! Equilibrium
                 call self%solve_reflected(soln, reactant_weights, T0, P0)
+            end if
+            if (soln%eq_soln(3)%T <= 0.0d0) then
+                return
             end if
             call self%eq_solver%post_process(soln%eq_soln(3))
         end if

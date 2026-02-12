@@ -127,12 +127,16 @@ contains
         integer, parameter :: max_iter_frozen = 8  ! Maximum number of iterations for frozen conditions
         integer :: ng                        ! Number of gas species
         logical :: convg                     ! Convergence flag
+        logical :: finalized                 ! True if frozen properties were finalized in-loop
+        logical :: in_range                  ! True if frozen point is within condensed species temperature ranges
         real(dp) :: dlpm
-        real(dp), parameter :: tol = 1.0d-6  ! Tolerance for frozen convergence
+        real(dp), parameter :: tol = 0.5d-4  ! Tolerance for frozen convergence
         real(dp), parameter :: approx_zero_tol = 1.0d-12  ! Tolerance to check if a value is approximately zero
+        real(dp), parameter :: phase_gap = 50.0d0  ! Condensed phase guard band [K]
         real(dp) :: cpsum, ssum              ! Temporary variables for mixture properties
         real(dp) :: cpj, sj                  ! Temporary variables for species properties
         real(dp) :: dlnt                     ! Update variable for log-temperature
+        real(dp) :: T_low, T_high            ! Condensed species temperature bounds [K]
 
         call log_debug("Starting frozen calculations")
 
@@ -155,6 +159,7 @@ contains
         end do
 
         convg = .false.
+        finalized = .false.
         do i = 1, max_iter_frozen
             cpsum = 0.0d0
             ssum = 0.0d0
@@ -179,7 +184,28 @@ contains
                 soln%eq_partials(idx)%dlnV_dlnP = -1.0d0
                 soln%eq_partials(idx)%dlnV_dlnT = 1.0d0
                 call self%eq_solver%products%calc_thermo(soln%eq_soln(idx)%thermo, soln%eq_soln(idx)%T)
-                ! TODO: Check if any condensed species have melting temperatures 50 degress less than the current temp
+
+                ! Stop if any frozen condensed species is outside its
+                ! valid temperature range by more than 50 K.
+                in_range = .true.
+                do j = 1, self%eq_solver%num_condensed
+                    if (abs(soln%eq_soln(n_frz)%nj(ng+j)) <= approx_zero_tol) cycle
+                    T_low = minval(self%eq_solver%products%species(ng+j)%T_fit(:, 1))
+                    T_high = maxval(self%eq_solver%products%species(ng+j)%T_fit(:, 2))
+                    if (soln%eq_soln(idx)%T < (T_low-phase_gap) .or. soln%eq_soln(idx)%T > (T_high+phase_gap)) then
+                        in_range = .false.
+                        exit
+                    end if
+                end do
+
+                if (.not. in_range) then
+                    call log_warning("Frozen calculations stopped: temperature is more than 50 K outside "// &
+                        "the range of a condensed species")
+                    soln%converged = .false.
+                    return
+                end if
+
+                finalized = .true.
                 exit
             else
                 dlnt = (1.d3*soln%eq_soln(n_frz)%entropy/R - ssum)/cpsum
@@ -188,6 +214,12 @@ contains
             end if
 
         end do
+
+        if (.not. finalized) then
+            call log_warning("Frozen calculations did not converge in 8 iterations")
+            soln%converged = .false.
+            return
+        end if
 
         ! Compute and save the mixture properties
         soln%eq_soln(idx)%pressure = soln%pressure(idx)
@@ -262,7 +294,7 @@ contains
 
             ! Update estimate pressure if not converged (Eq. 6.17)
             p = soln%pressure(idx)*((1.0d0 + gamma_s*(usq/asq))/(1.0d0 + gamma_s))
-            if (i > 3) then
+            if (i <= 3) then
                 if (soln%eq_soln(idx)%j_sol /= 0) then
                     T_melt = soln%eq_soln(idx)%T
                     soln%pressure(idx) = p
@@ -312,6 +344,7 @@ contains
 
         call log_debug("Starting frozen throat calculations")
         soln%station(idx) = "throat  "
+        awt = 0.0d0
 
         ! Initial estimate pressure ratio (Eq. 6.15)
         gamma_s = soln%gamma_s(n_frz)
@@ -329,6 +362,7 @@ contains
 
             ! Compute the frozen properties
             call self%frozen(soln, idx, n_frz)
+            if (.not. soln%converged) return
 
             ! Compute throat properties
             h = dot_product(soln%eq_soln(idx)%nj, soln%eq_soln(idx)%thermo%enthalpy)*soln%eq_soln(idx)%T
@@ -343,7 +377,7 @@ contains
             if (abs(usq - asq)/usq <= ut_tol) exit
 
             ! Update estimate pressure if not converged (Eq. 6.17)
-            p = soln%pressure(idx)*((1.0d0 + gamma_s*soln%mach(idx))/(1.0d0 + gamma_s))
+            p = soln%pressure(idx)*((1.0d0 + gamma_s*(usq/asq))/(1.0d0 + gamma_s))
             if (i > 3) then
                 delta_p = dabs(soln%pressure(idx)-p)/20.d0
                 soln%pressure(idx) = max(p, soln%pressure(idx)) - delta_p
@@ -436,12 +470,22 @@ contains
         real(dp) :: awt                      ! Throat area per unit mass flow rate
         real(dp) :: h                        ! Enthalpy at any other station (temporary)
         real(dp) :: gamma_s                  ! Temp variable for isentropic exponent gamma_s
+        real(dp) :: pip_nf                   ! Pressure ratio at freeze point
 
         call log_debug("Starting frozen pi/p calculations")
 
         awt = soln%eq_soln(soln%throat_idx)%n*soln%eq_soln(soln%throat_idx)%T/ &
             (soln%pressure(soln%throat_idx)*soln%v_sonic(soln%throat_idx))
+        pip_nf = pc/soln%pressure(n_frz)
         do i = 1, size(pi_p)
+            ! Legacy frozen scheduling: omit assigned pressure ratios lower than
+            ! the value at the freeze point.
+            if (pi_p(i) < pip_nf) then
+                call log_info('RocketSolver: WARNING!!  FOR FROZEN PERFORMANCE, POINT OMITTED BECAUSE '// &
+                    'ASSIGNED pi/p IS LESS THAN VALUE AT nfz='//to_str(n_frz))
+                cycle
+            end if
+
             soln%station(idx) = "exit    "
 
             ! Get the pressure from the pressure rato
@@ -452,6 +496,7 @@ contains
 
             ! Compute the frozen solution
             call self%frozen(soln, idx, n_frz)
+            if (.not. soln%converged) return
 
             ! Compute exit properties
             h = dot_product(soln%eq_soln(idx)%nj, soln%eq_soln(idx)%thermo%enthalpy)*soln%eq_soln(idx)%T
@@ -487,6 +532,7 @@ contains
         ! Locals
         integer :: i, j                      ! Loop index
         integer, parameter :: max_iter_area = 10  ! Maximum number of iterations for exit condition using area ratio
+        real(dp), parameter :: area_tol = 4.0d-5  ! Area-ratio convergence tolerance
         real(dp) :: usq, asq                 ! velocity squared; sonic velocity squared
         real(dp) :: h                        ! Enthalpy at any other station (temporary)
         real(dp) :: gamma_s                  ! Temp variable for isentropic exponent gamma_s
@@ -535,7 +581,10 @@ contains
                 dln_pinf_pe_dln_aeat = gamma_s*usq/(usq - asq)  ! (Eq. 6.23)
                 dln_pinf_pe = dln_pinf_pe_dln_aeat*(log(subar(i)) - log(soln%ae_at(idx)))
 
-                if (abs(dln_pinf_pe) .le. tol) exit  ! Check convergence
+                ! Convergence test for assigned area ratio:
+                ! relative Ae/At error OR small pressure-ratio update.
+                if (abs(soln%ae_at(idx)-subar(i))/subar(i) <= area_tol) exit
+                if (abs(dln_pinf_pe) < area_tol) exit
                 ln_pinf_pe = ln_pinf_pe + dln_pinf_pe  ! If not converged, update estimate
 
             end do
@@ -570,6 +619,7 @@ contains
         ! Locals
         integer :: i, j                      ! Loop index
         integer, parameter :: max_iter_area = 10  ! Maximum number of iterations for exit condition using area ratio
+        real(dp), parameter :: area_tol = 4.0d-5  ! Area-ratio convergence tolerance
         real(dp) :: usq, asq                 ! velocity squared; sonic velocity squared
         real(dp) :: h                        ! Enthalpy at any other station (temporary)
         real(dp) :: gamma_s                  ! Temp variable for isentropic exponent gamma_s
@@ -594,7 +644,7 @@ contains
             ! Compute intial estimate of pressure ratio (Eq. 6.21/6.22)
             if (supar(i) < 2.0d0) then
                 ln_pinf_pe = ln_pinf_pt + sqrt(3.294d0*(log(supar(i))**2.0d0) + 1.535d0*log(supar(i)))
-            else if (supar(i) > 2.0d0) then
+            else if (supar(i) >= 2.0d0) then
                 ln_pinf_pe = soln%eq_partials(2)%gamma_s + 1.4d0*log(supar(i))
             end if
 
@@ -617,7 +667,10 @@ contains
                 dln_pinf_pe_dln_aeat = gamma_s*usq/(usq - asq)  ! (Eq. 6.23)
                 dln_pinf_pe = dln_pinf_pe_dln_aeat*(log(supar(i)) - log(soln%ae_at(idx)))
 
-                if (abs(dln_pinf_pe) .le. tol) exit  ! Check convergence
+                ! Convergence test for assigned area ratio:
+                ! relative Ae/At error OR small pressure-ratio update.
+                if (abs(soln%ae_at(idx)-supar(i))/supar(i) <= area_tol) exit
+                if (abs(dln_pinf_pe) < area_tol) exit
                 ln_pinf_pe = ln_pinf_pe + dln_pinf_pe  ! If not converged, update estimate
 
             end do
@@ -652,6 +705,7 @@ contains
         ! Locals
         integer :: i, j                      ! Loop index
         integer, parameter :: max_iter_area = 10  ! Maximum number of iterations for exit condition using area ratio
+        real(dp), parameter :: area_tol = 4.0d-5  ! Area-ratio convergence tolerance
         real(dp) :: usq, asq                 ! velocity squared; sonic velocity squared
         real(dp) :: h                        ! Enthalpy at any other station (temporary)
         real(dp) :: gamma_s                  ! Temp variable for isentropic exponent gamma_s
@@ -662,6 +716,14 @@ contains
         call log_debug("Starting frozen supar calculations")
 
         do i = 1, size(supar)
+            ! Frozen scheduling: omit assigned supersonic area ratios
+            ! that are not greater than the value at the freeze point.
+            if (n_frz >= 3 .and. supar(i) <= soln%ae_at(n_frz)) then
+                call log_info('RocketSolver: WARNING!!  FOR FROZEN PERFORMANCE, POINT OMITTED BECAUSE '// &
+                    'ASSIGNED Ae/At IS LESS THAN OR EQUAL TO VALUE AT nfz='//to_str(n_frz))
+                cycle
+            end if
+
             soln%station(idx) = "exit    "
 
             ! Set the initial guess for the equilibrium solve based on throat conditions
@@ -675,7 +737,7 @@ contains
             ! Compute intial estimate of pressure ratio (Eq. 6.21/6.22)
             if (supar(i) < 2.0d0) then
                 ln_pinf_pe = ln_pinf_pt + sqrt(3.294d0*(log(supar(i))**2.0d0) + 1.535d0*log(supar(i)))
-            else if (supar(i) > 2.0d0) then
+            else if (supar(i) >= 2.0d0) then
                 ln_pinf_pe = soln%eq_partials(2)%gamma_s + 1.4d0*log(supar(i))
             end if
 
@@ -684,6 +746,7 @@ contains
                 ! Compute the frozen solution
                 soln%pressure(idx) = pc/exp(ln_pinf_pe)
                 call self%frozen(soln, idx, n_frz)
+                if (.not. soln%converged) return
 
                 ! Compute exit properties
                 h = dot_product(soln%eq_soln(idx)%nj, soln%eq_soln(idx)%thermo%enthalpy)*soln%eq_soln(idx)%T
@@ -698,7 +761,10 @@ contains
                 dln_pinf_pe_dln_aeat = gamma_s*usq/(usq - asq)  ! (Eq. 6.23)
                 dln_pinf_pe = dln_pinf_pe_dln_aeat*(log(supar(i)) - log(soln%ae_at(idx)))
 
-                if (abs(dln_pinf_pe) .le. tol) exit  ! Check convergence
+                ! Convergence test for assigned area ratio:
+                ! relative Ae/At error OR small pressure-ratio update.
+                if (abs(soln%ae_at(idx)-supar(i))/supar(i) <= area_tol) exit
+                if (abs(dln_pinf_pe) < area_tol) exit
                 ln_pinf_pe = ln_pinf_pe + dln_pinf_pe  ! If not converged, update estimate
 
             end do
@@ -821,6 +887,8 @@ contains
         else
             call self%solve_throat(soln, idx, pc, h_inf, state1, reactant_weights, awt)
         end if
+        if (.not. soln%converged) return
+        ln_pinf_pt = log(soln%pressure(1)/soln%pressure(2))
 
         ! -----------------------------------------------
         ! Exit conditions: pressure ratio
@@ -832,6 +900,7 @@ contains
         else
             call self%solve_pi_p(soln, idx, pc, pi_p, h_inf, state1, reactant_weights)
         end if
+        if (.not. soln%converged) return
 
         ! -----------------------------------------------
         ! Exit conditions: subsonic area ratio
@@ -839,12 +908,9 @@ contains
 
         if (present(subar)) then
 
-            if (frozen) then
+            if (frozen .and. n_frz_ > 1) then
                 call log_info('RocketSolver: WARNING!!  FREEZING IS NOT ALLOWED AT A SUBSONIC PRESSURE RATIO')
             else
-                ! Get some values for shorthand
-                ln_pinf_pt = log(soln%pressure(1)/soln%pressure(2))
-
                 call self%solve_subar(soln, idx, pc, subar, h_inf, state1, reactant_weights, idx-1, 2, ln_pinf_pt, awt)
             end if
 
@@ -861,8 +927,12 @@ contains
             else
                 call self%solve_supar(soln, idx, pc, supar, h_inf, state1, reactant_weights, ln_pinf_pt, awt)
             end if
+            if (.not. soln%converged) return
 
         end if
+
+        ! Omitted frozen schedule points do not consume output indices.
+        soln%num_pts = idx - 1
 
         ! Compute performance parameters
         call self%post_process(soln, .false.)
@@ -893,6 +963,7 @@ contains
         integer :: n_frz_                    ! Temporary variable for frozen index
         integer :: num_pts                   ! Total number of evaluation points
         integer, parameter :: max_iter_area = 10  ! Maximum number of iterations for exit condition using area ratio
+        real(dp), parameter :: area_tol = 4.0d-5  ! Area-ratio convergence tolerance
         character(len=2) :: prob_type        ! Equilibrium problem type
         real(dp) :: state1                   ! Chamber temperature or enthalpy, or entropy at other stations
         real(dp) :: S_ref                    ! Reference entropy
@@ -919,8 +990,6 @@ contains
         ! 3: combustor end
         ! 4: throat
         ! 5+: exit
-
-        ! TODO: is subar used for FAC?
 
         call log_debug("Starting rocket FAC solve")
 
@@ -1026,6 +1095,10 @@ contains
             ! Throat conditions
             ! -----------------------------------------------
             idx = 4
+            ! Legacy SETEN-style initialization for FAC throat:
+            ! seed the throat solve from point 2 (infinity) by saving/using it.
+            soln%eq_soln(3) = soln%eq_soln(2)
+            soln%i_save = -2
             call self%solve_throat(soln, idx, p_inf, h_inj, S_ref, reactant_weights, awt)
 
             ! -----------------------------------------------
@@ -1043,7 +1116,7 @@ contains
                 if (ac_at_ < 1.09d0) then
                     ln_pinf_pc = 0.9d0*ln_pinf_pc
                 else if (ac_at_ > 10.0d0) then
-                    ln_pinf_pc = ln_pinf_pc/subar(1)
+                    ln_pinf_pc = ln_pinf_pc/ac_at_
                 end if
                 ! Update the pressure
                 soln%pressure(idx) = p_inf/exp(ln_pinf_pc)
@@ -1072,7 +1145,10 @@ contains
                 dln_pinf_pc_dln_acat = gamma_s*usq/(usq - asq)  ! (Eq. 6.23)
                 dln_pinf_pc = dln_pinf_pc_dln_acat*(log(ac_at_) - log(soln%ae_at(idx)))
 
-                if (abs(dln_pinf_pc) .le. tol) exit  ! Check convergence
+                ! Convergence test for assigned area ratio:
+                ! relative Ac/At error OR small pressure-ratio update.
+                if (abs(soln%ae_at(idx)-ac_at_)/ac_at_ <= area_tol) exit
+                if (abs(dln_pinf_pc) < area_tol) exit
                 ln_pinf_pc = ln_pinf_pc + dln_pinf_pc  ! If not converged, update estimate
                 if (ln_pinf_pc < 0.0d0) ln_pinf_pc = 0.000001d0
 
@@ -1119,21 +1195,61 @@ contains
 
         end do
 
+        ! Recompute throat under frozen assumptions after chamber convergence,
+        ! so frozen expansion uses a consistent throat state.
+        idx = 4
+        if (frozen .and. idx > n_frz_) then
+            call self%solve_throat_frozen(soln, idx, n_frz_, p_inf, h_inj, awt)
+        end if
+        if (.not. soln%converged) return
+
         ! -----------------------------------------------
         ! Exit conditions: pressure ratio
         ! -----------------------------------------------
         idx = 5
 
-        call self%solve_pi_p(soln, idx, pc, pi_p, h_inj, S_ref, reactant_weights)
+        if (frozen .and. idx > n_frz_) then
+            call self%solve_pi_p_frozen(soln, idx, n_frz_, pc, pi_p, h_inj, 2)
+        else
+            call self%solve_pi_p(soln, idx, pc, pi_p, h_inj, S_ref, reactant_weights)
+        end if
+        if (.not. soln%converged) return
+
+        ! -----------------------------------------------
+        ! Exit conditions: subsonic area ratio
+        ! -----------------------------------------------
+
+        if (present(subar)) then
+
+            if (frozen .and. n_frz_ > 1) then
+                call log_info('RocketSolver: WARNING!!  FREEZING IS NOT ALLOWED AT A SUBSONIC PRESSURE RATIO')
+            else
+                ln_pinf_pt = log(soln%pressure(2)/soln%pressure(4))
+                call self%solve_subar(soln, idx, soln%pressure(2), subar, h_inj, S_ref, reactant_weights, &
+                    idx-1, 2, ln_pinf_pt, awt)
+            end if
+
+        end if
 
         ! -----------------------------------------------
         ! Exit conditions: supersonic area ratio
         ! -----------------------------------------------
 
-        ! Get some values for shorthand
-        ln_pinf_pt = log(soln%pressure(2)/soln%pressure(4))
+        if (present(supar)) then
+            ln_pinf_pt = log(soln%pressure(2)/soln%pressure(4))
 
-        call self%solve_supar(soln, idx, pc, supar, h_inj, S_ref, reactant_weights, ln_pinf_pt, awt)
+            if (frozen .and. idx > n_frz_) then
+                call self%solve_supar_frozen(soln, idx, n_frz_, soln%pressure(2), supar, h_inj, reactant_weights, &
+                    idx-1, ln_pinf_pt, awt)
+            else
+                call self%solve_supar(soln, idx, soln%pressure(2), supar, h_inj, S_ref, reactant_weights, &
+                    ln_pinf_pt, awt)
+            end if
+            if (.not. soln%converged) return
+        end if
+
+        ! Omitted frozen schedule points do not consume output indices.
+        soln%num_pts = idx - 1
 
         ! Compute performance parameters
         call self%post_process(soln, .true.)

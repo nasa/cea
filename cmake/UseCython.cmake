@@ -102,7 +102,16 @@ set(CYTHON_FLAGS "" CACHE STRING
     "Extra flags to the cython compiler.")
 mark_as_advanced(CYTHON_ANNOTATE CYTHON_FLAGS)
 
-find_package(PythonLibs REQUIRED)
+find_package(Python3 COMPONENTS Interpreter Development.Module QUIET)
+if(Python3_Interpreter_FOUND)
+  set(PYTHON_EXECUTABLE "${Python3_EXECUTABLE}")
+  set(PYTHONLIBS_VERSION_STRING "${Python3_VERSION}")
+  if(Python3_INCLUDE_DIRS)
+    set(PYTHON_INCLUDE_DIRS "${Python3_INCLUDE_DIRS}")
+  endif()
+else()
+  find_package(PythonLibs REQUIRED)
+endif()
 
 set(CYTHON_CXX_EXTENSION "cxx")
 set(CYTHON_C_EXTENSION "c")

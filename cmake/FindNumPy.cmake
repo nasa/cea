@@ -40,8 +40,16 @@ if(NOT NumPy_FOUND)
   if(NumPy_FIND_QUIET)
     list(APPEND _find_extra_args QUIET)
   endif()
-  find_package(PythonInterp ${_find_extra_args})
-  find_package(PythonLibs ${_find_extra_args})
+  find_package(Python3 COMPONENTS Interpreter Development.Module QUIET)
+  if(Python3_Interpreter_FOUND)
+    set(PYTHON_EXECUTABLE "${Python3_EXECUTABLE}")
+    if(Python3_INCLUDE_DIRS)
+      set(PYTHON_INCLUDE_DIR "${Python3_INCLUDE_DIRS}")
+    endif()
+  else()
+    find_package(PythonInterp ${_find_extra_args})
+    find_package(PythonLibs ${_find_extra_args})
+  endif()
 
   find_program(NumPy_CONV_TEMPLATE_EXECUTABLE NAMES conv-template)
   find_program(NumPy_FROM_TEMPLATE_EXECUTABLE NAMES from-template)
@@ -98,8 +106,6 @@ include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(NumPy
                                   REQUIRED_VARS
                                     NumPy_INCLUDE_DIR
-                                    NumPy_CONV_TEMPLATE_EXECUTABLE
-                                    NumPy_FROM_TEMPLATE_EXECUTABLE
                                   VERSION_VAR NumPy_VERSION
                                   )
 

@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-13, macos-14, windows-2022]
+        os: [ubuntu-22.04, macos-14, macos-15-intel, windows-2022]
     steps:
       - name: Check out CEA
         uses: actions/checkout@v4
@@ -25,44 +25,43 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install build tools (Linux)
-        if: runner.os == 'Linux'
+      - name: Install build tools
         run: |
           python -m pip install --upgrade pip
           python -m pip install cibuildwheel build
 
-      - name: Install build tools (macOS)
+      - name: Set up Fortran compiler (macOS)
         if: runner.os == 'macOS'
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install cibuildwheel build
+          brew update
+          brew install gcc@14
 
-      - name: Install build tools (Windows)
+      - name: Set up Intel oneAPI Fortran (Windows)
         if: runner.os == 'Windows'
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install cibuildwheel build
-
-      - name: Set up MSYS2 (Windows gfortran)
-        if: runner.os == 'Windows'
-        uses: msys2/setup-msys2@v2
+        uses: fortran-lang/setup-fortran@v1
         with:
-          update: true
-          install: >-
-            mingw-w64-x86_64-gcc-fortran
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-ninja
+          compiler: intel
+          version: "2025.2"
+
+      - name: Remove MinGW/MSYS paths (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $parts = $env:PATH -split ';'
+          $clean = $parts | Where-Object { $_ -and ($_ -notmatch 'mingw') -and ($_ -notmatch 'msys') -and ($_ -notmatch 'strawberry') }
+          "PATH=$($clean -join ';')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Build wheels
         env:
           CIBW_BUILD: "cp311-* cp312-* cp313-*"
+          CIBW_BUILD_VERBOSITY: "1"
           CIBW_SKIP: "*-musllinux_*"
           CIBW_ARCHS_LINUX: "x86_64"
-          CIBW_ARCHS_MACOS: "x86_64 arm64"
+          CIBW_ARCHS_MACOS: ${{ matrix.os == 'macos-15-intel' && 'x86_64' || matrix.os == 'macos-14' && 'arm64' || 'x86_64 arm64' }}
           CIBW_ARCHS_WINDOWS: "AMD64"
           CIBW_BEFORE_ALL_LINUX: "yum -y install gcc-gfortran"
-          CIBW_BEFORE_ALL_MACOS: "brew install gcc"
-          CIBW_ENVIRONMENT_WINDOWS: "PATH=C:\\\\msys64\\\\mingw64\\\\bin;${PATH} FC=gfortran CC=gcc CXX=g++"
+          CIBW_ENVIRONMENT_MACOS: ${{ matrix.os == 'macos-14' && 'FC=gfortran-14 MACOSX_DEPLOYMENT_TARGET=14.0' || 'FC=gfortran-14 MACOSX_DEPLOYMENT_TARGET=15.0' }}
+          CIBW_ENVIRONMENT_WINDOWS: "FC=ifx CC=icx CXX=icx"
           CMAKE_ARGS: "-DCEA_BUILD_TESTING=OFF"
         run: |
           cibuildwheel --output-dir dist
