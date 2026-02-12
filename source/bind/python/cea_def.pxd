@@ -30,6 +30,37 @@ cdef extern from "cea.h":
         CEA_UV
         CEA_SV
 
+    ctypedef enum cea_derivative_method:
+        CEA_DERIV_ANALYTIC
+        CEA_DERIV_FD
+
+    ctypedef enum cea_eqderiv_scalar:
+        CEA_DERIV_DT_DSTATE1
+        CEA_DERIV_DT_DSTATE2
+        CEA_DERIV_DN_DSTATE1
+        CEA_DERIV_DN_DSTATE2
+        CEA_DERIV_DH_DSTATE1
+        CEA_DERIV_DH_DSTATE2
+        CEA_DERIV_DU_DSTATE1
+        CEA_DERIV_DU_DSTATE2
+        CEA_DERIV_DG_DSTATE1
+        CEA_DERIV_DG_DSTATE2
+        CEA_DERIV_DS_DSTATE1
+        CEA_DERIV_DS_DSTATE2
+
+    ctypedef enum cea_eqderiv_array:
+        CEA_DERIV_DT_DW0
+        CEA_DERIV_DN_DW0
+        CEA_DERIV_DNJ_DSTATE1
+        CEA_DERIV_DNJ_DSTATE2
+        CEA_DERIV_DH_DW0
+        CEA_DERIV_DU_DW0
+        CEA_DERIV_DG_DW0
+        CEA_DERIV_DS_DW0
+
+    ctypedef enum cea_eqderiv_matrix:
+        CEA_DERIV_DNJ_DW0
+
     ctypedef enum cea_equilibrium_size:
         CEA_NUM_REACTANTS
         CEA_NUM_PRODUCTS
@@ -142,7 +173,6 @@ cdef extern from "cea.h":
         CEA_DETONATION_VELOCITY
         CEA_DETONATION_SONIC_VELOCITY
         CEA_DETONATION_GAMMA
-        CEA_DETONATION_SONIC_VELOCITY
         CEA_DETONATION_P_P1
         CEA_DETONATION_T_T1
         CEA_DETONATION_M_M1
@@ -177,6 +207,9 @@ cdef extern from "cea.h":
 
     ctypedef struct cea_eqpartials_t
     ctypedef cea_eqpartials_t* cea_eqpartials
+
+    ctypedef struct cea_eqderivatives_t
+    ctypedef cea_eqderivatives_t* cea_eqderivatives
 
     ctypedef struct cea_rocket_solver_t
     ctypedef cea_rocket_solver_t* cea_rocket_solver
@@ -290,6 +323,24 @@ cdef extern from "cea.h":
     # Equilibrium Partials
     cpdef cea_err cea_eqpartials_create(cea_eqpartials *partials, const cea_eqsolver solver)
     cpdef cea_err cea_eqpartials_destroy(cea_eqpartials *partials)
+
+    # Equilibrium Derivatives
+    cpdef cea_err cea_eqderivatives_create(cea_eqderivatives *derivs, const cea_eqsolver solver,
+                                           const cea_eqsolution soln)
+    cpdef cea_err cea_eqderivatives_destroy(cea_eqderivatives *derivs)
+    cpdef cea_err cea_eqderivatives_compute_derivatives(const cea_eqderivatives derivs, const cea_eqsolver solver,
+                                                        const cea_eqsolution soln, const cea_bool check_closure_defect)
+    cpdef cea_err cea_eqderivatives_compute_fd(const cea_eqderivatives derivs, const cea_eqsolver solver,
+                                               const cea_eqsolution soln, const cea_real h, const cea_bool verbose)
+    cpdef cea_err cea_eqderivatives_get_scalar(const cea_eqderivatives derivs, const cea_eqderiv_scalar which,
+                                               const cea_derivative_method method, cea_real *value)
+    cpdef cea_err cea_eqderivatives_get_array(const cea_eqderivatives derivs, const cea_eqsolver solver,
+                                              const cea_eqsolution soln, const cea_eqderiv_array which,
+                                              const cea_derivative_method method, const cea_int len, cea_real out[])
+    cpdef cea_err cea_eqderivatives_get_matrix(const cea_eqderivatives derivs, const cea_eqsolver solver,
+                                               const cea_eqsolution soln, const cea_eqderiv_matrix which,
+                                               const cea_derivative_method method, const cea_int rows,
+                                               const cea_int cols, cea_real out[])
 
     # Rocket Solver
     cpdef cea_err cea_rocket_solver_create(cea_rocket_solver *solver, const cea_mixture products)

@@ -1638,6 +1638,282 @@ cdef class EqSolution:
         return amounts
 
 
+cdef class EqDerivatives:
+    """
+    Total derivative results for an equilibrium solution.
+
+    Parameters
+    ----------
+    solver : EqSolver
+        Equilibrium solver instance used to produce the solution
+    solution : EqSolution
+        Equilibrium solution instance
+    """
+    cdef cea_eqderivatives ptr
+    cdef EqSolver solver
+    cdef EqSolution solution
+    cdef public int last_error
+
+    def __cinit__(self, EqSolver solver, EqSolution solution):
+        cdef cea_err ierr
+        ierr = cea_eqderivatives_create(&self.ptr, solver.ptr, solution.ptr)
+        _check_ierr(ierr, "EqDerivatives.__cinit__")
+        self.solver = solver
+        self.solution = solution
+        self.last_error = <int>SUCCESS
+
+    def __dealloc__(self):
+        cdef cea_err ierr
+        if self.ptr:
+            ierr = cea_eqderivatives_destroy(&self.ptr)
+            self.last_error = <int>ierr
+        return
+
+    def compute_derivatives(self, bint check_closure_defect=False):
+        """
+        Compute analytic total derivatives and unpack values.
+
+        Parameters
+        ----------
+        check_closure_defect : bool, default False
+            If True, evaluate and log derivative closure defect
+        """
+        cdef cea_err ierr
+        ierr = cea_eqderivatives_compute_derivatives(self.ptr, self.solver.ptr, self.solution.ptr, check_closure_defect)
+        if ierr != SUCCESS:
+            self.last_error = <int>ierr
+        _check_ierr(ierr, "EqDerivatives.compute_derivatives")
+        return
+
+    def compute_fd(self, double h, bint verbose=False):
+        """
+        Compute finite-difference derivatives for verification.
+
+        Parameters
+        ----------
+        h : float
+            Finite-difference perturbation size
+        verbose : bool, default False
+            If True, print finite-difference diagnostics
+        """
+        cdef cea_err ierr
+        ierr = cea_eqderivatives_compute_fd(self.ptr, self.solver.ptr, self.solution.ptr, h, verbose)
+        if ierr != SUCCESS:
+            self.last_error = <int>ierr
+        _check_ierr(ierr, "EqDerivatives.compute_fd")
+        return
+
+    property dT_dstate1:
+        def __get__(self):
+            return self._get_scalar(CEA_DERIV_DT_DSTATE1, CEA_DERIV_ANALYTIC)
+
+    property dT_dstate1_fd:
+        def __get__(self):
+            return self._get_scalar(CEA_DERIV_DT_DSTATE1, CEA_DERIV_FD)
+
+    property dT_dstate2:
+        def __get__(self):
+            return self._get_scalar(CEA_DERIV_DT_DSTATE2, CEA_DERIV_ANALYTIC)
+
+    property dT_dstate2_fd:
+        def __get__(self):
+            return self._get_scalar(CEA_DERIV_DT_DSTATE2, CEA_DERIV_FD)
+
+    property dn_dstate1:
+        def __get__(self):
+            return self._get_scalar(CEA_DERIV_DN_DSTATE1, CEA_DERIV_ANALYTIC)
+
+    property dn_dstate1_fd:
+        def __get__(self):
+            return self._get_scalar(CEA_DERIV_DN_DSTATE1, CEA_DERIV_FD)
+
+    property dn_dstate2:
+        def __get__(self):
+            return self._get_scalar(CEA_DERIV_DN_DSTATE2, CEA_DERIV_ANALYTIC)
+
+    property dn_dstate2_fd:
+        def __get__(self):
+            return self._get_scalar(CEA_DERIV_DN_DSTATE2, CEA_DERIV_FD)
+
+    property dH_dstate1:
+        def __get__(self):
+            return self._get_scalar(CEA_DERIV_DH_DSTATE1, CEA_DERIV_ANALYTIC)
+
+    property dH_dstate1_fd:
+        def __get__(self):
+            return self._get_scalar(CEA_DERIV_DH_DSTATE1, CEA_DERIV_FD)
+
+    property dH_dstate2:
+        def __get__(self):
+            return self._get_scalar(CEA_DERIV_DH_DSTATE2, CEA_DERIV_ANALYTIC)
+
+    property dH_dstate2_fd:
+        def __get__(self):
+            return self._get_scalar(CEA_DERIV_DH_DSTATE2, CEA_DERIV_FD)
+
+    property dU_dstate1:
+        def __get__(self):
+            return self._get_scalar(CEA_DERIV_DU_DSTATE1, CEA_DERIV_ANALYTIC)
+
+    property dU_dstate1_fd:
+        def __get__(self):
+            return self._get_scalar(CEA_DERIV_DU_DSTATE1, CEA_DERIV_FD)
+
+    property dU_dstate2:
+        def __get__(self):
+            return self._get_scalar(CEA_DERIV_DU_DSTATE2, CEA_DERIV_ANALYTIC)
+
+    property dU_dstate2_fd:
+        def __get__(self):
+            return self._get_scalar(CEA_DERIV_DU_DSTATE2, CEA_DERIV_FD)
+
+    property dG_dstate1:
+        def __get__(self):
+            return self._get_scalar(CEA_DERIV_DG_DSTATE1, CEA_DERIV_ANALYTIC)
+
+    property dG_dstate1_fd:
+        def __get__(self):
+            return self._get_scalar(CEA_DERIV_DG_DSTATE1, CEA_DERIV_FD)
+
+    property dG_dstate2:
+        def __get__(self):
+            return self._get_scalar(CEA_DERIV_DG_DSTATE2, CEA_DERIV_ANALYTIC)
+
+    property dG_dstate2_fd:
+        def __get__(self):
+            return self._get_scalar(CEA_DERIV_DG_DSTATE2, CEA_DERIV_FD)
+
+    property dS_dstate1:
+        def __get__(self):
+            return self._get_scalar(CEA_DERIV_DS_DSTATE1, CEA_DERIV_ANALYTIC)
+
+    property dS_dstate1_fd:
+        def __get__(self):
+            return self._get_scalar(CEA_DERIV_DS_DSTATE1, CEA_DERIV_FD)
+
+    property dS_dstate2:
+        def __get__(self):
+            return self._get_scalar(CEA_DERIV_DS_DSTATE2, CEA_DERIV_ANALYTIC)
+
+    property dS_dstate2_fd:
+        def __get__(self):
+            return self._get_scalar(CEA_DERIV_DS_DSTATE2, CEA_DERIV_FD)
+
+    property dT_dw0:
+        def __get__(self):
+            return self._get_array(CEA_DERIV_DT_DW0, CEA_DERIV_ANALYTIC)
+
+    property dT_dw0_fd:
+        def __get__(self):
+            return self._get_array(CEA_DERIV_DT_DW0, CEA_DERIV_FD)
+
+    property dn_dw0:
+        def __get__(self):
+            return self._get_array(CEA_DERIV_DN_DW0, CEA_DERIV_ANALYTIC)
+
+    property dn_dw0_fd:
+        def __get__(self):
+            return self._get_array(CEA_DERIV_DN_DW0, CEA_DERIV_FD)
+
+    property dnj_dstate1:
+        def __get__(self):
+            return self._get_array(CEA_DERIV_DNJ_DSTATE1, CEA_DERIV_ANALYTIC)
+
+    property dnj_dstate1_fd:
+        def __get__(self):
+            return self._get_array(CEA_DERIV_DNJ_DSTATE1, CEA_DERIV_FD)
+
+    property dnj_dstate2:
+        def __get__(self):
+            return self._get_array(CEA_DERIV_DNJ_DSTATE2, CEA_DERIV_ANALYTIC)
+
+    property dnj_dstate2_fd:
+        def __get__(self):
+            return self._get_array(CEA_DERIV_DNJ_DSTATE2, CEA_DERIV_FD)
+
+    property dH_dw0:
+        def __get__(self):
+            return self._get_array(CEA_DERIV_DH_DW0, CEA_DERIV_ANALYTIC)
+
+    property dH_dw0_fd:
+        def __get__(self):
+            return self._get_array(CEA_DERIV_DH_DW0, CEA_DERIV_FD)
+
+    property dU_dw0:
+        def __get__(self):
+            return self._get_array(CEA_DERIV_DU_DW0, CEA_DERIV_ANALYTIC)
+
+    property dU_dw0_fd:
+        def __get__(self):
+            return self._get_array(CEA_DERIV_DU_DW0, CEA_DERIV_FD)
+
+    property dG_dw0:
+        def __get__(self):
+            return self._get_array(CEA_DERIV_DG_DW0, CEA_DERIV_ANALYTIC)
+
+    property dG_dw0_fd:
+        def __get__(self):
+            return self._get_array(CEA_DERIV_DG_DW0, CEA_DERIV_FD)
+
+    property dS_dw0:
+        def __get__(self):
+            return self._get_array(CEA_DERIV_DS_DW0, CEA_DERIV_ANALYTIC)
+
+    property dS_dw0_fd:
+        def __get__(self):
+            return self._get_array(CEA_DERIV_DS_DW0, CEA_DERIV_FD)
+
+    property dnj_dw0:
+        def __get__(self):
+            return self._get_matrix(CEA_DERIV_DNJ_DW0, CEA_DERIV_ANALYTIC)
+
+    property dnj_dw0_fd:
+        def __get__(self):
+            return self._get_matrix(CEA_DERIV_DNJ_DW0, CEA_DERIV_FD)
+
+    def _get_scalar(self, cea_eqderiv_scalar which, cea_derivative_method method):
+        cdef cea_err ierr
+        cdef cea_real value
+        ierr = cea_eqderivatives_get_scalar(self.ptr, which, method, &value)
+        if ierr != SUCCESS:
+            self.last_error = <int>ierr
+        _check_ierr(ierr, "EqDerivatives._get_scalar")
+        return value
+
+    def _get_array(self, cea_eqderiv_array which, cea_derivative_method method):
+        cdef cea_err ierr
+        cdef int nvals
+        cdef np.ndarray[np.float64_t, ndim=1, mode="c"] values
+
+        if which == CEA_DERIV_DNJ_DSTATE1 or which == CEA_DERIV_DNJ_DSTATE2:
+            nvals = self.solver.num_products
+        else:
+            nvals = self.solver.num_reactants
+
+        values = np.zeros(nvals, dtype=np.double)
+        ierr = cea_eqderivatives_get_array(self.ptr, self.solver.ptr, self.solution.ptr, which, method, nvals, <cea_array>values.data)
+        if ierr != SUCCESS:
+            self.last_error = <int>ierr
+        _check_ierr(ierr, "EqDerivatives._get_array")
+        return values
+
+    def _get_matrix(self, cea_eqderiv_matrix which, cea_derivative_method method):
+        cdef cea_err ierr
+        cdef int nrows
+        cdef int ncols
+        cdef np.ndarray[np.float64_t, ndim=2, mode="c"] values
+
+        nrows = self.solver.num_products
+        ncols = self.solver.num_reactants
+        values = np.zeros((nrows, ncols), dtype=np.double)
+        ierr = cea_eqderivatives_get_matrix(self.ptr, self.solver.ptr, self.solution.ptr, which, method,
+                                            nrows, ncols, <cea_array>values.data)
+        if ierr != SUCCESS:
+            self.last_error = <int>ierr
+        _check_ierr(ierr, "EqDerivatives._get_matrix")
+        return values
+
+
 cdef class RocketSolver:
     """
     Rocket performance solver.
