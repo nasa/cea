@@ -6,25 +6,40 @@ import cea
 Example demonstrating equilibrium derivatives for HP problem with finite-difference convergence study
 - Single HP equilibrium calculation (based on Example 3 from RP-1311)
 - Compute analytic derivatives
-- Sweep finite-difference step sizes from 1e-3 to 1e-14
+- Sweep finite-difference step sizes from 1e-1 to 1e-16
 - Plot convergence behavior for representative outputs
+
+Note: This example uses central differences (central=True) for second-order accuracy.
+Set central=False to use forward differences, which are faster but less accurate.
 """
+
+# Global flag to control error metric
+USE_ABSOLUTE_ERROR = True  # Set to True for absolute error, False for relative error
 
 def rel_error(analytical, fd):
     """
-    Compute relative error between analytical and finite-difference derivatives.
+    Compute error between analytical and finite-difference derivatives.
+
+    The error metric is controlled by the global USE_ABSOLUTE_ERROR flag:
+    - If USE_ABSOLUTE_ERROR=True: Returns absolute error = |fd - analytical|
+    - If USE_ABSOLUTE_ERROR=False: Returns relative error = |fd - analytical| / |analytical|
 
     Note: Relative error is NOT bounded by 1.0. It can be arbitrarily large when
     the finite-difference approximation is poor (either due to truncation error
     with large h, or round-off error with tiny h). This is expected and normal
     in convergence studies.
-
-    Relative error = |fd - analytical| / |analytical|
     """
-    if abs(analytical) < 1e-15:
-        # For near-zero analytical values, return absolute error
-        return abs(fd - analytical) if abs(fd) > 1e-15 else 0.0
-    return abs(fd - analytical) / abs(analytical)
+    abs_error = abs(fd - analytical)
+
+    if USE_ABSOLUTE_ERROR:
+        # Return absolute error
+        return abs_error
+    else:
+        # Return relative error
+        if abs(analytical) < 1e-15:
+            # For near-zero analytical values, return absolute error
+            return abs_error if abs(fd) > 1e-15 else 0.0
+        return abs_error / abs(analytical)
 
 # Initialize CEA
 cea.init()
@@ -125,9 +140,10 @@ print(f"dS/dP (analytic)       : {dS_dP_analytic:.6e} kJ/(kg·K·bar)")
 print("\n" + "=" * 70)
 print("FINITE-DIFFERENCE CONVERGENCE STUDY")
 print("=" * 70)
+print(f"Error metric: {'ABSOLUTE' if USE_ABSOLUTE_ERROR else 'RELATIVE'}")
 
 # Define step sizes for convergence study
-h_values = np.logspace(-1, -10, 30)
+h_values = np.logspace(-1, -16, 50)
 print(f"Testing {len(h_values)} step sizes from {h_values[0]:.1e} to {h_values[-1]:.1e}")
 
 # Storage for errors
@@ -156,8 +172,8 @@ for i, h in enumerate(h_values):
     if (i + 1) % 5 == 0:
         print(f"  Computing h = {h:.1e} ({i+1}/{len(h_values)})")
 
-    # Compute finite-difference derivatives
-    derivs.compute_fd(h=h, verbose=False)
+    # Compute finite-difference derivatives (central differences for 2nd-order accuracy)
+    derivs.compute_fd(h=h, verbose=False, central=True)
 
     # Temperature derivatives
     dT_dH_fd = derivs.dT_dstate1_fd
@@ -244,7 +260,7 @@ opt_idx_dT_dw0 = np.argmin(errors_dT_dw0)
 axes1[0].loglog(h_values, errors_dT_dH, 'o-', linewidth=2, markersize=4, label='Error')
 axes1[0].axvline(h_values[opt_idx_dT_dH], color='r', linestyle='--', alpha=0.7, linewidth=1.5, label=f'Optimal h={h_values[opt_idx_dT_dH]:.1e}')
 axes1[0].set_xlabel('Step size h', fontsize=11)
-axes1[0].set_ylabel('Relative error', fontsize=11)
+axes1[0].set_ylabel('Absolute error' if USE_ABSOLUTE_ERROR else 'Relative error', fontsize=11)
 axes1[0].set_title('∂T/∂H', fontsize=12)
 axes1[0].grid(True, which='both', alpha=0.3)
 axes1[0].legend(fontsize=9)
@@ -253,7 +269,7 @@ axes1[0].invert_xaxis()
 axes1[1].loglog(h_values, errors_dT_dP, 'o-', linewidth=2, markersize=4, label='Error')
 axes1[1].axvline(h_values[opt_idx_dT_dP], color='r', linestyle='--', alpha=0.7, linewidth=1.5, label=f'Optimal h={h_values[opt_idx_dT_dP]:.1e}')
 axes1[1].set_xlabel('Step size h', fontsize=11)
-axes1[1].set_ylabel('Relative error', fontsize=11)
+axes1[1].set_ylabel('Absolute error' if USE_ABSOLUTE_ERROR else 'Relative error', fontsize=11)
 axes1[1].set_title('∂T/∂P', fontsize=12)
 axes1[1].grid(True, which='both', alpha=0.3)
 axes1[1].legend(fontsize=9)
@@ -262,7 +278,7 @@ axes1[1].invert_xaxis()
 axes1[2].loglog(h_values, errors_dT_dw0, 'o-', linewidth=2, markersize=4, label='Error')
 axes1[2].axvline(h_values[opt_idx_dT_dw0], color='r', linestyle='--', alpha=0.7, linewidth=1.5, label=f'Optimal h={h_values[opt_idx_dT_dw0]:.1e}')
 axes1[2].set_xlabel('Step size h', fontsize=11)
-axes1[2].set_ylabel('Relative error', fontsize=11)
+axes1[2].set_ylabel('Absolute error' if USE_ABSOLUTE_ERROR else 'Relative error', fontsize=11)
 axes1[2].set_title('∂T/∂w₀[0]', fontsize=12)
 axes1[2].grid(True, which='both', alpha=0.3)
 axes1[2].legend(fontsize=9)
@@ -282,7 +298,7 @@ opt_idx_dS_dw0 = np.argmin(errors_dS_dw0)
 axes2[0].loglog(h_values, errors_dS_dH, 'o-', linewidth=2, markersize=4, label='Error')
 axes2[0].axvline(h_values[opt_idx_dS_dH], color='r', linestyle='--', alpha=0.7, linewidth=1.5, label=f'Optimal h={h_values[opt_idx_dS_dH]:.1e}')
 axes2[0].set_xlabel('Step size h', fontsize=11)
-axes2[0].set_ylabel('Relative error', fontsize=11)
+axes2[0].set_ylabel('Absolute error' if USE_ABSOLUTE_ERROR else 'Relative error', fontsize=11)
 axes2[0].set_title('∂S/∂H', fontsize=12)
 axes2[0].grid(True, which='both', alpha=0.3)
 axes2[0].legend(fontsize=9)
@@ -291,7 +307,7 @@ axes2[0].invert_xaxis()
 axes2[1].loglog(h_values, errors_dS_dP, 'o-', linewidth=2, markersize=4, label='Error')
 axes2[1].axvline(h_values[opt_idx_dS_dP], color='r', linestyle='--', alpha=0.7, linewidth=1.5, label=f'Optimal h={h_values[opt_idx_dS_dP]:.1e}')
 axes2[1].set_xlabel('Step size h', fontsize=11)
-axes2[1].set_ylabel('Relative error', fontsize=11)
+axes2[1].set_ylabel('Absolute error' if USE_ABSOLUTE_ERROR else 'Relative error', fontsize=11)
 axes2[1].set_title('∂S/∂P', fontsize=12)
 axes2[1].grid(True, which='both', alpha=0.3)
 axes2[1].legend(fontsize=9)
@@ -300,7 +316,7 @@ axes2[1].invert_xaxis()
 axes2[2].loglog(h_values, errors_dS_dw0, 'o-', linewidth=2, markersize=4, label='Error')
 axes2[2].axvline(h_values[opt_idx_dS_dw0], color='r', linestyle='--', alpha=0.7, linewidth=1.5, label=f'Optimal h={h_values[opt_idx_dS_dw0]:.1e}')
 axes2[2].set_xlabel('Step size h', fontsize=11)
-axes2[2].set_ylabel('Relative error', fontsize=11)
+axes2[2].set_ylabel('Absolute error' if USE_ABSOLUTE_ERROR else 'Relative error', fontsize=11)
 axes2[2].set_title('∂S/∂w₀[0]', fontsize=12)
 axes2[2].grid(True, which='both', alpha=0.3)
 axes2[2].legend(fontsize=9)
@@ -321,21 +337,21 @@ for i, (species_name, idx) in enumerate(zip(plot_species_names, plot_species_ind
                     label=species_name, alpha=0.8)
 
 axes3[0].set_xlabel('Step size h', fontsize=11)
-axes3[0].set_ylabel('Relative error', fontsize=11)
+axes3[0].set_ylabel('Absolute error' if USE_ABSOLUTE_ERROR else 'Relative error', fontsize=11)
 axes3[0].set_title('∂nⱼ/∂H', fontsize=12)
 axes3[0].grid(True, which='both', alpha=0.3)
 axes3[0].legend(fontsize=9, loc='best')
 axes3[0].invert_xaxis()
 
 axes3[1].set_xlabel('Step size h', fontsize=11)
-axes3[1].set_ylabel('Relative error', fontsize=11)
+axes3[1].set_ylabel('Absolute error' if USE_ABSOLUTE_ERROR else 'Relative error', fontsize=11)
 axes3[1].set_title('∂nⱼ/∂P', fontsize=12)
 axes3[1].grid(True, which='both', alpha=0.3)
 axes3[1].legend(fontsize=9, loc='best')
 axes3[1].invert_xaxis()
 
 axes3[2].set_xlabel('Step size h', fontsize=11)
-axes3[2].set_ylabel('Relative error', fontsize=11)
+axes3[2].set_ylabel('Absolute error' if USE_ABSOLUTE_ERROR else 'Relative error', fontsize=11)
 axes3[2].set_title('∂nⱼ/∂w₀[0]', fontsize=12)
 axes3[2].grid(True, which='both', alpha=0.3)
 axes3[2].legend(fontsize=9, loc='best')

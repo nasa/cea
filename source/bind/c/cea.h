@@ -460,7 +460,8 @@ cea_err cea_eqderivatives_compute_fd(
     const cea_eqsolver solver,
     const cea_eqsolution soln,
     const cea_real h,
-    const bool verbose
+    const bool verbose,
+    const bool central
 );
 
 // Getters

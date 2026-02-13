@@ -331,7 +331,8 @@ cdef extern from "cea.h":
     cpdef cea_err cea_eqderivatives_compute_derivatives(const cea_eqderivatives derivs, const cea_eqsolver solver,
                                                         const cea_eqsolution soln, const cea_bool check_closure_defect)
     cpdef cea_err cea_eqderivatives_compute_fd(const cea_eqderivatives derivs, const cea_eqsolver solver,
-                                               const cea_eqsolution soln, const cea_real h, const cea_bool verbose)
+                                               const cea_eqsolution soln, const cea_real h, const cea_bool verbose,
+                                               const cea_bool central)
     cpdef cea_err cea_eqderivatives_get_scalar(const cea_eqderivatives derivs, const cea_eqderiv_scalar which,
                                                const cea_derivative_method method, cea_real *value)
     cpdef cea_err cea_eqderivatives_get_array(const cea_eqderivatives derivs, const cea_eqsolver solver,

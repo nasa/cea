@@ -2774,24 +2774,27 @@ contains
         call derivs%unpack_values(solver, solution)
     end function
 
-    function cea_eqderivatives_compute_fd(dptr, sptr, slptr, h, verbose) result(ierr) bind(c)
+    function cea_eqderivatives_compute_fd(dptr, sptr, slptr, h, verbose, central) result(ierr) bind(c)
         integer(c_int) :: ierr
         type(c_ptr),     intent(in), value :: dptr
         type(c_ptr),     intent(in), value :: sptr
         type(c_ptr),     intent(in), value :: slptr
         real(c_double),  intent(in), value :: h
         logical(c_bool), intent(in), value :: verbose
+        logical(c_bool), intent(in), value :: central
         type(EqDerivatives), pointer :: derivs
         type(EqSolver), pointer :: solver
         type(EqSolution), pointer :: solution
-        logical :: verbose_
+        logical :: verbose_, central_
         ierr = CEA_SUCCESS
         call c_f_pointer(dptr, derivs)
         call c_f_pointer(sptr, solver)
         call c_f_pointer(slptr, solution)
         verbose_ = .false.
         if (verbose .eqv. .true.) verbose_ = .true.
-        call derivs%compute_fd(solver, solution, h, verbose=verbose_)
+        central_ = .false.
+        if (central .eqv. .true.) central_ = .true.
+        call derivs%compute_fd(solver, solution, h, verbose=verbose_, central=central_)
     end function
 
     function cea_eqderivatives_get_scalar(dptr, which, method, value) result(ierr) bind(c)

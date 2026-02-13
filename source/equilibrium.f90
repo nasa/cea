@@ -3002,7 +3002,7 @@ contains
 
     end subroutine
 
-    subroutine EqDerivatives_compute_fd(self, solver, solution, h, verbose)
+    subroutine EqDerivatives_compute_fd(self, solver, solution, h, verbose, central)
 
         ! Arguments
         class(EqDerivatives), intent(inout) :: self
@@ -3010,11 +3010,12 @@ contains
         class(EqSolution), intent(inout), target :: solution
         real(dp), intent(in) :: h
         logical, intent(in), optional :: verbose
+        logical, intent(in), optional :: central
 
         ! Locals
-        type(EqSolution), target :: pert_soln
+        type(EqSolution), target :: pert_soln, pert_soln_minus
         real(dp), allocatable :: base_nj(:)
-        real(dp), allocatable :: pert_nj(:)
+        real(dp), allocatable :: pert_nj(:), pert_nj_minus(:)
         real(dp), allocatable :: w0(:)
         integer, allocatable :: active_cond_idx(:)
         integer :: ng, na, nr, ns
@@ -3022,7 +3023,7 @@ contains
         real(dp) :: base_T, base_n
         real(dp) :: base_H, base_U, base_G, base_S, base_Cp_fr
         real(dp) :: abs_err, rel_err
-        logical :: verbose_
+        logical :: verbose_, central_
         character(2) :: ctype
         real(dp) :: state1, state2
         real(dp) :: h_state1, h_state2, h_w
@@ -3030,7 +3031,7 @@ contains
         integer :: lnT_idx, lnn_idx
         integer :: idx_max_state1, idx_max_state2, idx_max_dw0, j_max_dw0
         real(dp) :: max_err_dw0
-        real(dp) :: base_P, base_logP_over_n, pert_logP_over_n
+        real(dp) :: base_P, base_logP_over_n, pert_logP_over_n, pert_logP_over_n_minus
         real(dp) :: dlogP_over_n_state1_fd, dlogP_over_n_state2_fd
         real(dp) :: dlogP_over_n_dw0_fd, dlogP_over_n_dw0_fd_max
         real(dp) :: dlogP_over_n_state1_an, dlogP_over_n_state2_an
@@ -3054,6 +3055,9 @@ contains
 
         verbose_ = .true.
         if (present(verbose)) verbose_ = verbose
+
+        central_ = .false.
+        if (present(central)) central_ = central
 
         ng = solver%num_gas
         ne = solver%num_elements
@@ -3081,6 +3085,7 @@ contains
         end if
 
         allocate(base_nj(ns), pert_nj(ns))
+        if (central_) allocate(pert_nj_minus(ns))
         if (na > 0) then
             allocate(active_cond_idx(na))
             idx_c = 0
@@ -3148,25 +3153,60 @@ contains
             pert_nj(ng+idx_c) = pert_soln%nj(ng+i)
         end do
 
-        self%dT_dstate1_fd = (pert_soln%T - base_T) / h_state1
-        self%dn_dstate1_fd = (pert_soln%n - base_n) / h_state1
-        self%dnj_dstate1_fd = (pert_nj - base_nj) / h_state1
-        self%dH_dstate1_fd = (pert_soln%enthalpy - base_H) / h_state1
-        self%dU_dstate1_fd = (pert_soln%energy - base_U) / h_state1
-        self%dG_dstate1_fd = (pert_soln%gibbs_energy - base_G) / h_state1
-        self%dS_dstate1_fd = (pert_soln%entropy - base_S) / h_state1
-        self%dCp_fr_dstate1_fd = (pert_soln%cp_fr - base_Cp_fr) / h_state1
-        if (verbose_) then
-            pert_logP_over_n = log(pert_soln%calc_pressure()/pert_soln%n)
-            dlogP_over_n_state1_fd = (pert_logP_over_n - base_logP_over_n) / h_state1
-            do i = 1, ng
-                if (base_nj(i) > 0.0d0 .and. pert_nj(i) > 0.0d0) then
-                    dln_nj_state1_fd(i) = (log(pert_nj(i)) - log(base_nj(i))) / h_state1
-                else
-                    dln_nj_state1_fd(i) = 0.0d0
-                end if
+        if (central_) then
+            ! Central difference: compute backward perturbation
+            pert_soln_minus = solution
+            pert_soln_minus%cp_fr = 0.0d0
+            call solver%solve(pert_soln_minus, ctype, state1 - h_state1, state2, w0)
+            pert_nj_minus(:ng) = pert_soln_minus%nj(:ng)
+            do idx_c = 1, na
+                i = active_cond_idx(idx_c)
+                pert_nj_minus(ng+idx_c) = pert_soln_minus%nj(ng+i)
             end do
-            idx_max_state1 = maxloc(abs(self%dnj_dstate1_fd(:ng) - self%dnj_dstate1(:ng)), dim=1)
+
+            self%dT_dstate1_fd = (pert_soln%T - pert_soln_minus%T) / (2.0d0*h_state1)
+            self%dn_dstate1_fd = (pert_soln%n - pert_soln_minus%n) / (2.0d0*h_state1)
+            self%dnj_dstate1_fd = (pert_nj - pert_nj_minus) / (2.0d0*h_state1)
+            self%dH_dstate1_fd = (pert_soln%enthalpy - pert_soln_minus%enthalpy) / (2.0d0*h_state1)
+            self%dU_dstate1_fd = (pert_soln%energy - pert_soln_minus%energy) / (2.0d0*h_state1)
+            self%dG_dstate1_fd = (pert_soln%gibbs_energy - pert_soln_minus%gibbs_energy) / (2.0d0*h_state1)
+            self%dS_dstate1_fd = (pert_soln%entropy - pert_soln_minus%entropy) / (2.0d0*h_state1)
+            self%dCp_fr_dstate1_fd = (pert_soln%cp_fr - pert_soln_minus%cp_fr) / (2.0d0*h_state1)
+            if (verbose_) then
+                pert_logP_over_n = log(pert_soln%calc_pressure()/pert_soln%n)
+                pert_logP_over_n_minus = log(pert_soln_minus%calc_pressure()/pert_soln_minus%n)
+                dlogP_over_n_state1_fd = (pert_logP_over_n - pert_logP_over_n_minus) / (2.0d0*h_state1)
+                do i = 1, ng
+                    if (pert_nj(i) > 0.0d0 .and. pert_nj_minus(i) > 0.0d0) then
+                        dln_nj_state1_fd(i) = (log(pert_nj(i)) - log(pert_nj_minus(i))) / (2.0d0*h_state1)
+                    else
+                        dln_nj_state1_fd(i) = 0.0d0
+                    end if
+                end do
+                idx_max_state1 = maxloc(abs(self%dnj_dstate1_fd(:ng) - self%dnj_dstate1(:ng)), dim=1)
+            end if
+        else
+            ! Forward difference
+            self%dT_dstate1_fd = (pert_soln%T - base_T) / h_state1
+            self%dn_dstate1_fd = (pert_soln%n - base_n) / h_state1
+            self%dnj_dstate1_fd = (pert_nj - base_nj) / h_state1
+            self%dH_dstate1_fd = (pert_soln%enthalpy - base_H) / h_state1
+            self%dU_dstate1_fd = (pert_soln%energy - base_U) / h_state1
+            self%dG_dstate1_fd = (pert_soln%gibbs_energy - base_G) / h_state1
+            self%dS_dstate1_fd = (pert_soln%entropy - base_S) / h_state1
+            self%dCp_fr_dstate1_fd = (pert_soln%cp_fr - base_Cp_fr) / h_state1
+            if (verbose_) then
+                pert_logP_over_n = log(pert_soln%calc_pressure()/pert_soln%n)
+                dlogP_over_n_state1_fd = (pert_logP_over_n - base_logP_over_n) / h_state1
+                do i = 1, ng
+                    if (base_nj(i) > 0.0d0 .and. pert_nj(i) > 0.0d0) then
+                        dln_nj_state1_fd(i) = (log(pert_nj(i)) - log(base_nj(i))) / h_state1
+                    else
+                        dln_nj_state1_fd(i) = 0.0d0
+                    end if
+                end do
+                idx_max_state1 = maxloc(abs(self%dnj_dstate1_fd(:ng) - self%dnj_dstate1(:ng)), dim=1)
+            end if
         end if
 
         ! state2 perturbation
@@ -3179,68 +3219,159 @@ contains
             pert_nj(ng+idx_c) = pert_soln%nj(ng+i)
         end do
 
-        self%dT_dstate2_fd = (pert_soln%T - base_T) / h_state2
-        self%dn_dstate2_fd = (pert_soln%n - base_n) / h_state2
-        self%dnj_dstate2_fd = (pert_nj - base_nj) / h_state2
-        self%dH_dstate2_fd = (pert_soln%enthalpy - base_H) / h_state2
-        self%dU_dstate2_fd = (pert_soln%energy - base_U) / h_state2
-        self%dG_dstate2_fd = (pert_soln%gibbs_energy - base_G) / h_state2
-        self%dS_dstate2_fd = (pert_soln%entropy - base_S) / h_state2
-        self%dCp_fr_dstate2_fd = (pert_soln%cp_fr - base_Cp_fr) / h_state2
-        if (verbose_) then
-            pert_logP_over_n = log(pert_soln%calc_pressure()/pert_soln%n)
-            dlogP_over_n_state2_fd = (pert_logP_over_n - base_logP_over_n) / h_state2
-            do i = 1, ng
-                if (base_nj(i) > 0.0d0 .and. pert_nj(i) > 0.0d0) then
-                    dln_nj_state2_fd(i) = (log(pert_nj(i)) - log(base_nj(i))) / h_state2
-                else
-                    dln_nj_state2_fd(i) = 0.0d0
-                end if
+        if (central_) then
+            ! Central difference: compute backward perturbation
+            pert_soln_minus = solution
+            pert_soln_minus%cp_fr = 0.0d0
+            call solver%solve(pert_soln_minus, ctype, state1, state2 - h_state2, w0)
+            pert_nj_minus(:ng) = pert_soln_minus%nj(:ng)
+            do idx_c = 1, na
+                i = active_cond_idx(idx_c)
+                pert_nj_minus(ng+idx_c) = pert_soln_minus%nj(ng+i)
             end do
-            idx_max_state2 = maxloc(abs(self%dnj_dstate2_fd(:ng) - self%dnj_dstate2(:ng)), dim=1)
+
+            self%dT_dstate2_fd = (pert_soln%T - pert_soln_minus%T) / (2.0d0*h_state2)
+            self%dn_dstate2_fd = (pert_soln%n - pert_soln_minus%n) / (2.0d0*h_state2)
+            self%dnj_dstate2_fd = (pert_nj - pert_nj_minus) / (2.0d0*h_state2)
+            self%dH_dstate2_fd = (pert_soln%enthalpy - pert_soln_minus%enthalpy) / (2.0d0*h_state2)
+            self%dU_dstate2_fd = (pert_soln%energy - pert_soln_minus%energy) / (2.0d0*h_state2)
+            self%dG_dstate2_fd = (pert_soln%gibbs_energy - pert_soln_minus%gibbs_energy) / (2.0d0*h_state2)
+            self%dS_dstate2_fd = (pert_soln%entropy - pert_soln_minus%entropy) / (2.0d0*h_state2)
+            self%dCp_fr_dstate2_fd = (pert_soln%cp_fr - pert_soln_minus%cp_fr) / (2.0d0*h_state2)
+            if (verbose_) then
+                pert_logP_over_n = log(pert_soln%calc_pressure()/pert_soln%n)
+                pert_logP_over_n_minus = log(pert_soln_minus%calc_pressure()/pert_soln_minus%n)
+                dlogP_over_n_state2_fd = (pert_logP_over_n - pert_logP_over_n_minus) / (2.0d0*h_state2)
+                do i = 1, ng
+                    if (pert_nj(i) > 0.0d0 .and. pert_nj_minus(i) > 0.0d0) then
+                        dln_nj_state2_fd(i) = (log(pert_nj(i)) - log(pert_nj_minus(i))) / (2.0d0*h_state2)
+                    else
+                        dln_nj_state2_fd(i) = 0.0d0
+                    end if
+                end do
+                idx_max_state2 = maxloc(abs(self%dnj_dstate2_fd(:ng) - self%dnj_dstate2(:ng)), dim=1)
+            end if
+        else
+            ! Forward difference
+            self%dT_dstate2_fd = (pert_soln%T - base_T) / h_state2
+            self%dn_dstate2_fd = (pert_soln%n - base_n) / h_state2
+            self%dnj_dstate2_fd = (pert_nj - base_nj) / h_state2
+            self%dH_dstate2_fd = (pert_soln%enthalpy - base_H) / h_state2
+            self%dU_dstate2_fd = (pert_soln%energy - base_U) / h_state2
+            self%dG_dstate2_fd = (pert_soln%gibbs_energy - base_G) / h_state2
+            self%dS_dstate2_fd = (pert_soln%entropy - base_S) / h_state2
+            self%dCp_fr_dstate2_fd = (pert_soln%cp_fr - base_Cp_fr) / h_state2
+            if (verbose_) then
+                pert_logP_over_n = log(pert_soln%calc_pressure()/pert_soln%n)
+                dlogP_over_n_state2_fd = (pert_logP_over_n - base_logP_over_n) / h_state2
+                do i = 1, ng
+                    if (base_nj(i) > 0.0d0 .and. pert_nj(i) > 0.0d0) then
+                        dln_nj_state2_fd(i) = (log(pert_nj(i)) - log(base_nj(i))) / h_state2
+                    else
+                        dln_nj_state2_fd(i) = 0.0d0
+                    end if
+                end do
+                idx_max_state2 = maxloc(abs(self%dnj_dstate2_fd(:ng) - self%dnj_dstate2(:ng)), dim=1)
+            end if
         end if
 
         ! weight perturbations
         do j = 1, nr
             h_w = h * max(1.0d0, abs(w0(j)))
-            w0(j) = w0(j) + h_w
-            pert_soln = solution
-            pert_soln%cp_fr = 0.0d0
-            call solver%solve(pert_soln, ctype, state1, state2, w0)
-            pert_nj(:ng) = pert_soln%nj(:ng)
-            do idx_c = 1, na
-                i = active_cond_idx(idx_c)
-                pert_nj(ng+idx_c) = pert_soln%nj(ng+i)
-            end do
 
-            self%dT_dw0_fd(j) = (pert_soln%T - base_T) / h_w
-            self%dn_dw0_fd(j) = (pert_soln%n - base_n) / h_w
-            self%dnj_dw0_fd(:, j) = (pert_nj - base_nj) / h_w
-            self%dH_dw0_fd(j) = (pert_soln%enthalpy - base_H) / h_w
-            self%dU_dw0_fd(j) = (pert_soln%energy - base_U) / h_w
-            self%dG_dw0_fd(j) = (pert_soln%gibbs_energy - base_G) / h_w
-            self%dS_dw0_fd(j) = (pert_soln%entropy - base_S) / h_w
-            self%dCp_fr_dw0_fd(j) = (pert_soln%cp_fr - base_Cp_fr) / h_w
-            if (verbose_) then
-                pert_logP_over_n = log(pert_soln%calc_pressure()/pert_soln%n)
-                dlogP_over_n_dw0_fd = (pert_logP_over_n - base_logP_over_n) / h_w
-                abs_err = maxval(abs(self%dnj_dw0_fd(:ng, j) - self%dnj_dw0(:ng, j)))
-                if (abs_err > max_err_dw0) then
-                    max_err_dw0 = abs_err
-                    idx_max_dw0 = maxloc(abs(self%dnj_dw0_fd(:ng, j) - self%dnj_dw0(:ng, j)), dim=1)
-                    j_max_dw0 = j
-                    do i = 1, ng
-                        if (base_nj(i) > 0.0d0 .and. pert_nj(i) > 0.0d0) then
-                            dln_nj_dw0_fd_max(i) = (log(pert_nj(i)) - log(base_nj(i))) / h_w
-                        else
-                            dln_nj_dw0_fd_max(i) = 0.0d0
-                        end if
-                    end do
-                    dlogP_over_n_dw0_fd_max = dlogP_over_n_dw0_fd
+            if (central_) then
+                ! Central difference: compute forward perturbation
+                w0(j) = w0(j) + h_w
+                pert_soln = solution
+                pert_soln%cp_fr = 0.0d0
+                call solver%solve(pert_soln, ctype, state1, state2, w0)
+                pert_nj(:ng) = pert_soln%nj(:ng)
+                do idx_c = 1, na
+                    i = active_cond_idx(idx_c)
+                    pert_nj(ng+idx_c) = pert_soln%nj(ng+i)
+                end do
+                w0(j) = w0(j) - h_w
+
+                ! Compute backward perturbation
+                w0(j) = w0(j) - h_w
+                pert_soln_minus = solution
+                pert_soln_minus%cp_fr = 0.0d0
+                call solver%solve(pert_soln_minus, ctype, state1, state2, w0)
+                pert_nj_minus(:ng) = pert_soln_minus%nj(:ng)
+                do idx_c = 1, na
+                    i = active_cond_idx(idx_c)
+                    pert_nj_minus(ng+idx_c) = pert_soln_minus%nj(ng+i)
+                end do
+                w0(j) = w0(j) + h_w
+
+                self%dT_dw0_fd(j) = (pert_soln%T - pert_soln_minus%T) / (2.0d0*h_w)
+                self%dn_dw0_fd(j) = (pert_soln%n - pert_soln_minus%n) / (2.0d0*h_w)
+                self%dnj_dw0_fd(:, j) = (pert_nj - pert_nj_minus) / (2.0d0*h_w)
+                self%dH_dw0_fd(j) = (pert_soln%enthalpy - pert_soln_minus%enthalpy) / (2.0d0*h_w)
+                self%dU_dw0_fd(j) = (pert_soln%energy - pert_soln_minus%energy) / (2.0d0*h_w)
+                self%dG_dw0_fd(j) = (pert_soln%gibbs_energy - pert_soln_minus%gibbs_energy) / (2.0d0*h_w)
+                self%dS_dw0_fd(j) = (pert_soln%entropy - pert_soln_minus%entropy) / (2.0d0*h_w)
+                self%dCp_fr_dw0_fd(j) = (pert_soln%cp_fr - pert_soln_minus%cp_fr) / (2.0d0*h_w)
+                if (verbose_) then
+                    pert_logP_over_n = log(pert_soln%calc_pressure()/pert_soln%n)
+                    pert_logP_over_n_minus = log(pert_soln_minus%calc_pressure()/pert_soln_minus%n)
+                    dlogP_over_n_dw0_fd = (pert_logP_over_n - pert_logP_over_n_minus) / (2.0d0*h_w)
+                    abs_err = maxval(abs(self%dnj_dw0_fd(:ng, j) - self%dnj_dw0(:ng, j)))
+                    if (abs_err > max_err_dw0) then
+                        max_err_dw0 = abs_err
+                        idx_max_dw0 = maxloc(abs(self%dnj_dw0_fd(:ng, j) - self%dnj_dw0(:ng, j)), dim=1)
+                        j_max_dw0 = j
+                        do i = 1, ng
+                            if (pert_nj(i) > 0.0d0 .and. pert_nj_minus(i) > 0.0d0) then
+                                dln_nj_dw0_fd_max(i) = (log(pert_nj(i)) - log(pert_nj_minus(i))) / (2.0d0*h_w)
+                            else
+                                dln_nj_dw0_fd_max(i) = 0.0d0
+                            end if
+                        end do
+                        dlogP_over_n_dw0_fd_max = dlogP_over_n_dw0_fd
+                    end if
                 end if
-            end if
+            else
+                ! Forward difference
+                w0(j) = w0(j) + h_w
+                pert_soln = solution
+                pert_soln%cp_fr = 0.0d0
+                call solver%solve(pert_soln, ctype, state1, state2, w0)
+                pert_nj(:ng) = pert_soln%nj(:ng)
+                do idx_c = 1, na
+                    i = active_cond_idx(idx_c)
+                    pert_nj(ng+idx_c) = pert_soln%nj(ng+i)
+                end do
 
-            w0(j) = w0(j) - h_w
+                self%dT_dw0_fd(j) = (pert_soln%T - base_T) / h_w
+                self%dn_dw0_fd(j) = (pert_soln%n - base_n) / h_w
+                self%dnj_dw0_fd(:, j) = (pert_nj - base_nj) / h_w
+                self%dH_dw0_fd(j) = (pert_soln%enthalpy - base_H) / h_w
+                self%dU_dw0_fd(j) = (pert_soln%energy - base_U) / h_w
+                self%dG_dw0_fd(j) = (pert_soln%gibbs_energy - base_G) / h_w
+                self%dS_dw0_fd(j) = (pert_soln%entropy - base_S) / h_w
+                self%dCp_fr_dw0_fd(j) = (pert_soln%cp_fr - base_Cp_fr) / h_w
+                if (verbose_) then
+                    pert_logP_over_n = log(pert_soln%calc_pressure()/pert_soln%n)
+                    dlogP_over_n_dw0_fd = (pert_logP_over_n - base_logP_over_n) / h_w
+                    abs_err = maxval(abs(self%dnj_dw0_fd(:ng, j) - self%dnj_dw0(:ng, j)))
+                    if (abs_err > max_err_dw0) then
+                        max_err_dw0 = abs_err
+                        idx_max_dw0 = maxloc(abs(self%dnj_dw0_fd(:ng, j) - self%dnj_dw0(:ng, j)), dim=1)
+                        j_max_dw0 = j
+                        do i = 1, ng
+                            if (base_nj(i) > 0.0d0 .and. pert_nj(i) > 0.0d0) then
+                                dln_nj_dw0_fd_max(i) = (log(pert_nj(i)) - log(base_nj(i))) / h_w
+                            else
+                                dln_nj_dw0_fd_max(i) = 0.0d0
+                            end if
+                        end do
+                        dlogP_over_n_dw0_fd_max = dlogP_over_n_dw0_fd
+                    end if
+                end if
+
+                w0(j) = w0(j) - h_w
+            end if
         end do
 
         if (verbose_) then

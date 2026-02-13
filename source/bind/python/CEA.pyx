@@ -1685,7 +1685,7 @@ cdef class EqDerivatives:
         _check_ierr(ierr, "EqDerivatives.compute_derivatives")
         return
 
-    def compute_fd(self, double h, bint verbose=False):
+    def compute_fd(self, double h, bint verbose=False, bint central=False):
         """
         Compute finite-difference derivatives for verification.
 
@@ -1695,9 +1695,11 @@ cdef class EqDerivatives:
             Finite-difference perturbation size
         verbose : bool, default False
             If True, print finite-difference diagnostics
+        central : bool, default False
+            If True, use central differences; if False, use forward differences
         """
         cdef cea_err ierr
-        ierr = cea_eqderivatives_compute_fd(self.ptr, self.solver.ptr, self.solution.ptr, h, verbose)
+        ierr = cea_eqderivatives_compute_fd(self.ptr, self.solver.ptr, self.solution.ptr, h, verbose, central)
         if ierr != SUCCESS:
             self.last_error = <int>ierr
         _check_ierr(ierr, "EqDerivatives.compute_fd")
