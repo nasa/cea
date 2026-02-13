@@ -11,7 +11,7 @@ Example demonstrating equilibrium derivatives with finite-difference convergence
 """
 
 # Global flag to control error metric
-USE_ABSOLUTE_ERROR = True  # Set to True for absolute error, False for relative error
+USE_ABSOLUTE_ERROR = False  # Set to True for absolute error, False for relative error
 
 def rel_error(analytical, fd):
     """

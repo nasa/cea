@@ -14,7 +14,7 @@ Set central=False to use forward differences, which are faster but less accurate
 """
 
 # Global flag to control error metric
-USE_ABSOLUTE_ERROR = True  # Set to True for absolute error, False for relative error
+USE_ABSOLUTE_ERROR = False  # Set to True for absolute error, False for relative error
 
 def rel_error(analytical, fd):
     """
