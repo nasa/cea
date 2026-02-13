@@ -5,8 +5,6 @@ docs/doctrees/
 docs/doxygen/
 docs/html/
 docs/source/_build/
-docs/*.aux
-docs/*.log
 extern/gfe
 extern/install
 *.swp
@@ -17,6 +15,10 @@ extern/install
 *.csv
 *.xlsx
 *.pdf
+*.tex
+*.log
+*.aux
+*.toc
 *.bat
 *.lib
 !sampleThe/*.inp
