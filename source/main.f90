@@ -398,7 +398,7 @@ contains
         end if
 
         ! Get the rocket variables
-        pi_p = prob%problem%pcp_schedule%values
+        if (allocated(prob%problem%pcp_schedule)) pi_p = prob%problem%pcp_schedule%values
         if (allocated(prob%problem%subar_schedule)) subar = prob%problem%subar_schedule%values
         if (allocated(prob%problem%supar_schedule)) supar = prob%problem%supar_schedule%values
         if (allocated(prob%problem%mdot)) mdot = prob%problem%mdot
