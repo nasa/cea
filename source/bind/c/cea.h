@@ -432,6 +432,7 @@ extern "C"
       cea_rocket_solution soln,
       const cea_array weights,
       const cea_real pc,
+      // Optional: ignored when n_pi_p == 0 (pi_p may be NULL)
       const cea_array pi_p,
       const cea_int n_pi_p,
       const cea_array subar,
@@ -449,6 +450,7 @@ extern "C"
       cea_rocket_solution soln,
       const cea_array weights,
       const cea_real pc,
+      // Optional: ignored when n_pi_p == 0 (pi_p may be NULL)
       const cea_array pi_p,
       const cea_int n_pi_p,
       const cea_array subar,

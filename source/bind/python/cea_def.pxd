@@ -298,12 +298,14 @@ cdef extern from "cea.h":
     cpdef cea_err cea_rocket_solver_create_with_options(cea_rocket_solver *solver, const cea_mixture products,
                                                         const cea_solver_opts opts)
     cpdef cea_err cea_rocket_solver_destroy(cea_rocket_solver *solver)
+    # pi_p is optional when n_pi_p == 0.
     cpdef cea_err cea_rocket_solver_solve_iac(const cea_rocket_solver solver, cea_rocket_solution soln,
                                               const cea_array weights, const cea_real pc, const cea_array pi_p,
                                               const cea_int n_pi_p, const cea_array subar, const cea_int nsubar,
                                               const cea_array supar, const cea_int nsupar, const cea_int n_frz,
                                               const cea_real hc_or_tc, const cea_bool use_hc,
                                               const cea_real tc_est, const cea_bool use_tc_est)
+    # pi_p is optional when n_pi_p == 0.
     cpdef cea_err cea_rocket_solver_solve_fac(const cea_rocket_solver solver, cea_rocket_solution soln,
                                               const cea_array weights, const cea_real pc, const cea_array pi_p,
                                               const cea_int n_pi_p, const cea_array subar, const cea_int nsubar,

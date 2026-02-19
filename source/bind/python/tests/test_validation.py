@@ -16,14 +16,6 @@ def test_eqsolver_rejects_non_mixture_reactants(cea_module):
         cea_module.EqSolver(products, reactants=["H2", "O2"])
 
 
-def test_rocket_solver_requires_exit_condition(cea_module):
-    reactants_mix, products_mix, weights = _basic_reactants(cea_module)
-    solver = cea_module.RocketSolver(products_mix, reactants=reactants_mix)
-    soln = cea_module.RocketSolution(solver)
-    with pytest.raises(ValueError):
-        solver.solve(soln, weights, pc=10.0, tc=3000.0)
-
-
 def test_rocket_solver_rejects_conflicting_hc_tc(cea_module):
     reactants_mix, products_mix, weights = _basic_reactants(cea_module)
     solver = cea_module.RocketSolver(products_mix, reactants=reactants_mix)
