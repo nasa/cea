@@ -459,7 +459,7 @@ contains
         type(RocketSolution) :: soln
         character(:), allocatable :: product_names(:)
         real(dp) :: hc, pc, weights(2)
-        real(dp), parameter :: tol = 1.0d-6
+        real(dp), parameter :: tol = 1.0d-3
 
         reactants = Mixture(all_thermo, ['CH4', 'O2 '])
         product_names = reactants%get_products(all_thermo)
@@ -478,6 +478,9 @@ contains
 
         ! Test convergence
         @assertEqual(.true., soln%converged)
+        @assertRelativelyEqual(3185.6731730807096d0, soln%eq_soln(2)%T, tol)
+        @assertRelativelyEqual(-6.1821344716750914d0, soln%eq_soln(2)%ln_nj(1), tol)
+        @assertRelativelyEqual(-3.7758918668469459d0, soln%eq_soln(2)%ln_nj(2), tol)
 
     end subroutine
 

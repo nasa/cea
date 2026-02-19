@@ -85,8 +85,8 @@ contains
 
         ! Select temperature range
         idx = 1
-        do i = 1,self%num_intervals
-            if (T > self%T_fit(i, 1)) then
+        do i = 2, self%num_intervals
+            if (self%T_fit(i, 2) > 0.0d0 .and. T > self%T_fit(i-1, 2)) then
                 idx = i
             end if
         end do
@@ -103,8 +103,8 @@ contains
 
         ! Select temperature range
         idx = 1
-        do i = 1,self%num_intervals
-            if (T > self%T_fit(i, 1)) then
+        do i = 2, self%num_intervals
+            if (self%T_fit(i, 2) > 0.0d0 .and. T > self%T_fit(i-1, 2)) then
                 idx = i
             end if
         end do
@@ -121,8 +121,8 @@ contains
 
         ! Select temperature range
         idx = 1
-        do i = 1,self%num_intervals
-            if (T > self%T_fit(i, 1)) then
+        do i = 2, self%num_intervals
+            if (self%T_fit(i, 2) > 0.0d0 .and. T > self%T_fit(i-1, 2)) then
                 idx = i
             end if
         end do
@@ -179,13 +179,7 @@ contains
                 db%pure_transport(db%num_pure)%name = species(1)
 
                 ! Get the number of valid intervals for these coefficients
-                n_int = 3
-                do j = 1,3
-                    if (abs(tr_data(1, j, 1)) < 1.0d-6) then
-                        n_int = j-1
-                        exit
-                    end if
-                end do
+                n_int = count_transport_intervals(tr_data(:,:,1), tr_data(:,:,2))
                 db%pure_transport(db%num_pure)%num_intervals = n_int
 
                 ! Set the coefficients
@@ -218,13 +212,7 @@ contains
                 db%binary_transport(db%num_binary)%name = species
 
                 ! Get the number of valid intervals for these coefficients
-                n_int = 3
-                do j = 1,3
-                    if (abs(tr_data(1, j, 1)) < 1.0d-6) then
-                        n_int = j-1
-                        exit
-                    end if
-                end do
+                n_int = count_transport_intervals(tr_data(:,:,1))
                 db%binary_transport(db%num_binary)%num_intervals = n_int
 
                 ! Set the coefficients
@@ -250,6 +238,27 @@ contains
         ! Cleanup
         close(fin)
 
+    end function
+
+    integer function count_transport_intervals(visc_tfit, cond_tfit) result(n_int)
+        real(dp), intent(in) :: visc_tfit(6,3)
+        real(dp), intent(in), optional :: cond_tfit(6,3)
+        integer :: j
+
+        n_int = 0
+        do j = 1, 3
+            if (visc_tfit(2, j) > 0.0d0) then
+                n_int = j
+                cycle
+            end if
+            if (present(cond_tfit)) then
+                if (cond_tfit(2, j) > 0.0d0) then
+                    n_int = j
+                    cycle
+                end if
+            end if
+            exit
+        end do
     end function
 
     function get_mixture_transport(all_transport, products, ions) result(transport_db)

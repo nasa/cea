@@ -2876,7 +2876,9 @@ contains
         real(dp), allocatable :: eta(:,:)     ! Binary interaction matrix
         real(dp), allocatable :: cond(:)      ! Conductivity array
         integer, allocatable :: idx_list(:)   ! List of indices (in solver order) to compute transport properties for
-        integer, allocatable :: pure_idx(:)   ! List of indices (into transport order) to compute transport properties for
+        integer, allocatable :: selected_transport_pure_idx(:)  ! Selected indices into transport pure species list
+        integer, allocatable :: selected_local_idx(:)           ! Local transport indices (into idx_list) for selected pure species
+        integer, allocatable :: transport_to_local(:)           ! Reverse map from transport pure index to local transport index
         integer, allocatable :: bin_idx(:)    ! List of indices (into transport order) to compute transport properties for
         integer :: bin_count                  ! Total number of binary pairs to consider
         integer :: ng                         ! Number of gas species
@@ -2886,8 +2888,11 @@ contains
         integer :: nr                         ! Number of chemical reactions
         integer :: i, j, k, k1, k2, ii, m     ! Index counters
         integer :: idx(1), idx1(1), idx2(1)   ! Temporary findloc index
+        integer :: local_idx1, local_idx2
+        integer :: best_idx
         integer :: max_elem_idx               ! Number of elements (minus electron, if applicaple)
         real(dp) :: cfit_val                  ! Value computed by curve-fit function
+        real(dp) :: best_nj
         real(dp) :: te, ekt, qc, xsel, debye, ionic, lambda  ! Variables for ionized species interactions
         real(dp), parameter :: tol = 1.d-8    ! Tolerance to test if a value is ~ zero
         real(dp) :: test_tot, test_nj
@@ -2922,6 +2927,7 @@ contains
         integer :: ierr                       ! Gauss solver error index
         real(dp) :: wtmol                     ! Total molecular weight
         integer, parameter :: max_tr = 40     ! Maximum allowable transport species
+        logical, allocatable :: selected_species(:)
 
         ! Define shorthand
         np = eq_solver%transport_db%num_pure
@@ -2932,7 +2938,8 @@ contains
 
         ! Allocate
         allocate(psi(ng, ng), phi(ng, ng), eta(ng, ng), cond(ng), &
-                 idx_list(max_tr), pure_idx(np), bin_idx(nb), &
+                 idx_list(max_tr), selected_transport_pure_idx(np), selected_local_idx(np), &
+                 transport_to_local(np), bin_idx(nb), selected_species(ng), &
                  cp(ng), xs(ng), G(ng, ng), rtpd(ng, ng), &
                  xsij(ng, ng), delh(ng), alpha(ng, ng), &
                  stcf(ng, ng), stcoef(ng), tmp(max_tr), gmat(ng, ng), &
@@ -2942,24 +2949,56 @@ contains
         ! could be used later if all of the species aren't found in the transport database
         cond = 0.0d0
 
-        ! Build the list of relevant mixture species, starting with monoatomic gasses
+        ! Build the list of relevant mixture species.
+        ! Legacy CEA seeds transport from a basis-like set (Jcm/Lsave), then expands by abundance.
+        ! We approximate that behavior by seeding one dominant carrier per active element, then
+        ! adding monoatomic species and finally expanding by threshold.
         nm = 0
         total = 0.0d0
+        selected_species = .false.
         wtmol = 1.0/sum(eq_soln%nj)
         nj_cutoff = 1.d-11/wtmol
         test_tot = 0.999999999d0/wtmol
         max_elem_idx = eq_solver%num_elements
         if (eq_solver%ions) max_elem_idx = max_elem_idx - 1
+        nj_el = 0.0d0
+
         do i = 1, ng
-            ! Check if this is a monoatomic gas
-            if ((sum(abs(A(i, :)))-1.0d0) < tol) then
-                if (eq_soln%nj(i) <= 0.0d0) then
-                    if (eq_soln%ln_nj(i) - log(eq_soln%n) + eq_solver%xsize > 0.0d0) then
-                        eq_soln%nj(i) = exp(eq_soln%ln_nj(i))
-                    end if
+            if (eq_soln%nj(i) <= 0.0d0) then
+                if (eq_soln%ln_nj(i) - log(eq_soln%n) + eq_solver%xsize > 0.0d0) then
+                    eq_soln%nj(i) = exp(eq_soln%ln_nj(i))
+                end if
+            end if
+        end do
+
+        do m = 1, max_elem_idx
+            best_idx = 0
+            best_nj = -1.0d0
+            do i = 1, ng
+                if (A(i, m) > tol .and. eq_soln%nj(i) > best_nj) then
+                    best_idx = i
+                    best_nj = eq_soln%nj(i)
+                end if
+            end do
+            if (best_idx > 0 .and. .not. selected_species(best_idx) .and. nm < max_tr) then
+                nm = nm + 1
+                idx_list(nm) = best_idx
+                selected_species(best_idx) = .true.
+                total = total + eq_soln%nj(best_idx)
+                if (eq_solver%products%species(best_idx)%molecular_weight < 1.0d0) nj_el = eq_soln%nj(best_idx)
+                eq_soln%nj(best_idx) = -eq_soln%nj(best_idx)
+            end if
+        end do
+
+        do i = 1, ng
+            if ((sum(abs(A(i, :)))-1.0d0) < tol .and. .not. selected_species(i)) then
+                if (nm >= max_tr) then
+                    call log_info("Reached maximum number of allowable transport species.")
+                    exit
                 end if
                 nm = nm + 1
                 idx_list(nm) = i
+                selected_species(i) = .true.
                 total = total + eq_soln%nj(i)
                 if (eq_solver%products%species(i)%molecular_weight < 1.0d0) nj_el = eq_soln%nj(i)
                 eq_soln%nj(i) = -eq_soln%nj(i)
@@ -2972,7 +3011,7 @@ contains
             if (total <= test_tot .and. nm < max_tr) then
                 test_nj = test_nj / 10.0d0
                 do j = 1, ng
-                    if (eq_soln%nj(j) >= test_nj) then
+                    if (eq_soln%nj(j) >= test_nj .and. .not. selected_species(j)) then
                         if (nm >= max_tr) then
                             call log_info("Reached maximum number of allowable transport species.")
                             exit
@@ -2980,6 +3019,7 @@ contains
                             total = total + eq_soln%nj(j)
                             nm = nm + 1
                             idx_list(nm) = j
+                            selected_species(j) = .true.
                             eq_soln%nj(j) = -eq_soln%nj(j)
                         end if
                     end if
@@ -3000,28 +3040,36 @@ contains
             end if
         end do
 
-        ! Build the list of pure species index
+        if (nm <= 0 .or. total <= 0.0d0) return
+
+        ! Build aligned pure-species mappings.
         j = 0
+        transport_to_local = 0
         do i = 1, nm
             idx = findloc(eq_solver%transport_db%pure_species, eq_solver%products%species_names(idx_list(i)))
             if (idx(1) > 0) then
                 j = j + 1
-                pure_idx(idx(1)) = i
+                selected_transport_pure_idx(j) = idx(1)
+                selected_local_idx(j) = i
+                transport_to_local(idx(1)) = i
             else
                 call log_info('compute_transport_properties: Species '//eq_solver%products%species_names(idx_list(i))//&
                               ' not found in transport database.')
             end if
         end do
-        pure_idx = pure_idx(:j)
+        selected_transport_pure_idx = selected_transport_pure_idx(:j)
+        selected_local_idx = selected_local_idx(:j)
         np = j
 
         ! Remove any binary pairs with negligible concentrations
         bin_count = 0
         do i = 1, nb
-            idx1 = findloc(eq_solver%products%species_names, eq_solver%transport_db%binary_species(i,1))
-            idx2 = findloc(eq_solver%products%species_names, eq_solver%transport_db%binary_species(i,2))
+            idx1 = findloc(eq_solver%transport_db%pure_species, eq_solver%transport_db%binary_species(i,1))
+            idx2 = findloc(eq_solver%transport_db%pure_species, eq_solver%transport_db%binary_species(i,2))
             if (idx1(1) > 0 .and. idx2(1) > 0) then
-                if (eq_soln%nj(idx1(1)) > 0.0d0 .and. eq_soln%nj(idx2(1)) > 0.0d0) then
+                local_idx1 = transport_to_local(idx1(1))
+                local_idx2 = transport_to_local(idx2(1))
+                if (local_idx1 > 0 .and. local_idx2 > 0) then
                     bin_count = bin_count + 1
                     bin_idx(bin_count) = i
                 end if
@@ -3047,9 +3095,13 @@ contains
             idx1 = findloc(eq_solver%transport_db%pure_species, eq_solver%transport_db%binary_species(bin_idx(i), 1))
             idx2 = findloc(eq_solver%transport_db%pure_species, eq_solver%transport_db%binary_species(bin_idx(i), 2))
             if (idx1(1) > 0 .and. idx2(1) > 0) then
-                cfit_val = exp(eq_solver%transport_db%binary_transport(bin_idx(i))%calc_eta(eq_soln%T))
-                eta(pure_idx(idx1(1)), pure_idx(idx2(1))) = cfit_val
-                eta(pure_idx(idx2(1)), pure_idx(idx1(1))) = cfit_val
+                local_idx1 = transport_to_local(idx1(1))
+                local_idx2 = transport_to_local(idx2(1))
+                if (local_idx1 > 0 .and. local_idx2 > 0) then
+                    cfit_val = exp(eq_solver%transport_db%binary_transport(bin_idx(i))%calc_eta(eq_soln%T))
+                    eta(local_idx1, local_idx2) = cfit_val
+                    eta(local_idx2, local_idx1) = cfit_val
+                end if
             else
                 call log_info('compute_transport_properties: Binary species'//eq_solver%transport_db%binary_species(bin_idx(i),1)//&
                 ' or '//eq_solver%transport_db%binary_species(bin_idx(i),2)//'not found in transport database')
@@ -3058,13 +3110,15 @@ contains
 
         ! Add the diagonal terms
         do i = 1, np
-            eta(pure_idx(i),pure_idx(i)) = exp(eq_solver%transport_db%pure_transport(i)%calc_eta(eq_soln%T))
+            eta(selected_local_idx(i), selected_local_idx(i)) = &
+                exp(eq_solver%transport_db%pure_transport(selected_transport_pure_idx(i))%calc_eta(eq_soln%T))
         end do
 
         ! Build the conductivity array
         cond = cond(:nm)
         do i = 1, np
-            cond(pure_idx(i)) = exp(eq_solver%transport_db%pure_transport(i)%calc_lambda(eq_soln%T))
+            cond(selected_local_idx(i)) = &
+                exp(eq_solver%transport_db%pure_transport(selected_transport_pure_idx(i))%calc_lambda(eq_soln%T))
         end do
 
         ! Build the stoichiometrix matrix for the chemical reactions
