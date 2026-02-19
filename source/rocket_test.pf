@@ -301,4 +301,151 @@ contains
 
     end subroutine
 
+    @test
+    subroutine test_rocket_iac_only_subar()
+        ! Test IAC rocket problem with only subsonic area ratios, no pi_p
+        type(Mixture) :: products
+        type(Mixture) :: reactants
+        type(RocketSolver) :: solver
+        type(RocketSolution) :: soln
+        character(:), allocatable :: product_names(:)
+        real(dp) :: hc, pc, weights(2)
+        real(dp), parameter :: tol = 1.0d-6
+
+        reactants = Mixture(all_thermo, ['H2(L)', 'O2(L)'])
+        product_names = reactants%get_products(all_thermo)
+        products = Mixture(all_thermo, product_names)
+
+        weights = reactants%weights_from_of([0.0d0, 1.0d0], [1.0d0, 0.0d0], 5.55157d0)
+        hc = reactants%calc_enthalpy(weights, [20.27d0, 90.17d0])/R
+        pc = 53.3172d0
+
+        solver = RocketSolver(products, reactants)
+        soln = solver%solve(weights, pc, subar=[1.58d0, 2.0d0], hc=hc, fac=.false.)
+
+        ! Verify solution has correct number of points: 2 (infinity, throat) + 2 (subar) = 4
+        @assertEqual(4, soln%num_pts)
+        @assertEqual(.true., soln%converged)
+
+        ! Verify chamber and throat conditions computed
+        @assertRelativelyEqual(3383.8446259451043d0, soln%eq_soln(1)%T, tol)
+        @assertRelativelyEqual(3185.6731730807096d0, soln%eq_soln(2)%T, 1.d-4)
+
+        ! Verify subsonic exit conditions computed (indices 3 and 4)
+        @assertRelativelyEqual(3348.6869671134514d0, soln%eq_soln(3)%T, 1.d-5)
+        ! Second subar point computed (verified by num_pts check above)
+
+    end subroutine
+
+    @test
+    subroutine test_rocket_iac_only_supar()
+        ! Test IAC rocket problem with only supersonic area ratios, no pi_p
+        type(Mixture) :: products
+        type(Mixture) :: reactants
+        type(RocketSolver) :: solver
+        type(RocketSolution) :: soln
+        character(:), allocatable :: product_names(:)
+        real(dp) :: hc, pc, weights(2)
+        real(dp), parameter :: tol = 1.0d-6
+
+        reactants = Mixture(all_thermo, ['H2(L)', 'O2(L)'])
+        product_names = reactants%get_products(all_thermo)
+        products = Mixture(all_thermo, product_names)
+
+        weights = reactants%weights_from_of([0.0d0, 1.0d0], [1.0d0, 0.0d0], 5.55157d0)
+        hc = reactants%calc_enthalpy(weights, [20.27d0, 90.17d0])/R
+        pc = 53.3172d0
+
+        solver = RocketSolver(products, reactants)
+        soln = solver%solve(weights, pc, supar=[10.0d0, 25.0d0, 50.0d0], hc=hc, fac=.false.)
+
+        ! Verify solution has correct number of points: 2 + 3 = 5
+        @assertEqual(5, soln%num_pts)
+        @assertEqual(.true., soln%converged)
+
+        ! Verify chamber and throat conditions
+        @assertRelativelyEqual(3383.8446259451043d0, soln%eq_soln(1)%T, tol)
+        @assertRelativelyEqual(3185.6731730807096d0, soln%eq_soln(2)%T, 1.d-4)
+
+        ! Verify supersonic exit conditions computed (index 4: ae/at=25)
+        @assertRelativelyEqual(1468.1562133402410d0, soln%eq_soln(4)%T, 1.d-4)
+
+    end subroutine
+
+    @test
+    subroutine test_rocket_fac_only_area_ratios()
+        ! Test FAC rocket problem with area ratios but no pi_p
+        type(Mixture) :: products
+        type(Mixture) :: reactants
+        type(RocketSolver) :: solver
+        type(RocketSolution) :: soln
+        character(:), allocatable :: product_names(:)
+        real(dp) :: hc, pc, weights(2)
+        real(dp), parameter :: tol = 1.0d-6
+
+        reactants = Mixture(all_thermo, ['H2(L)', 'O2(L)'])
+        product_names = reactants%get_products(all_thermo)
+        products = Mixture(all_thermo, product_names)
+
+        weights = reactants%weights_from_of([0.0d0, 1.0d0], [1.0d0, 0.0d0], 5.55157d0)
+        hc = reactants%calc_enthalpy(weights, [20.27d0, 90.17d0])/R
+        pc = 53.3172d0
+
+        solver = RocketSolver(products, reactants)
+        soln = solver%solve(weights, pc, ac_at=1.58d0, supar=[25.0d0], hc=hc, fac=.true.)
+
+        ! Verify solution has correct number of points: 4 (injector, infinity, combustor, throat) + 1 (supar) = 5
+        @assertEqual(5, soln%num_pts)
+        @assertEqual(.true., soln%converged)
+
+        ! Verify injector conditions
+        @assertRelativelyEqual(3383.8446259451043d0, soln%eq_soln(1)%T, tol)
+
+        ! Verify throat conditions
+        @assertRelativelyEqual(3179.8427699021822d0, soln%eq_soln(4)%T, 1.d-3)
+
+        ! Verify supersonic exit condition computed (index 5)
+        @assertRelativelyEqual(1469.5862790545111d0, soln%eq_soln(5)%T, 1.d-3)
+
+    end subroutine
+
+    @test
+    subroutine test_rocket_iac_no_exit_conditions()
+        ! Test IAC rocket problem with no exit conditions
+        ! Only computes chamber (infinity) and throat properties
+        type(Mixture) :: products
+        type(Mixture) :: reactants
+        type(RocketSolver) :: solver
+        type(RocketSolution) :: soln
+        character(:), allocatable :: product_names(:)
+        real(dp) :: hc, pc, weights(2)
+        real(dp), parameter :: tol = 1.0d-6
+
+        reactants = Mixture(all_thermo, ['H2(L)', 'O2(L)'])
+        product_names = reactants%get_products(all_thermo)
+        products = Mixture(all_thermo, product_names)
+
+        weights = reactants%weights_from_of([0.0d0, 1.0d0], [1.0d0, 0.0d0], 5.55157d0)
+        hc = reactants%calc_enthalpy(weights, [20.27d0, 90.17d0])/R
+        pc = 53.3172d0
+
+        solver = RocketSolver(products, reactants)
+        soln = solver%solve(weights, pc, hc=hc, fac=.false.)
+
+        ! Verify solution has only 2 points: infinity and throat
+        @assertEqual(2, soln%num_pts)
+        @assertEqual(.true., soln%converged)
+
+        ! Verify chamber conditions
+        @assertRelativelyEqual(3383.8446259451043d0, soln%eq_soln(1)%T, tol)
+        @assertRelativelyEqual(-5.9391066300902899d0, soln%eq_soln(1)%ln_nj(1), tol)
+        @assertRelativelyEqual(1.1446952882630981d0, soln%eq_partials(1)%gamma_s, tol)
+
+        ! Verify throat conditions
+        @assertRelativelyEqual(3185.6731730807096d0, soln%eq_soln(2)%T, 1.d-4)
+        @assertRelativelyEqual(-6.1821344716750914d0, soln%eq_soln(2)%ln_nj(1), 1.d-4)
+        @assertRelativelyEqual(-3.7758918668469459d0, soln%eq_soln(2)%ln_nj(2), tol)
+
+    end subroutine
+
 end module
