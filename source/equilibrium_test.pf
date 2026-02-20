@@ -2,17 +2,20 @@ module equilibrium_test
     use funit
     use cea_equilibrium
     use cea_thermo
+    use cea_transport
     use cea_mixture
     use cea_units
     use cea_param, only: R=>gas_constant
 
     type(ThermoDB) :: all_thermo
+    type(TransportDB) :: all_transport
 
 contains
 
     @before
     subroutine setup_mixture()
         all_thermo = read_thermo('data/thermo.lib')
+        all_transport = read_transport('data/trans.lib')
     end subroutine
 
     @test
@@ -657,6 +660,36 @@ contains
         @assertRelativelyEqual(2.4449868424820789d-2, solution%nj(134), tol)
         @assertRelativelyEqual(6.5591518211682090d-3, solution%nj(155), tol)
 
+    end subroutine
+
+    @test
+    subroutine test_equilibrium_transport_ch4_o2
+        type(Mixture) :: products
+        type(Mixture) :: reactants
+        type(EqSolver) :: solver
+        type(EqSolution) :: solution
+        character(:), allocatable :: product_names(:)
+        real(dp) :: h_reac, p_reac, weights(2)
+
+        reactants = Mixture(all_thermo, ['CH4', 'O2 '])
+        product_names = reactants%get_products(all_thermo)
+        products = Mixture(all_thermo, product_names)
+
+        solver = EqSolver(products, reactants, all_transport=all_transport)
+        solution = EqSolution(solver)
+
+        weights = reactants%weights_from_of([0.0d0, 1.0d0], [1.0d0, 0.0d0], 2.6d0)
+        h_reac = reactants%calc_enthalpy(weights, [298.15d0, 298.15d0])/R
+        p_reac = psi_to_bar(1000.0d0)
+
+        call solver%solve(solution, 'hp', h_reac, p_reac, weights)
+
+        @assertTrue(solution%converged)
+        @assertTrue(solution%viscosity > 0.0d0)
+        @assertTrue(solution%conductivity_fr > 0.0d0)
+        @assertTrue(solution%conductivity_eq > 0.0d0)
+        @assertTrue(solution%pr_fr > 0.0d0)
+        @assertTrue(solution%pr_eq > 0.0d0)
     end subroutine
 
     ! @test

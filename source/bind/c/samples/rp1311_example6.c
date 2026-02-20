@@ -1,3 +1,4 @@
+#include "stdlib.h"
 #include "stdio.h"
 #include "cea.h"
 
@@ -18,7 +19,7 @@ int main(void) {
     const int nr = LEN(reactants);
 
     // Products
-    const cea_string omitted_products[] = {};
+    const cea_string omitted_products[] = {""};
 
     // Thermo States
     const cea_real p0 = 1.0;
@@ -55,7 +56,7 @@ int main(void) {
     //----------------------------------------------------------------
 
     cea_real of_ratio;
-    cea_real weights[nr];
+    cea_real* weights = (cea_real*) calloc(nr, sizeof(cea_real));
     cea_mixture_chem_eq_ratio_to_of_ratio(reac, LEN(reactants), oxidant_weights, fuel_weights, eq_ratio, &of_ratio);
     cea_mixture_of_ratio_to_weights(reac, LEN(reactants), oxidant_weights, fuel_weights, of_ratio, weights);
 
@@ -87,6 +88,7 @@ int main(void) {
     cea_detonation_solver_destroy(&solver);
     cea_mixture_destroy(&prod);
     cea_mixture_destroy(&reac);
+    free(weights);
 
     return 0;
 

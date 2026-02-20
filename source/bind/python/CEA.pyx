@@ -1830,7 +1830,7 @@ cdef class RocketSolver:
         Raises
         ------
         ValueError
-            If exit conditions not specified, or conflicting parameters provided
+            If conflicting parameters are provided
         """
         cdef cea_err ierr
         cdef int nweights = <int>len(weights)
@@ -1880,12 +1880,15 @@ cdef class RocketSolver:
             else:
                 raise ValueError("RocketSolver.solve: supar must be a list, np.ndarray, or float")
 
-        if ((npi_p + nsubar + nsupar) == 0):
-            raise ValueError("Exit condition not specified.")
-
-        cdef cea_array pi_p_c = <cea_array>malloc(npi_p * sizeof(double))
-        cdef cea_array subar_c = <cea_array>malloc(nsubar * sizeof(double))
-        cdef cea_array supar_c = <cea_array>malloc(nsupar * sizeof(double))
+        cdef cea_array pi_p_c = NULL
+        cdef cea_array subar_c = NULL
+        cdef cea_array supar_c = NULL
+        if npi_p > 0:
+            pi_p_c = <cea_array>malloc(npi_p * sizeof(double))
+        if nsubar > 0:
+            subar_c = <cea_array>malloc(nsubar * sizeof(double))
+        if nsupar > 0:
+            supar_c = <cea_array>malloc(nsupar * sizeof(double))
         if (npi_p > 0 and pi_p_c == NULL) or (nsubar > 0 and subar_c == NULL) or (nsupar > 0 and supar_c == NULL):
             free(wts)
             if pi_p_c != NULL:

@@ -1264,7 +1264,7 @@ contains
                 write(ioout, '(A, 14F9.4)') ' P1, bar          ', ((solutions(i, j, k)%P1,       j=1,n), i=1,m)
                 write(ioout, '(A, 14F9.2)') ' T1, K            ', ((solutions(i, j, k)%T1,       j=1,n), i=1,m)
                 write(ioout, '(A, 14F9.2)') ' H1, kJ/kg        ', ((solutions(i, j, k)%H1,       j=1,n), i=1,m)
-                write(ioout, '(A, 14F9.3)') ' M1, (1/n)        ', ((1.0/solutions(i, j, k)%M1,   j=1,n), i=1,m)
+                write(ioout, '(A, 14F9.3)') ' M1, (1/n)        ', ((solutions(i, j, k)%M1,       j=1,n), i=1,m)
                 write(ioout, '(A, 14F9.4)') ' Gamma1           ', ((solutions(i, j, k)%gamma1,   j=1,n), i=1,m)
                 write(ioout, '(A, 14F9.3)') ' Son. Vel.1, m/s  ', ((solutions(i, j, k)%v_sonic1, j=1,n), i=1,m)
 

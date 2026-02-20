@@ -10,7 +10,19 @@ All notable user-visible changes to this project are documented here.
 
 ### Added
 
-## [3.0.1] – Unreleased
+## [3.0.2] – 2026-02-20
+
+### Added
+- Initial Microsoft Visual C++ (MSVC) support in the C bindings/build pipeline (`#29`).
+
+### Changed
+- `RocketSolver_solve` now treats `pi_p` as optional for better API compatibility and easier caller usage (`#36`).
+
+### Fixed
+- Corrected detonation-wave upstream enthalpy calculations and upstream molecular weight handling in the legacy interface (`#33`).
+- Resolved failing transport-property test cases to restore expected regression behavior (`#37`).
+
+## [3.0.1] – 2026-02-11
 
 ### Added
 - Python bindings and examples/tests for the CEA interface (`Feat/icx python binding`, #23).

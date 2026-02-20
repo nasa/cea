@@ -346,3 +346,164 @@ jobs:
         with:
           files: release-dist/**
           generate_release_notes: true
+
+  bindc:
+    name: Build (${{ matrix.os }} / ${{ matrix.toolchain.ccompiler }} / ${{matrix.toolchain.fcompiler}})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-latest, windows-latest]
+        toolchain:
+          - ccompiler: gcc
+            cversion: "11"
+            fcompiler: gcc
+            fversion: "11"
+        include:
+          - os: ubuntu-22.04
+            toolchain:
+              ccompiler: gcc
+              cversion: "13"
+              fcompiler: gcc
+              fversion: "13"
+          - os: ubuntu-22.04
+            toolchain:
+              ccompiler: intel
+              cversion: "2023.1"
+              fcompiler: intel
+              fversion: "2023.1"
+          - os: ubuntu-22.04
+            toolchain:
+              ccompiler: intel-classic
+              cversion: "2021.9"
+              fcompiler: intel-classic
+              fversion: "2021.9"
+          - os: windows-latest
+            toolchain: 
+              ccompiler: msvc
+              cversion: latest
+              fcompiler: intel
+              fversion: "2025.2"
+          - os: windows-latest
+            toolchain:
+              ccompiler: intel
+              cversion: "2025.2"
+              fcompiler: intel
+              fversion: "2025.2"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out CEA
+        uses: actions/checkout@v6
+
+      - name: Check out GFE
+        if: ${{ runner.os != 'Windows' }}
+        uses: actions/checkout@v6
+        with:
+          repository: Goddard-Fortran-Ecosystem/GFE
+          path: extern/gfe
+          submodules: true
+
+      - name: Set up Fortran compiler 
+        if: ${{ runner.os != 'Windows' || matrix.toolchain.fcompiler != 'gcc' }}
+        uses: fortran-lang/setup-fortran@v1
+        with:
+          compiler: ${{ matrix.toolchain.fcompiler }}
+          version: ${{ matrix.toolchain.fversion }}
+
+      - name: Set up Fortran compiler (Windows, gfortran)
+        if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'gcc' }}
+        run: |
+          # Use pre-installed MinGW on Windows runners to avoid Chocolatey issues
+          # GitHub Actions windows-latest runners include MinGW in C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
+          $mingwPath = "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin"
+          if (Test-Path $mingwPath) {
+            echo "$mingwPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+            echo "FC=$mingwPath\gfortran.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          } else {
+            # Fallback: search for gfortran in common locations
+            $gfortran = Get-Command gfortran -ErrorAction SilentlyContinue
+            if ($gfortran) {
+              echo "FC=$($gfortran.Source)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            } else {
+              Write-Error "gfortran not found on Windows runner"
+              exit 1
+            }
+          }
+        shell: pwsh
+
+      - name: Set up C Compiler
+        if: ${{matrix.toolchain.ccompiler == 'msvc'}}
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ninja setuptools numpy cython
+
+      - name: Record toolchain info
+        run: |
+          git --version
+          cmake --version
+          ninja --version
+          if command -v gfortran &> /dev/null; then gfortran --version; fi
+          if [ -n "${FC}" ]; then "${FC}" --version; fi
+
+      - name: Configure and Build GFE
+        if: ${{ runner.os != 'Windows' }}
+        run: |
+          cmake -S extern/gfe -B build/extern/gfe -GNinja \
+            -DCMAKE_INSTALL_PREFIX=build/install \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSKIP_MPI=YES \
+            -DSKIP_OPENMP=YES \
+            -DSKIP_FHAMCREST=YES \
+            -DSKIP_ESMF=YES \
+            -DSKIP_ROBUST=YES
+          cmake --build build/extern/gfe --target install
+
+      - name: Configure (linux)
+        if: ${{runner.os != 'Windows' || matrix.toolchain.ccompiler != 'msvc'}} 
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_PREFIX_PATH=build/install \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCEA_BUILD_TESTING=ON \
+            -DCEA_ENABLE_BIND_C=ON \
+            -DCEA_ENABLE_BIND_CXX=OFF \
+            -DCEA_ENABLE_BIND_PYTHON=OFF \
+            -DCEA_ENABLE_BIND_MATLAB=OFF \
+            -DCEA_ENABLE_BIND_EXCEL=OFF \
+            -DCMAKE_Fortran_FLAGS="-ffree-line-length-none"
+
+      - name: Configure (msvc)
+        if: ${{runner.os == 'Windows' && matrix.toolchain.ccompiler == 'msvc'}}
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCEA_BUILD_TESTING=ON \
+            -DCEA_ENABLE_BIND_C=ON \
+            -DCEA_ENABLE_BIND_CXX=OFF \
+            -DCEA_ENABLE_BIND_PYTHON=OFF \
+            -DCEA_ENABLE_BIND_MATLAB=OFF \
+            -DCEA_ENABLE_BIND_EXCEL=OFF \
+            -DCMAKE_C_COMPILER=cl \
+            -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=ON
+
+      - name: Build
+        run: |
+          cmake --build build
+
+      - name: Run smoke test (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          ./build/source/cea -h
+
+      - name: Run smoke test (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          ./build/source/cea.exe -h
+      
+      - name: Run ctest
+        run: ctest --test-dir build --output-on-failure

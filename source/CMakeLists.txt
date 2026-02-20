@@ -30,7 +30,7 @@ project_enable_fortran_std(cea_core)
 
 target_link_libraries(cea_core PRIVATE fbasics::core)
 
-if(CEA_BUILD_TESTING)
+if(CEA_BUILD_TESTING AND PFUNIT_FOUND)
     add_pfunit_ctest(cea_core_test
         TEST_SOURCES
             thermo_test.pf

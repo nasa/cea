@@ -15,13 +15,16 @@ module cea_transport
         ! Required items
         character(16) :: name
             !! Species name
-        integer :: num_intervals
-            !! Number of temperature intervals
+        integer :: num_eta_intervals
+            !! Number of temperature intervals for viscosity
+        integer :: num_lambda_intervals
+            !! Number of temperature intervals for thermal conductivity
 
         ! Coefficients
-        ! NOTE: This assumes temperature intervals are the same for  eta and lambda, which should be true
-        real(dp), allocatable :: T_fit(:, :)
-            !! Temperature intervals
+        real(dp), allocatable :: eta_T_fit(:, :)
+            !! Temperature intervals for viscosity fit
+        real(dp), allocatable :: lambda_T_fit(:, :)
+            !! Temperature intervals for thermal conductivity fit
         type(TransportFit), allocatable :: eta_coef(:)
             !! Viscosity curve fit coefficients
         type(TransportFit), allocatable :: lambda_coef(:)
@@ -83,10 +86,15 @@ contains
         real(dp) :: eta
         integer :: i, idx
 
+        if (self%num_eta_intervals <= 0) then
+            eta = 0.0d0
+            return
+        end if
+
         ! Select temperature range
         idx = 1
-        do i = 1,self%num_intervals
-            if (T > self%T_fit(i, 1)) then
+        do i = 2, self%num_eta_intervals
+            if (self%eta_T_fit(i, 2) > 0.0d0 .and. T > self%eta_T_fit(i-1, 2)) then
                 idx = i
             end if
         end do
@@ -101,10 +109,15 @@ contains
         real(dp) :: lambda
         integer :: i, idx
 
+        if (self%num_lambda_intervals <= 0) then
+            lambda = 0.0d0
+            return
+        end if
+
         ! Select temperature range
         idx = 1
-        do i = 1,self%num_intervals
-            if (T > self%T_fit(i, 1)) then
+        do i = 2, self%num_lambda_intervals
+            if (self%lambda_T_fit(i, 2) > 0.0d0 .and. T > self%lambda_T_fit(i-1, 2)) then
                 idx = i
             end if
         end do
@@ -119,10 +132,15 @@ contains
         real(dp) :: eta
         integer :: i, idx
 
+        if (self%num_intervals <= 0) then
+            eta = 0.0d0
+            return
+        end if
+
         ! Select temperature range
         idx = 1
-        do i = 1,self%num_intervals
-            if (T > self%T_fit(i, 1)) then
+        do i = 2, self%num_intervals
+            if (self%T_fit(i, 2) > 0.0d0 .and. T > self%T_fit(i-1, 2)) then
                 idx = i
             end if
         end do
@@ -145,7 +163,8 @@ contains
         integer :: i, j               ! Index
         character(16) :: species(2)   ! Species names
         real(dp) :: tr_data(6, 3, 2)  ! Transport data
-        integer :: n_int              ! Temporary variable for number of intervals
+        integer :: n_int_eta          ! Number of viscosity intervals
+        integer :: n_int_lambda       ! Number of conductivity intervals
 
 
         call log_info('Reading transport database file: '//filename)
@@ -172,39 +191,39 @@ contains
                 db%pure_species(db%num_pure) = species(1)
 
                 ! Oversize the curvefit arrays
-                allocate(db%pure_transport(db%num_pure)%T_fit(3, 2), &
+                allocate(db%pure_transport(db%num_pure)%eta_T_fit(3, 2), &
+                         db%pure_transport(db%num_pure)%lambda_T_fit(3, 2), &
                          db%pure_transport(db%num_pure)%eta_coef(3), &
                          db%pure_transport(db%num_pure)%lambda_coef(3))
 
                 db%pure_transport(db%num_pure)%name = species(1)
 
                 ! Get the number of valid intervals for these coefficients
-                n_int = 3
-                do j = 1,3
-                    if (abs(tr_data(1, j, 1)) < 1.0d-6) then
-                        n_int = j-1
-                        exit
-                    end if
-                end do
-                db%pure_transport(db%num_pure)%num_intervals = n_int
+                n_int_eta = count_transport_intervals(tr_data(:,:,1))
+                n_int_lambda = count_transport_intervals(tr_data(:,:,2))
+                db%pure_transport(db%num_pure)%num_eta_intervals = n_int_eta
+                db%pure_transport(db%num_pure)%num_lambda_intervals = n_int_lambda
 
                 ! Set the coefficients
-                do j = 1, n_int
-                    db%pure_transport(db%num_pure)%T_fit(j, :) = tr_data(:2, j, 1)
-
+                do j = 1, n_int_eta
+                    db%pure_transport(db%num_pure)%eta_T_fit(j, :) = tr_data(:2, j, 1)
                     db%pure_transport(db%num_pure)%eta_coef(j)%A    = tr_data(3, j, 1)
                     db%pure_transport(db%num_pure)%eta_coef(j)%B    = tr_data(4, j, 1)
                     db%pure_transport(db%num_pure)%eta_coef(j)%C    = tr_data(5, j, 1)
                     db%pure_transport(db%num_pure)%eta_coef(j)%D    = tr_data(6, j, 1)
+                end do
+                do j = 1, n_int_lambda
+                    db%pure_transport(db%num_pure)%lambda_T_fit(j, :) = tr_data(:2, j, 2)
 
                     db%pure_transport(db%num_pure)%lambda_coef(j)%A = tr_data(3, j, 2)
                     db%pure_transport(db%num_pure)%lambda_coef(j)%B = tr_data(4, j, 2)
                     db%pure_transport(db%num_pure)%lambda_coef(j)%C = tr_data(5, j, 2)
                     db%pure_transport(db%num_pure)%lambda_coef(j)%D = tr_data(6, j, 2)
                 end do
-                db%pure_transport(db%num_pure)%T_fit = db%pure_transport(db%num_pure)%T_fit(:n_int, :)
-                db%pure_transport(db%num_pure)%eta_coef = db%pure_transport(db%num_pure)%eta_coef(:n_int)
-                db%pure_transport(db%num_pure)%lambda_coef = db%pure_transport(db%num_pure)%lambda_coef(:n_int)
+                db%pure_transport(db%num_pure)%eta_T_fit = db%pure_transport(db%num_pure)%eta_T_fit(:n_int_eta, :)
+                db%pure_transport(db%num_pure)%lambda_T_fit = db%pure_transport(db%num_pure)%lambda_T_fit(:n_int_lambda, :)
+                db%pure_transport(db%num_pure)%eta_coef = db%pure_transport(db%num_pure)%eta_coef(:n_int_eta)
+                db%pure_transport(db%num_pure)%lambda_coef = db%pure_transport(db%num_pure)%lambda_coef(:n_int_lambda)
 
             else
                 ! Binary species
@@ -218,17 +237,11 @@ contains
                 db%binary_transport(db%num_binary)%name = species
 
                 ! Get the number of valid intervals for these coefficients
-                n_int = 3
-                do j = 1,3
-                    if (abs(tr_data(1, j, 1)) < 1.0d-6) then
-                        n_int = j-1
-                        exit
-                    end if
-                end do
-                db%binary_transport(db%num_binary)%num_intervals = n_int
+                n_int_eta = count_transport_intervals(tr_data(:,:,1))
+                db%binary_transport(db%num_binary)%num_intervals = n_int_eta
 
                 ! Set the coefficients
-                do j = 1, n_int
+                do j = 1, n_int_eta
                     db%binary_transport(db%num_binary)%T_fit(j, :) = tr_data(:2, j, 1)
 
                     db%binary_transport(db%num_binary)%eta_coef(j)%A = tr_data(3, j, 1)
@@ -236,8 +249,8 @@ contains
                     db%binary_transport(db%num_binary)%eta_coef(j)%C = tr_data(5, j, 1)
                     db%binary_transport(db%num_binary)%eta_coef(j)%D = tr_data(6, j, 1)
                 end do
-                db%binary_transport(db%num_binary)%T_fit = db%binary_transport(db%num_binary)%T_fit(:n_int, :)
-                db%binary_transport(db%num_binary)%eta_coef = db%binary_transport(db%num_binary)%eta_coef(:n_int)
+                db%binary_transport(db%num_binary)%T_fit = db%binary_transport(db%num_binary)%T_fit(:n_int_eta, :)
+                db%binary_transport(db%num_binary)%eta_coef = db%binary_transport(db%num_binary)%eta_coef(:n_int_eta)
 
             end if
 
@@ -250,6 +263,27 @@ contains
         ! Cleanup
         close(fin)
 
+    end function
+
+    integer function count_transport_intervals(visc_tfit, cond_tfit) result(n_int)
+        real(dp), intent(in) :: visc_tfit(6,3)
+        real(dp), intent(in), optional :: cond_tfit(6,3)
+        integer :: j
+
+        n_int = 0
+        do j = 1, 3
+            if (visc_tfit(2, j) > 0.0d0) then
+                n_int = j
+                cycle
+            end if
+            if (present(cond_tfit)) then
+                if (cond_tfit(2, j) > 0.0d0) then
+                    n_int = j
+                    cycle
+                end if
+            end if
+            exit
+        end do
     end function
 
     function get_mixture_transport(all_transport, products, ions) result(transport_db)

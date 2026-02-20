@@ -783,7 +783,7 @@ contains
         type(RocketSolution), intent(inout) :: soln
         real(dp), intent(in) :: reactant_weights(:)
         real(dp), intent(in) :: pc                   ! Chamber pressure [Pa]
-        real(dp), intent(in) :: pi_p(:)              ! Ratio of chamber pressure to exit pressure [unitless]
+        real(dp), intent(in), optional :: pi_p(:)    ! Ratio of chamber pressure to exit pressure [unitless]
         real(dp), intent(in), optional :: subar(:)   ! Subsonic area ratio [unitless]
         real(dp), intent(in), optional :: supar(:)   ! Supersonic area ratio [unitless]
         integer,  intent(in), optional :: n_frz      ! Station where the composition should be frozen
@@ -806,7 +806,8 @@ contains
         call log_debug("Starting rocket IAC solve")
 
         ! Set the total number of evaluation points
-        num_pts = 2 + size(pi_p)
+        num_pts = 2  ! infinity + throat
+        if (present(pi_p)) num_pts = num_pts + size(pi_p)
         if (present(subar)) num_pts = num_pts + size(subar)
         if (present(supar)) num_pts = num_pts + size(supar)
 
@@ -893,14 +894,19 @@ contains
         ! -----------------------------------------------
         ! Exit conditions: pressure ratio
         ! -----------------------------------------------
-        idx = 3
+        if (present(pi_p)) then
+            idx = 3
 
-        if (frozen .and. idx > n_frz_) then
-            call self%solve_pi_p_frozen(soln, idx, n_frz, pc, pi_p, h_inf, 1)
+            if (frozen .and. idx > n_frz_) then
+                call self%solve_pi_p_frozen(soln, idx, n_frz, pc, pi_p, h_inf, 1)
+            else
+                call self%solve_pi_p(soln, idx, pc, pi_p, h_inf, state1, reactant_weights)
+            end if
+            if (.not. soln%converged) return
         else
-            call self%solve_pi_p(soln, idx, pc, pi_p, h_inf, state1, reactant_weights)
+            ! If pi_p not present, idx stays at 3 for subsequent sections
+            idx = 3
         end if
-        if (.not. soln%converged) return
 
         ! -----------------------------------------------
         ! Exit conditions: subsonic area ratio
@@ -947,7 +953,7 @@ contains
         type(RocketSolution), intent(inout) :: soln
         real(dp), intent(in) :: reactant_weights(:)
         real(dp), intent(in) :: pc                   ! Injector pressure [Pa]
-        real(dp), intent(in) :: pi_p(:)              ! Ratio of chamber pressure to exit pressure [unitless]
+        real(dp), intent(in), optional :: pi_p(:)    ! Ratio of chamber pressure to exit pressure [unitless]
         real(dp), intent(in), optional :: subar(:)   ! Subsonic area ratio [unitless]
         real(dp), intent(in), optional :: supar(:)   ! Supersonic area ratio [unitless]
         real(dp), intent(in), optional :: ac_at      ! Contraction ratio: ratio of finite chamber area to throat area, Ac/At (FAC only) [unitless]
@@ -994,7 +1000,8 @@ contains
         call log_debug("Starting rocket FAC solve")
 
         ! Set the total number of evaluation points
-        num_pts = 4 + size(pi_p)
+        num_pts = 4  ! injector + infinity + combustor + throat
+        if (present(pi_p)) num_pts = num_pts + size(pi_p)
         if (present(subar)) num_pts = num_pts + size(subar)
         if (present(supar)) num_pts = num_pts + size(supar)
 
@@ -1206,14 +1213,19 @@ contains
         ! -----------------------------------------------
         ! Exit conditions: pressure ratio
         ! -----------------------------------------------
-        idx = 5
+        if (present(pi_p)) then
+            idx = 5
 
-        if (frozen .and. idx > n_frz_) then
-            call self%solve_pi_p_frozen(soln, idx, n_frz_, pc, pi_p, h_inj, 2)
+            if (frozen .and. idx > n_frz_) then
+                call self%solve_pi_p_frozen(soln, idx, n_frz_, pc, pi_p, h_inj, 2)
+            else
+                call self%solve_pi_p(soln, idx, pc, pi_p, h_inj, S_ref, reactant_weights)
+            end if
+            if (.not. soln%converged) return
         else
-            call self%solve_pi_p(soln, idx, pc, pi_p, h_inj, S_ref, reactant_weights)
+            ! If pi_p not present, idx stays at 5 for subsequent sections
+            idx = 5
         end if
-        if (.not. soln%converged) return
 
         ! -----------------------------------------------
         ! Exit conditions: subsonic area ratio
@@ -1264,7 +1276,7 @@ contains
         class(RocketSolver), intent(in) :: self
         real(dp), intent(in) :: reactant_weights(:)  !
         real(dp), intent(in) :: pc                   ! Chamber pressure [bar]
-        real(dp), intent(in) :: pi_p(:)              ! Ratio of chamber pressure to exit pressure [unitless]
+        real(dp), intent(in), optional :: pi_p(:)    ! Ratio of chamber pressure to exit pressure [unitless]
         logical,  intent(in), optional :: fac        ! Finite-area combustor flag
         real(dp), intent(in), optional :: subar(:)   ! Subsonic area ratio [unitless]
         real(dp), intent(in), optional :: supar(:)   ! Supersonic area ratio [unitless]
@@ -1289,10 +1301,11 @@ contains
 
         ! Call either the FAC or IAC solver
         if (fac_) then
-            call self%solve_fac(soln, reactant_weights, pc, pi_p, subar, supar, ac_at, mdot, n_frz, tc_est, hc, tc)
+            call self%solve_fac(soln, reactant_weights, pc, pi_p=pi_p, subar=subar, supar=supar, &
+                                ac_at=ac_at, mdot=mdot, n_frz=n_frz, tc_est=tc_est, hc=hc, tc=tc)
         else  ! IAC
-            call self%solve_iac(soln, reactant_weights, pc, pi_p, subar=subar, supar=supar, n_frz=n_frz, &
-                tc_est=tc_est, hc=hc, tc=tc)
+            call self%solve_iac(soln, reactant_weights, pc, pi_p=pi_p, subar=subar, supar=supar, &
+                                n_frz=n_frz, tc_est=tc_est, hc=hc, tc=tc)
         end if
 
     end function

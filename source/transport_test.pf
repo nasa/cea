@@ -51,9 +51,87 @@ contains
         @assertRelativelyEqual(solution%Pr_fr,           0.67868046264504223d0,tol)
 
         @assertRelativelyEqual(solution%cp_eq,           15.545786271696615d0, tol)
-        @assertRelativelyEqual(solution%conductivity_eq, 39.879859514645077d0, tol)
-        @assertRelativelyEqual(solution%Pr_eq,           0.41578153985433886d0, tol)
+        @assertRelativelyEqual(solution%conductivity_eq, 39.879858727949504d0, tol)
+        @assertRelativelyEqual(solution%Pr_eq,           0.41578154805631812d0, tol)
 
+    end subroutine
+
+    @test
+    subroutine test_transport_interval_selection_legacy_bounds()
+        type(SpeciesTransport) :: species_data
+        type(BinaryTransport) :: binary_data
+        real(dp), parameter :: tol = 1.0d-12
+
+        allocate(species_data%eta_T_fit(3,2), species_data%lambda_T_fit(3,2), &
+                 species_data%eta_coef(3), species_data%lambda_coef(3))
+        species_data%num_eta_intervals = 3
+        species_data%num_lambda_intervals = 3
+        species_data%eta_T_fit(1,:) = [200.d0, 1000.d0]
+        species_data%eta_T_fit(2,:) = [1000.d0, 2000.d0]
+        species_data%eta_T_fit(3,:) = [2000.d0, 6000.d0]
+        species_data%lambda_T_fit = species_data%eta_T_fit
+        species_data%eta_coef(:)%A = 0.0d0
+        species_data%eta_coef(:)%B = 0.0d0
+        species_data%eta_coef(:)%C = 0.0d0
+        species_data%eta_coef(1)%D = 1.0d0
+        species_data%eta_coef(2)%D = 2.0d0
+        species_data%eta_coef(3)%D = 3.0d0
+        species_data%lambda_coef(:)%A = 0.0d0
+        species_data%lambda_coef(:)%B = 0.0d0
+        species_data%lambda_coef(:)%C = 0.0d0
+        species_data%lambda_coef(1)%D = 10.0d0
+        species_data%lambda_coef(2)%D = 20.0d0
+        species_data%lambda_coef(3)%D = 30.0d0
+
+        @assertRelativelyEqual(1.0d0, species_data%calc_eta(900.d0), tol)
+        @assertRelativelyEqual(2.0d0, species_data%calc_eta(1500.d0), tol)
+        @assertRelativelyEqual(3.0d0, species_data%calc_eta(2500.d0), tol)
+        @assertRelativelyEqual(10.0d0, species_data%calc_lambda(900.d0), tol)
+        @assertRelativelyEqual(20.0d0, species_data%calc_lambda(1500.d0), tol)
+        @assertRelativelyEqual(30.0d0, species_data%calc_lambda(2500.d0), tol)
+
+        allocate(binary_data%T_fit(3,2), binary_data%eta_coef(3))
+        binary_data%num_intervals = 3
+        binary_data%T_fit = species_data%eta_T_fit
+        binary_data%eta_coef(:)%A = 0.0d0
+        binary_data%eta_coef(:)%B = 0.0d0
+        binary_data%eta_coef(:)%C = 0.0d0
+        binary_data%eta_coef(1)%D = -1.0d0
+        binary_data%eta_coef(2)%D = -2.0d0
+        binary_data%eta_coef(3)%D = -3.0d0
+
+        @assertRelativelyEqual(-1.0d0, binary_data%calc_eta(900.d0), tol)
+        @assertRelativelyEqual(-2.0d0, binary_data%calc_eta(1500.d0), tol)
+        @assertRelativelyEqual(-3.0d0, binary_data%calc_eta(2500.d0), tol)
+
+    end subroutine
+
+    @test
+    subroutine test_transport_sparse_mapping_ch4_o2()
+        type(Mixture) :: products
+        type(Mixture) :: reactants
+        type(EqSolver) :: solver
+        type(EqSolution) :: solution
+        character(:), allocatable :: product_names(:)
+        real(dp) :: h_reac, p_reac, weights(2)
+
+        reactants = Mixture(all_thermo, ['CH4', 'O2 '])
+        product_names = reactants%get_products(all_thermo)
+        products = Mixture(all_thermo, product_names)
+
+        solver = EqSolver(products, reactants, all_transport=all_transport)
+        solution = EqSolution(solver)
+
+        weights = reactants%weights_from_of([0.0d0, 1.0d0], [1.0d0, 0.0d0], 2.6d0)
+        h_reac = reactants%calc_enthalpy(weights, [298.15d0, 298.15d0])/R
+        p_reac = psi_to_bar(1000.0d0)
+
+        call solver%solve(solution, 'hp', h_reac, p_reac, weights)
+
+        @assertTrue(solution%converged)
+        @assertTrue(solution%viscosity > 0.0d0)
+        @assertTrue(solution%conductivity_fr > 0.0d0)
+        @assertTrue(solution%conductivity_eq > 0.0d0)
     end subroutine
 
 end module

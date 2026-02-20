@@ -1717,79 +1717,159 @@ contains
         nr = solver%eq_solver%num_reactants
 
         ! Call the Rocket Solver
-        if (nsubar > 0) then
-            if (nsupar > 0) then
-                if (use_tc_est .eqv. .true.) then
-                    if (use_hc .eqv. .true.) then
-                        call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
-                                              supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc)
+        if (n_pi_p > 0) then
+            if (nsubar > 0) then
+                if (nsupar > 0) then
+                    if (use_tc_est .eqv. .true.) then
+                        if (use_hc .eqv. .true.) then
+                            call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
+                                                  supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc)
+                        else
+                            call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
+                                                  supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc)
+                        end if
                     else
-                        call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
-                                              supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc)
+                        if (use_hc .eqv. .true.) then
+                            call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
+                                                  supar=supar(:nsupar), n_frz=n_frz, hc=hc_or_tc)
+                        else
+                            call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
+                                                  supar=supar(:nsupar), n_frz=n_frz, tc=hc_or_tc)
+                        end if
                     end if
-                else
-                    if (use_hc .eqv. .true.) then
-                        call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
-                                              supar=supar(:nsupar), n_frz=n_frz, hc=hc_or_tc)
+                else  ! nsupar == 0
+                    if (use_tc_est .eqv. .true.) then
+                        if (use_hc .eqv. .true.) then
+                            call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
+                                                  n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc)
+                        else
+                            call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
+                                                  n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc)
+                        end if
                     else
-                        call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
-                                              supar=supar(:nsupar), n_frz=n_frz, tc=hc_or_tc)
+                        if (use_hc .eqv. .true.) then
+                            call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
+                                                  n_frz=n_frz, hc=hc_or_tc)
+                        else
+                            call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
+                                                  n_frz=n_frz, tc=hc_or_tc)
+                        end if
                     end if
                 end if
-            else  ! nsupar == 0
-                if (use_tc_est .eqv. .true.) then
-                    if (use_hc .eqv. .true.) then
-                        call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
-                                              n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc)
+            else  ! nsubar == 0
+                if (nsupar > 0) then
+                    if (use_tc_est .eqv. .true.) then
+                        if (use_hc .eqv. .true.) then
+                            call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
+                                                  supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc)
+                        else
+                            call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
+                                                  supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc)
+                        end if
                     else
-                        call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
-                                              n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc)
+                        if (use_hc .eqv. .true.) then
+                            call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
+                                                  supar=supar(:nsupar), n_frz=n_frz, hc=hc_or_tc)
+                        else
+                            call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
+                                                  supar=supar(:nsupar), n_frz=n_frz, tc=hc_or_tc)
+                        end if
                     end if
-                else
-                    if (use_hc .eqv. .true.) then
-                        call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
-                                              n_frz=n_frz, hc=hc_or_tc)
+                else  ! nsupar == 0
+                    if (use_tc_est .eqv. .true.) then
+                        if (use_hc .eqv. .true.) then
+                            call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
+                                                  n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc)
+                        else
+                            call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
+                                                  n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc)
+                        end if
                     else
-                        call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
-                                              n_frz=n_frz, tc=hc_or_tc)
+                        if (use_hc .eqv. .true.) then
+                            call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
+                                                  n_frz=n_frz, hc=hc_or_tc)
+                        else
+                            call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
+                                                  n_frz=n_frz, tc=hc_or_tc)
+                        end if
                     end if
                 end if
             end if
-        else  ! nsubar == 0
-            if (nsupar > 0) then
-                if (use_tc_est .eqv. .true.) then
-                    if (use_hc .eqv. .true.) then
-                        call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
-                                              supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc)
+        else
+            if (nsubar > 0) then
+                if (nsupar > 0) then
+                    if (use_tc_est .eqv. .true.) then
+                        if (use_hc .eqv. .true.) then
+                            call solver%solve_iac(solution, weights(:nr), pc, subar=subar(:nsubar), &
+                                                  supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc)
+                        else
+                            call solver%solve_iac(solution, weights(:nr), pc, subar=subar(:nsubar), &
+                                                  supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc)
+                        end if
                     else
-                        call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
-                                              supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc)
+                        if (use_hc .eqv. .true.) then
+                            call solver%solve_iac(solution, weights(:nr), pc, subar=subar(:nsubar), &
+                                                  supar=supar(:nsupar), n_frz=n_frz, hc=hc_or_tc)
+                        else
+                            call solver%solve_iac(solution, weights(:nr), pc, subar=subar(:nsubar), &
+                                                  supar=supar(:nsupar), n_frz=n_frz, tc=hc_or_tc)
+                        end if
                     end if
-                else
-                    if (use_hc .eqv. .true.) then
-                        call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
-                                              supar=supar(:nsupar), n_frz=n_frz, hc=hc_or_tc)
+                else  ! nsupar == 0
+                    if (use_tc_est .eqv. .true.) then
+                        if (use_hc .eqv. .true.) then
+                            call solver%solve_iac(solution, weights(:nr), pc, subar=subar(:nsubar), &
+                                                  n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc)
+                        else
+                            call solver%solve_iac(solution, weights(:nr), pc, subar=subar(:nsubar), &
+                                                  n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc)
+                        end if
                     else
-                        call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
-                                              supar=supar(:nsupar), n_frz=n_frz, tc=hc_or_tc)
+                        if (use_hc .eqv. .true.) then
+                            call solver%solve_iac(solution, weights(:nr), pc, subar=subar(:nsubar), &
+                                                  n_frz=n_frz, hc=hc_or_tc)
+                        else
+                            call solver%solve_iac(solution, weights(:nr), pc, subar=subar(:nsubar), &
+                                                  n_frz=n_frz, tc=hc_or_tc)
+                        end if
                     end if
                 end if
-            else  ! nsupar == 0
-                if (use_tc_est .eqv. .true.) then
-                    if (use_hc .eqv. .true.) then
-                        call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
-                                              n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc)
+            else  ! nsubar == 0
+                if (nsupar > 0) then
+                    if (use_tc_est .eqv. .true.) then
+                        if (use_hc .eqv. .true.) then
+                            call solver%solve_iac(solution, weights(:nr), pc, &
+                                                  supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc)
+                        else
+                            call solver%solve_iac(solution, weights(:nr), pc, &
+                                                  supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc)
+                        end if
                     else
-                        call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
-                                              n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc)
+                        if (use_hc .eqv. .true.) then
+                            call solver%solve_iac(solution, weights(:nr), pc, &
+                                                  supar=supar(:nsupar), n_frz=n_frz, hc=hc_or_tc)
+                        else
+                            call solver%solve_iac(solution, weights(:nr), pc, &
+                                                  supar=supar(:nsupar), n_frz=n_frz, tc=hc_or_tc)
+                        end if
                     end if
-                else
-                    if (use_hc .eqv. .true.) then
-                        call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
-                                              n_frz=n_frz, hc=hc_or_tc)
+                else  ! nsupar == 0
+                    if (use_tc_est .eqv. .true.) then
+                        if (use_hc .eqv. .true.) then
+                            call solver%solve_iac(solution, weights(:nr), pc, &
+                                                  n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc)
+                        else
+                            call solver%solve_iac(solution, weights(:nr), pc, &
+                                                  n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc)
+                        end if
                     else
-                        call solver%solve_iac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
-                                              n_frz=n_frz, tc=hc_or_tc)
+                        if (use_hc .eqv. .true.) then
+                            call solver%solve_iac(solution, weights(:nr), pc, &
+                                                  n_frz=n_frz, hc=hc_or_tc)
+                        else
+                            call solver%solve_iac(solution, weights(:nr), pc, &
+                                                  n_frz=n_frz, tc=hc_or_tc)
+                        end if
                     end if
                 end if
             end if
@@ -1830,158 +1910,382 @@ contains
         nr = solver%eq_solver%num_reactants
 
         ! Call the Rocket Solver
-        if (nsubar > 0) then
-            if (nsupar > 0) then
-                if (use_tc_est .eqv. .true.) then
-                    if (use_hc .eqv. .true.) then
-                        if (use_mdot .eqv. .true.) then
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
-                                                  supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc, mdot=mdot_or_acat)
-                        else  ! use ac_at
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
-                                                  supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc, ac_at=mdot_or_acat)
+        if (n_pi_p > 0) then
+            if (nsubar > 0) then
+                if (nsupar > 0) then
+                    if (use_tc_est .eqv. .true.) then
+                        if (use_hc .eqv. .true.) then
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
+                                                      supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else  ! use ac_at
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
+                                                      supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
+                        else  ! use tc
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
+                                                      supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else  ! use ac_at
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
+                                                      supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
                         end if
-                    else  ! use tc
-                        if (use_mdot .eqv. .true.) then
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
-                                                  supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc, mdot=mdot_or_acat)
-                        else  ! use ac_at
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
-                                                  supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc, ac_at=mdot_or_acat)
+                    else  ! use_tc_est == .false.
+                        if (use_hc .eqv. .true.) then
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
+                                                      supar=supar(:nsupar), n_frz=n_frz, hc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else  ! use ac_at
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
+                                                      supar=supar(:nsupar), n_frz=n_frz, hc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
+                        else  ! use tc
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
+                                                      supar=supar(:nsupar), n_frz=n_frz, tc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else  ! use ac_at
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
+                                                      supar=supar(:nsupar), n_frz=n_frz, tc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
                         end if
                     end if
-                else  ! use_tc_est == .false.
-                    if (use_hc .eqv. .true.) then
-                        if (use_mdot .eqv. .true.) then
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
-                                                  supar=supar(:nsupar), n_frz=n_frz, hc=hc_or_tc, mdot=mdot_or_acat)
-                        else  ! use ac_at
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
-                                                  supar=supar(:nsupar), n_frz=n_frz, hc=hc_or_tc, ac_at=mdot_or_acat)
+                else  ! nsupar == 0
+                    if (use_tc_est .eqv. .true.) then
+                        if (use_hc .eqv. .true.) then
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
+                                                      n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else  ! use ac_at
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
+                                                      n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
+                        else  ! use tc
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
+                                                      n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else  ! use ac_at
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
+                                                      n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
                         end if
-                    else  ! use tc
-                        if (use_mdot .eqv. .true.) then
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
-                                                  supar=supar(:nsupar), n_frz=n_frz, tc=hc_or_tc, mdot=mdot_or_acat)
-                        else  ! use ac_at
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
-                                                  supar=supar(:nsupar), n_frz=n_frz, tc=hc_or_tc, ac_at=mdot_or_acat)
+                    else  ! use_tc_est == .false.
+                        if (use_hc .eqv. .true.) then
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
+                                                      n_frz=n_frz, hc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else  ! use ac_at
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
+                                                      n_frz=n_frz, hc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
+                        else  ! use tc
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
+                                                      n_frz=n_frz, tc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else  ! use ac_at
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
+                                                      n_frz=n_frz, tc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
                         end if
                     end if
                 end if
-            else  ! nsupar == 0
-                if (use_tc_est .eqv. .true.) then
-                    if (use_hc .eqv. .true.) then
-                        if (use_mdot .eqv. .true.) then
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
-                                                  n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc, mdot=mdot_or_acat)
-                        else  ! use ac_at
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
-                                                  n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc, ac_at=mdot_or_acat)
+            else  ! nsubar == 0
+                if (nsupar > 0) then
+                    if (use_tc_est .eqv. .true.) then
+                        if (use_hc .eqv. .true.) then
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
+                                                      supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else  ! use ac_at
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
+                                                      supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
+                        else  ! use tc
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
+                                                      supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else  ! use ac_at
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
+                                                      supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
                         end if
-                    else  ! use tc
-                        if (use_mdot .eqv. .true.) then
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
-                                                  n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc, mdot=mdot_or_acat)
-                        else  ! use ac_at
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
-                                                  n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc, ac_at=mdot_or_acat)
+                    else  ! use_tc_est == .false.
+                        if (use_hc .eqv. .true.) then
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
+                                                      supar=supar(:nsupar), n_frz=n_frz, hc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else  ! use ac_at
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
+                                                      supar=supar(:nsupar), n_frz=n_frz, hc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
+                        else  ! use tc
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
+                                                      supar=supar(:nsupar), n_frz=n_frz, tc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else  ! use ac_at
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
+                                                      supar=supar(:nsupar), n_frz=n_frz, tc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
                         end if
                     end if
-                else  ! use_tc_est == .false.
-                    if (use_hc .eqv. .true.) then
-                        if (use_mdot .eqv. .true.) then
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
-                                                  n_frz=n_frz, hc=hc_or_tc, mdot=mdot_or_acat)
-                        else  ! use ac_at
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
-                                                  n_frz=n_frz, hc=hc_or_tc, ac_at=mdot_or_acat)
+                else  ! nsupar == 0
+                    if (use_tc_est .eqv. .true.) then
+                        if (use_hc .eqv. .true.) then
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
+                                                      n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
+                                                      n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
+                        else  ! use tc
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
+                                                      n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
+                                                      n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
                         end if
-                    else  ! use tc
-                        if (use_mdot .eqv. .true.) then
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
-                                                  n_frz=n_frz, tc=hc_or_tc, mdot=mdot_or_acat)
-                        else  ! use ac_at
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
-                                                  n_frz=n_frz, tc=hc_or_tc, ac_at=mdot_or_acat)
+                    else  ! use_tc_est == .false.
+                        if (use_hc .eqv. .true.) then
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
+                                                      n_frz=n_frz, hc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
+                                                      n_frz=n_frz, hc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
+                        else  ! use tc
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
+                                                      n_frz=n_frz, tc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else
+                                call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
+                                                      n_frz=n_frz, tc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
                         end if
                     end if
                 end if
             end if
-        else  ! nsubar == 0
-            if (nsupar > 0) then
-                if (use_tc_est .eqv. .true.) then
-                    if (use_hc .eqv. .true.) then
-                        if (use_mdot .eqv. .true.) then
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
-                                                  supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc, mdot=mdot_or_acat)
-                        else  ! use ac_at
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
-                                                  supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc, ac_at=mdot_or_acat)
+        else
+            if (nsubar > 0) then
+                if (nsupar > 0) then
+                    if (use_tc_est .eqv. .true.) then
+                        if (use_hc .eqv. .true.) then
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, subar=subar(:nsubar), &
+                                                      supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else  ! use ac_at
+                                call solver%solve_fac(solution, weights(:nr), pc, subar=subar(:nsubar), &
+                                                      supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
+                        else  ! use tc
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, subar=subar(:nsubar), &
+                                                      supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else  ! use ac_at
+                                call solver%solve_fac(solution, weights(:nr), pc, subar=subar(:nsubar), &
+                                                      supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
                         end if
-                    else  ! use tc
-                        if (use_mdot .eqv. .true.) then
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
-                                                  supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc, mdot=mdot_or_acat)
-                        else  ! use ac_at
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
-                                                  supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc, ac_at=mdot_or_acat)
+                    else  ! use_tc_est == .false.
+                        if (use_hc .eqv. .true.) then
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, subar=subar(:nsubar), &
+                                                      supar=supar(:nsupar), n_frz=n_frz, hc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else  ! use ac_at
+                                call solver%solve_fac(solution, weights(:nr), pc, subar=subar(:nsubar), &
+                                                      supar=supar(:nsupar), n_frz=n_frz, hc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
+                        else  ! use tc
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, subar=subar(:nsubar), &
+                                                      supar=supar(:nsupar), n_frz=n_frz, tc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else  ! use ac_at
+                                call solver%solve_fac(solution, weights(:nr), pc, subar=subar(:nsubar), &
+                                                      supar=supar(:nsupar), n_frz=n_frz, tc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
                         end if
                     end if
-                else  ! use_tc_est == .false.
-                    if (use_hc .eqv. .true.) then
-                        if (use_mdot .eqv. .true.) then
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
-                                                  supar=supar(:nsupar), n_frz=n_frz, hc=hc_or_tc, mdot=mdot_or_acat)
-                        else  ! use ac_at
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), subar=subar(:nsubar), &
-                                                  supar=supar(:nsupar), n_frz=n_frz, hc=hc_or_tc, ac_at=mdot_or_acat)
+                else  ! nsupar == 0
+                    if (use_tc_est .eqv. .true.) then
+                        if (use_hc .eqv. .true.) then
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, subar=subar(:nsubar), &
+                                                      n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else  ! use ac_at
+                                call solver%solve_fac(solution, weights(:nr), pc, subar=subar(:nsubar), &
+                                                      n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
+                        else  ! use tc
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, subar=subar(:nsubar), &
+                                                      n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else  ! use ac_at
+                                call solver%solve_fac(solution, weights(:nr), pc, subar=subar(:nsubar), &
+                                                      n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
                         end if
-                    else  ! use tc
-                        if (use_mdot .eqv. .true.) then
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
-                                                  supar=supar(:nsupar), n_frz=n_frz, tc=hc_or_tc, mdot=mdot_or_acat)
-                        else  ! use ac_at
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
-                                                  supar=supar(:nsupar), n_frz=n_frz, tc=hc_or_tc, ac_at=mdot_or_acat)
+                    else  ! use_tc_est == .false.
+                        if (use_hc .eqv. .true.) then
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, subar=subar(:nsubar), &
+                                                      n_frz=n_frz, hc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else  ! use ac_at
+                                call solver%solve_fac(solution, weights(:nr), pc, subar=subar(:nsubar), &
+                                                      n_frz=n_frz, hc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
+                        else  ! use tc
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, subar=subar(:nsubar), &
+                                                      n_frz=n_frz, tc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else  ! use ac_at
+                                call solver%solve_fac(solution, weights(:nr), pc, subar=subar(:nsubar), &
+                                                      n_frz=n_frz, tc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
                         end if
                     end if
                 end if
-            else  ! nsupar == 0
-                if (use_tc_est .eqv. .true.) then
-                    if (use_hc .eqv. .true.) then
-                        if (use_mdot .eqv. .true.) then
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
-                                                  n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc, mdot=mdot_or_acat)
-                        else
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
-                                                  n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc, ac_at=mdot_or_acat)
+            else  ! nsubar == 0
+                if (nsupar > 0) then
+                    if (use_tc_est .eqv. .true.) then
+                        if (use_hc .eqv. .true.) then
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, &
+                                                      supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else  ! use ac_at
+                                call solver%solve_fac(solution, weights(:nr), pc, &
+                                                      supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
+                        else  ! use tc
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, &
+                                                      supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else  ! use ac_at
+                                call solver%solve_fac(solution, weights(:nr), pc, subar=subar(:nsubar), &
+                                                      supar=supar(:nsupar), n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
                         end if
-                    else  ! use tc
-                        if (use_mdot .eqv. .true.) then
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
-                                                  n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc, mdot=mdot_or_acat)
-                        else
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
-                                                  n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc, ac_at=mdot_or_acat)
+                    else  ! use_tc_est == .false.
+                        if (use_hc .eqv. .true.) then
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, &
+                                                      supar=supar(:nsupar), n_frz=n_frz, hc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else  ! use ac_at
+                                call solver%solve_fac(solution, weights(:nr), pc, subar=subar(:nsubar), &
+                                                      supar=supar(:nsupar), n_frz=n_frz, hc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
+                        else  ! use tc
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, &
+                                                      supar=supar(:nsupar), n_frz=n_frz, tc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else  ! use ac_at
+                                call solver%solve_fac(solution, weights(:nr), pc, &
+                                                      supar=supar(:nsupar), n_frz=n_frz, tc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
                         end if
                     end if
-                else  ! use_tc_est == .false.
-                    if (use_hc .eqv. .true.) then
-                        if (use_mdot .eqv. .true.) then
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
-                                                  n_frz=n_frz, hc=hc_or_tc, mdot=mdot_or_acat)
-                        else
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
-                                                  n_frz=n_frz, hc=hc_or_tc, ac_at=mdot_or_acat)
+                else  ! nsupar == 0
+                    if (use_tc_est .eqv. .true.) then
+                        if (use_hc .eqv. .true.) then
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, &
+                                                      n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else
+                                call solver%solve_fac(solution, weights(:nr), pc, &
+                                                      n_frz=n_frz, tc_est=tc_est, hc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
+                        else  ! use tc
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, &
+                                                      n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else
+                                call solver%solve_fac(solution, weights(:nr), pc, &
+                                                      n_frz=n_frz, tc_est=tc_est, tc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
                         end if
-                    else  ! use tc
-                        if (use_mdot .eqv. .true.) then
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
-                                                  n_frz=n_frz, tc=hc_or_tc, mdot=mdot_or_acat)
-                        else
-                            call solver%solve_fac(solution, weights(:nr), pc, pi_p(:n_pi_p), &
-                                                  n_frz=n_frz, tc=hc_or_tc, ac_at=mdot_or_acat)
+                    else  ! use_tc_est == .false.
+                        if (use_hc .eqv. .true.) then
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, &
+                                                      n_frz=n_frz, hc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else
+                                call solver%solve_fac(solution, weights(:nr), pc, &
+                                                      n_frz=n_frz, hc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
+                        else  ! use tc
+                            if (use_mdot .eqv. .true.) then
+                                call solver%solve_fac(solution, weights(:nr), pc, &
+                                                      n_frz=n_frz, tc=hc_or_tc, &
+                                                      mdot=mdot_or_acat)
+                            else
+                                call solver%solve_fac(solution, weights(:nr), pc, &
+                                                      n_frz=n_frz, tc=hc_or_tc, &
+                                                      ac_at=mdot_or_acat)
+                            end if
                         end if
                     end if
                 end if
@@ -3415,16 +3719,20 @@ contains
     ! -----------------------------------------------------------------
     ! Function inteface for Matlab and Excel
     ! -----------------------------------------------------------------
-    ! function solve_eq(problem_type, state1, state2, nreactants, creactants, amounts, nproducts, cproducts, ninsert, insert, set_trace, trace, transport, ions) result(slptr) bind(c)
+    ! function solve_eq(problem_type, state1, state2, nreactants, creactants, amounts, &
+    !                   nproducts, cproducts, ninsert, insert, set_trace, trace, &
+    !                   transport, ions) result(slptr) bind(c)
     !     ! Function-based equilibrium solver interface without computing partial derivatives.
     !     ! Notes:
     !     ! - This function is designed to be called from Matlab or Excel.
     !     ! - It does not use the EqSolution or EqPartials objects.
     !     ! - It returns a pointer to the EqSolution object.
     !     ! - It requires reactant weights to be passed as amounts.
-    !     !   Converting from o/f ratios (or other amount types) should be done using other functions prior to calling this function.
+    !     !   Converting from o/f ratios (or other amount types) should be done
+    !     !   using other functions prior to calling this function.
     !     ! - It requires passing in "state1" (e.g. temperature, enthalpy, entropy, or energy).
-    !     !   Enthalpy/entropy/energy can be computed from reactant weights and temperatures using other functions prior to calling this function.
+    !     !   Enthalpy/entropy/energy can be computed from reactant weights and
+    !     !   temperatures using other functions prior to calling this function.
     !     ! - state1 and state2 are required to be in SI units.
     !     type(c_ptr) :: slptr
     !     integer(kind=kind(CEA_TP)), intent(in), value :: problem_type

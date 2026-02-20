@@ -121,8 +121,7 @@ contains
         soln%T1 = t1
         soln%eq_soln%T = t1
         soln%P1 = p1
-        soln%H1 = (self%eq_solver%reactants%calc_enthalpy(weights, t1) - &
-            self%eq_solver%reactants%calc_enthalpy(weights, 298.15d0))/1.d3
+        soln%H1 = (self%eq_solver%reactants%calc_enthalpy(weights, t1))/1.d3
         cp = self%eq_solver%reactants%calc_frozen_cp(weights, t1)
         wm = sum(weights)/sum(self%eq_solver%reactants%moles_from_weights(weights))
         soln%M1 = wm

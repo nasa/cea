@@ -1,3 +1,4 @@
+#include "stdlib.h"
 #include "stdio.h"
 #include "cea.h"
 
@@ -17,7 +18,7 @@ int main(void) {
     const int nr = LEN(reactants);
 
     // Products
-    const cea_string omitted_products[] = {};
+    const cea_string omitted_products[] = {""};
 
     // Thermo States
     const cea_real p0 = 0.1;
@@ -56,12 +57,16 @@ int main(void) {
     // Solve the shock problem
     //----------------------------------------------------------------
 
-    cea_real weights[nr];
+    cea_real* weights = (cea_real*) calloc(nr, sizeof(cea_real));
     cea_mixture_moles_to_weights(reac, LEN(reactants), moles, weights);
 
     cea_shock_solver_solve(solver, soln, weights, T0, p0, u1, FALSE, TRUE, FALSE, FALSE);
 
-    cea_real temperature[num_pts], pressure[num_pts], velocity[num_pts], mach[num_pts], v_sonic[num_pts];
+    cea_real* temperature = (cea_real*) calloc(num_pts, sizeof(cea_real));
+    cea_real* pressure = (cea_real*) calloc(num_pts, sizeof(cea_real));
+    cea_real* velocity = (cea_real*) calloc(num_pts, sizeof(cea_real));
+    cea_real* mach = (cea_real*) calloc(num_pts, sizeof(cea_real));
+    cea_real* v_sonic = (cea_real*) calloc(num_pts, sizeof(cea_real));
     cea_shock_solution_get_property(soln, CEA_SHOCK_TEMPERATURE, num_pts, temperature);
     cea_shock_solution_get_property(soln, CEA_SHOCK_PRESSURE, num_pts, pressure);
     cea_shock_solution_get_property(soln, CEA_SHOCK_VELOCITY, num_pts, velocity);
@@ -87,6 +92,12 @@ int main(void) {
     cea_shock_solver_destroy(&solver);
     cea_mixture_destroy(&prod);
     cea_mixture_destroy(&reac);
+    free(weights);
+    free(temperature);
+    free(pressure);
+    free(velocity);
+    free(mach);
+    free(v_sonic);
 
     return 0;
 
