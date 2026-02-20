@@ -15,12 +15,25 @@ Prerequisites
 Installation
 ------------
 
-1. Clone the repository::
+1. Install from PyPI (recommended for most users)::
+
+       python -m pip install cea
+
+   This provides the Python API immediately (``import cea``) without a local
+   source build.
+   Prebuilt release assets are also available from the GitHub Releases page,
+   including platform executables and shared libraries (``.so``, ``.dll``,
+   ``.lib``, ``.dll.a``).
+
+2. If you need the CLI executable (``cea``) or native build artifacts, build
+   from source.
+
+   Clone the repository::
 
        git clone https://github.com/nasa/cea
        cd cea
 
-2. Configure and build (the ``dev`` preset enables the command-line executable,
+3. Configure and build (the ``dev`` preset enables the command-line executable,
    the libraries, and the Python binding on Linux/macOS)::
 
        cmake --preset dev
@@ -31,7 +44,7 @@ Installation
        cmake -S . -B build-win -G "Visual Studio 17 2022" -DCMAKE_BUILD_TYPE=Debug -DCEA_ENABLE_BIND_PYTHON=ON
        cmake --build build-win --config Debug
 
-3. Install into a staging directory (defaults to ``build-dev/install`` unless
+4. Install into a staging directory (defaults to ``build-dev/install`` unless
    you set ``CMAKE_INSTALL_PREFIX``)::
 
        cmake --install build-dev

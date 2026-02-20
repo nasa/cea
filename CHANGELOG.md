@@ -10,6 +10,15 @@ All notable user-visible changes to this project are documented here.
 
 ### Added
 
+## [3.0.3] - 2026-02-20
+
+### Changed
+- Hardened PyPI publishing CI with OIDC preflight checks and manual `workflow_dispatch` target selection (`testpypi`/`pypi`); installation docs now lead with `python -m pip install cea` and mention GitHub Releases binary assets.
+
+### Fixed
+
+### Added
+
 ## [3.0.2] – 2026-02-20
 
 ### Added

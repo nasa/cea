@@ -31,7 +31,23 @@ the CEA code base to adopt modern software engineering practices and improve
 CEA's ability to interface with other software packages and analysis environments
 via well-defined programming APIs in multiple languages.
 
-## Build and Install
+## Install (Recommended)
+
+For most users, install the published Python package directly:
+
+    python -m pip install cea
+
+This is the fastest path to start using the Python API (`import cea`) without
+building from source.
+
+If you need the legacy CLI executable (`cea`) or C/Fortran build artifacts, use
+the source build path below.
+
+Prebuilt release assets are also available on the GitHub Releases page,
+including platform executables and shared libraries (`.so`, `.dll`, `.lib`,
+`.dll.a`).
+
+## Build and Install from Source
 
 The CEA software package is compiled and installed using CMake v3.19+. The core
 software has no external dependencies, and is known to build successfully on a
@@ -85,10 +101,10 @@ If you are not using presets, set `-DCEA_ENABLE_BIND_PYTHON=OFF` and also disabl
 the MATLAB wrapper (it forces Python on). For Fortran-only, also set
 `-DCEA_ENABLE_BIND_C=OFF`.
 
-### Python Binding
+### Python Binding from a Source Checkout
 
 The new Python binding provides direct access to compiled CEA routines.
-The basic installation process is as follows:
+If you are developing locally or want to build from a checkout, use:
 
     cd <cea_source_dir>
     pip install .

@@ -2,6 +2,26 @@ Install
 *******
 CEA can be installed on Windows, MacOS, and Linux systems.
 
+Recommended: Install from PyPI
+------------------------------
+
+For most users, the recommended installation path is the published Python
+package:
+
+::
+
+    python -m pip install cea
+
+This installs the Python API (``import cea``) without requiring a local source
+build.
+
+If you need the command-line executable (``cea``), C/Fortran artifacts, or
+custom compiler/toolchain control, follow the source build instructions below.
+
+Prebuilt release assets are also available on the GitHub Releases page,
+including platform executables and shared libraries (``.so``, ``.dll``,
+``.lib``, ``.dll.a``).
+
 Prerequisites
 -------------
 
@@ -19,8 +39,8 @@ Clone the repository::
     git clone https://github.com/nasa/cea
     cd cea
 
-Build and Install
------------------
+Build and Install from Source
+-----------------------------
 
 The CEA software package is compiled and installed using CMake. The basic
 installation process is as follows:
