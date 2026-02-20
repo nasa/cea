@@ -70,9 +70,15 @@ contains
         species_data%eta_T_fit(2,:) = [1000.d0, 2000.d0]
         species_data%eta_T_fit(3,:) = [2000.d0, 6000.d0]
         species_data%lambda_T_fit = species_data%eta_T_fit
+        species_data%eta_coef(:)%A = 0.0d0
+        species_data%eta_coef(:)%B = 0.0d0
+        species_data%eta_coef(:)%C = 0.0d0
         species_data%eta_coef(1)%D = 1.0d0
         species_data%eta_coef(2)%D = 2.0d0
         species_data%eta_coef(3)%D = 3.0d0
+        species_data%lambda_coef(:)%A = 0.0d0
+        species_data%lambda_coef(:)%B = 0.0d0
+        species_data%lambda_coef(:)%C = 0.0d0
         species_data%lambda_coef(1)%D = 10.0d0
         species_data%lambda_coef(2)%D = 20.0d0
         species_data%lambda_coef(3)%D = 30.0d0
@@ -87,6 +93,9 @@ contains
         allocate(binary_data%T_fit(3,2), binary_data%eta_coef(3))
         binary_data%num_intervals = 3
         binary_data%T_fit = species_data%eta_T_fit
+        binary_data%eta_coef(:)%A = 0.0d0
+        binary_data%eta_coef(:)%B = 0.0d0
+        binary_data%eta_coef(:)%C = 0.0d0
         binary_data%eta_coef(1)%D = -1.0d0
         binary_data%eta_coef(2)%D = -2.0d0
         binary_data%eta_coef(3)%D = -3.0d0
