@@ -3242,6 +3242,13 @@ contains
 
         if (nm <= 0 .or. total <= 0.0d0) return
 
+        ! Align electron concentration with the finalized transport species set.
+        do i = 1, nm
+            if (eq_solver%products%species(idx_list(i))%molecular_weight < 1.0d0) then
+                nj_el = eq_soln%nj(idx_list(i))
+            end if
+        end do
+
         ! Build aligned pure-species mappings.
         j = 0
         transport_to_local = 0
@@ -3351,6 +3358,23 @@ contains
             end do
         end if
 
+        ! Legacy TRANIN uses Lsave components, which can include the electron row
+        ! when ions are active. Append the electron species as an extra component
+        ! if it is present in the selected transport set but not already included.
+        if (eq_solver%ions) then
+            do i = 1, nm
+                if (eq_solver%products%species(idx_list(i))%molecular_weight < 1.0d0) then
+                    if (.not. is_component(i) .and. ncomp < max_tr) then
+                        ncomp = ncomp + 1
+                        comp_local_idx(ncomp) = i
+                        comp_basis_row(ncomp) = 0
+                        is_component(i) = .true.
+                    end if
+                    exit
+                end if
+            end do
+        end if
+
         if (ncomp > 0 .and. ncomp < nm) then
             nr = 0
             do i = 1, nm
@@ -3360,7 +3384,11 @@ contains
                 j = idx_list(i)
                 do k = 1, ncomp
                     m = comp_local_idx(k)
-                    alpha(nr, m) = eq_soln%transport_basis_matrix(comp_basis_row(k), j)
+                    if (comp_basis_row(k) > 0) then
+                        alpha(nr, m) = eq_soln%transport_basis_matrix(comp_basis_row(k), j)
+                    else
+                        alpha(nr, m) = A(j, ne)
+                    end if
                 end do
             end do
         else
@@ -3375,7 +3403,6 @@ contains
                 k = k + 1
             end do
         end if
-
         do i = 1, nm
             if (xs(i) < 1.d-10) then
                 m = 1
@@ -3429,8 +3456,8 @@ contains
         cp = cp(:nm)
         do i = 1, nm
             k = idx_list(i)
-            if (.not. (eq_solver%ions .and. abs(A(k, ne)-1.0d0) < tol) &
-                .and. abs(eta(i, i)) < tol) then
+            if (.not. (eq_solver%ions .and. abs(abs(A(k, ne))-1.0d0) < tol .and. &
+                abs(eta(i, i)) < tol)) then
                 if (abs(eta(i, i)) < tol) then
                     wmol = eq_solver%products%species(k)%molecular_weight
                     omega = log(50.0d0*wmol**4.6/eq_soln%T**1.4)
@@ -3446,7 +3473,7 @@ contains
         do i = 1, nm
             k1 = idx_list(i)
             wmol1 = eq_solver%products%species(k1)%molecular_weight
-            do j = 1, nm
+            do j = i, nm
                 ion1 = .false.
                 ion2 = .false.
                 elc1 = .false.
