@@ -86,6 +86,7 @@ module cea_equilibrium
         procedure :: check_condensed_phases =>EqSolver_check_condensed_phases
         procedure :: test_condensed => EqSolver_test_condensed
         procedure :: correct_singular => EqSolver_correct_singular
+        procedure :: update_transport_basis => EqSolver_update_transport_basis
         procedure :: assemble_matrix => EqSolver_assemble_matrix
         procedure :: post_process => EqSolver_post_process
         procedure :: solve => EqSolver_solve
@@ -191,6 +192,14 @@ module cea_equilibrium
             !! Flag if the solution has converged
         integer :: times_converged       = 0
             !! Number of times the solution has converged without establishing a set of condensed species
+
+        ! Legacy-style transport component basis cached after convergence.
+        integer :: transport_basis_rows = 0
+            !! Number of active basis rows used by transport reaction assembly
+        integer, allocatable :: transport_component_idx(:)
+            !! Component species indices (global gas-species indexing) for each basis row
+        real(dp), allocatable :: transport_basis_matrix(:, :)
+            !! Row-reduced element-by-gas coefficient matrix used by transport reactions
 
         ! Other solution variables
         real(dp), allocatable :: mole_fractions(:)
@@ -1680,6 +1689,166 @@ contains
 
     end subroutine
 
+    subroutine EqSolver_update_transport_basis(self, soln)
+        ! Cache a legacy-style component basis for transport-reaction assembly.
+        class(EqSolver), intent(in), target :: self
+        type(EqSolution), intent(inout), target :: soln
+
+        integer :: ng, ne, nn
+        integer :: i, j, irow, jbx, jex, jb, l, njc
+        integer, allocatable :: jx(:), jcm(:), lcs(:)
+        real(dp), allocatable :: a_rows(:, :), xs_work(:)
+        real(dp), pointer :: A(:, :)
+        logical :: newcom, same_col, accept_comp
+        real(dp) :: tem
+        real(dp), parameter :: tol = 1.d-8
+        real(dp), parameter :: smalno = 1.d-10
+
+        ng = self%num_gas
+        ne = self%num_active_elements()
+        if (ng <= 0 .or. ne <= 0) then
+            soln%transport_basis_rows = 0
+            if (allocated(soln%transport_component_idx)) soln%transport_component_idx = 0
+            if (allocated(soln%transport_basis_matrix)) soln%transport_basis_matrix = 0.0d0
+            return
+        end if
+
+        A => self%products%stoich_matrix
+        nn = ne
+        if (self%ions .and. self%active_ions) nn = max(1, ne-1)
+
+        allocate(a_rows(nn, ng), xs_work(ng), jx(nn), jcm(nn), lcs(nn))
+        do irow = 1, nn
+            do j = 1, ng
+                a_rows(irow, j) = A(j, irow)
+            end do
+        end do
+
+        jx = 0
+        jcm = 0
+        do irow = 1, nn
+            do j = 1, ng
+                if (abs(abs(A(j, irow)) - 1.0d0) < tol .and. abs(sum(abs(A(j, :ne))) - 1.0d0) < tol) then
+                    jx(irow) = j
+                    exit
+                end if
+            end do
+            if (jx(irow) == 0) then
+                do j = 1, ng
+                    if (abs(a_rows(irow, j)) > smalno) then
+                        jx(irow) = j
+                        exit
+                    end if
+                end do
+            end if
+            jcm(irow) = jx(irow)
+        end do
+
+        xs_work = max(soln%nj(:ng), 0.0d0)
+        lcs = 0
+        njc = 0
+        newcom = .false.
+        do
+            if (njc >= nn) exit
+            jbx = maxloc(xs_work(:ng), dim=1)
+            if (jbx <= 0) exit
+            if (xs_work(jbx) <= 0.0d0) exit
+
+            if (self%ions .and. self%active_ions) then
+                if (abs(A(jbx, ne)) > smalno) then
+                    xs_work(jbx) = -1.0d0
+                    cycle
+                end if
+            end if
+
+            do irow = 1, nn
+                if (jbx == 0) jbx = jx(irow)
+                if (jbx == 0) cycle
+                if (a_rows(irow, jbx) <= smalno) cycle
+
+                accept_comp = .true.
+                if (njc /= 0) then
+                    do i = 1, njc
+                        l = lcs(i)
+                        if (l == irow) then
+                            accept_comp = .false.
+                            exit
+                        end if
+                        if (l == 0) cycle
+                        jb = jcm(l)
+                        if (jb == 0) cycle
+                        same_col = .true.
+                        do j = 1, nn
+                            if (a_rows(j, jbx) /= a_rows(j, jb)) then
+                                same_col = .false.
+                                exit
+                            end if
+                        end do
+                        if (same_col) then
+                            accept_comp = .false.
+                            exit
+                        end if
+                    end do
+                end if
+                if (.not. accept_comp) cycle
+
+                do i = 1, nn
+                    if (i == irow) cycle
+                    jex = jx(i)
+                    if (jex == 0) cycle
+                    if (abs(a_rows(irow, jbx)*a_rows(i, jex) - a_rows(irow, jex)*a_rows(i, jbx)) <= smalno) then
+                        accept_comp = .false.
+                        exit
+                    end if
+                end do
+                if (.not. accept_comp) cycle
+
+                njc = njc + 1
+                if (jbx /= jcm(irow)) newcom = .true.
+                jcm(irow) = jbx
+                lcs(njc) = irow
+                exit
+            end do
+
+            xs_work(jbx) = -1.0d0
+        end do
+
+        do irow = 1, nn
+            if (jcm(irow) == 0) jcm(irow) = jx(irow)
+        end do
+
+        if (newcom) then
+            do irow = 1, nn
+                jb = jcm(irow)
+                if (jb == 0) cycle
+                if (a_rows(irow, jb) == 0.0d0) then
+                    jb = jx(irow)
+                    jcm(irow) = jb
+                end if
+                tem = a_rows(irow, jb)
+                if (tem == 0.0d0) cycle
+                if (tem /= 1.0d0) a_rows(irow, :ng) = a_rows(irow, :ng)/tem
+                do i = 1, nn
+                    if (i == irow) cycle
+                    if (a_rows(i, jb) /= 0.0d0) then
+                        tem = a_rows(i, jb)
+                        a_rows(i, :ng) = a_rows(i, :ng) - a_rows(irow, :ng)*tem
+                        do j = 1, ng
+                            if (abs(a_rows(i, j)) < 1.0d-5) a_rows(i, j) = 0.0d0
+                        end do
+                    end if
+                end do
+            end do
+        end if
+
+        soln%transport_basis_rows = nn
+        soln%transport_component_idx = 0
+        soln%transport_basis_matrix = 0.0d0
+        soln%transport_component_idx(:nn) = jcm(:nn)
+        soln%transport_basis_matrix(:nn, :ng) = a_rows(:nn, :ng)
+
+    end subroutine
+
     subroutine EqSolver_post_process(self, soln, computed_partials)
         ! Arguments
         class(EqSolver), intent(in), target :: self
@@ -1913,7 +2082,10 @@ contains
                 end if
 
                 ! Compute transport properties
-                if (self%transport) call compute_transport_properties(self, soln)
+                if (self%transport) then
+                    call self%update_transport_basis(soln)
+                    call compute_transport_properties(self, soln)
+                end if
 
                 ! Compute post-processing solution values
                 call self%post_process(soln, present(partials))
@@ -2047,6 +2219,8 @@ contains
         allocate(self%G(solver%max_equations, solver%max_equations+1), source=empty_dp)
         allocate(self%is_active(solver%num_condensed), source=.false.)
         allocate(self%active_rank(solver%num_condensed), source=0)
+        allocate(self%transport_component_idx(solver%num_elements), source=0)
+        allocate(self%transport_basis_matrix(solver%num_elements, solver%num_gas), source=0.0d0)
         self%constraints = EqConstraints(solver%num_elements)
 
         ! Set initial guess
@@ -2891,6 +3065,10 @@ contains
         integer :: local_idx1, local_idx2
         integer :: best_idx
         integer :: max_elem_idx               ! Number of elements (minus electron, if applicaple)
+        integer :: ncomp
+        integer :: nseed
+        integer, allocatable :: comp_local_idx(:), comp_basis_row(:)
+        logical, allocatable :: is_component(:)
         real(dp) :: cfit_val                  ! Value computed by curve-fit function
         real(dp) :: best_nj
         real(dp) :: te, ekt, qc, xsel, debye, ionic, lambda  ! Variables for ionized species interactions
@@ -2943,7 +3121,8 @@ contains
                  cp(ng), xs(ng), G(ng, ng), rtpd(ng, ng), &
                  xsij(ng, ng), delh(ng), alpha(ng, ng), &
                  stcf(ng, ng), stcoef(ng), tmp(max_tr), gmat(ng, ng), &
-                 stx(ng), stxij(ng, ng))
+                 stx(ng), stxij(ng, ng), comp_local_idx(max_tr), &
+                 comp_basis_row(max_tr), is_component(max_tr))
 
         ! cond can be used without being initialized, and uninitialized elements
         ! could be used later if all of the species aren't found in the transport database
@@ -2971,39 +3150,60 @@ contains
             end if
         end do
 
-        do m = 1, max_elem_idx
-            best_idx = 0
-            best_nj = -1.0d0
-            do i = 1, ng
-                if (A(i, m) > tol .and. eq_soln%nj(i) > best_nj) then
-                    best_idx = i
-                    best_nj = eq_soln%nj(i)
-                end if
-            end do
-            if (best_idx > 0 .and. .not. selected_species(best_idx) .and. nm < max_tr) then
-                nm = nm + 1
-                idx_list(nm) = best_idx
-                selected_species(best_idx) = .true.
-                total = total + eq_soln%nj(best_idx)
-                if (eq_solver%products%species(best_idx)%molecular_weight < 1.0d0) nj_el = eq_soln%nj(best_idx)
-                eq_soln%nj(best_idx) = -eq_soln%nj(best_idx)
-            end if
-        end do
-
-        do i = 1, ng
-            if ((sum(abs(A(i, :)))-1.0d0) < tol .and. .not. selected_species(i)) then
-                if (nm >= max_tr) then
-                    call log_info("Reached maximum number of allowable transport species.")
-                    exit
-                end if
+        ! Seed transport species with the cached equilibrium component basis.
+        nseed = 0
+        if (eq_soln%transport_basis_rows > 0) then
+            do m = 1, min(eq_soln%transport_basis_rows, size(eq_soln%transport_component_idx))
+                i = eq_soln%transport_component_idx(m)
+                if (i < 1 .or. i > ng) cycle
+                if (selected_species(i)) cycle
+                if (nm >= max_tr) exit
                 nm = nm + 1
                 idx_list(nm) = i
                 selected_species(i) = .true.
                 total = total + eq_soln%nj(i)
                 if (eq_solver%products%species(i)%molecular_weight < 1.0d0) nj_el = eq_soln%nj(i)
                 eq_soln%nj(i) = -eq_soln%nj(i)
-            end if
-        end do
+                nseed = nseed + 1
+            end do
+        end if
+
+        ! Fallback when no cached basis is available.
+        if (nseed == 0) then
+            do m = 1, max_elem_idx
+                best_idx = 0
+                best_nj = -1.0d0
+                do i = 1, ng
+                    if (A(i, m) > tol .and. eq_soln%nj(i) > best_nj) then
+                        best_idx = i
+                        best_nj = eq_soln%nj(i)
+                    end if
+                end do
+                if (best_idx > 0 .and. .not. selected_species(best_idx) .and. nm < max_tr) then
+                    nm = nm + 1
+                    idx_list(nm) = best_idx
+                    selected_species(best_idx) = .true.
+                    total = total + eq_soln%nj(best_idx)
+                    if (eq_solver%products%species(best_idx)%molecular_weight < 1.0d0) nj_el = eq_soln%nj(best_idx)
+                    eq_soln%nj(best_idx) = -eq_soln%nj(best_idx)
+                end if
+            end do
+
+            do i = 1, ng
+                if ((sum(abs(A(i, :)))-1.0d0) < tol .and. .not. selected_species(i)) then
+                    if (nm >= max_tr) then
+                        call log_info("Reached maximum number of allowable transport species.")
+                        exit
+                    end if
+                    nm = nm + 1
+                    idx_list(nm) = i
+                    selected_species(i) = .true.
+                    total = total + eq_soln%nj(i)
+                    if (eq_solver%products%species(i)%molecular_weight < 1.0d0) nj_el = eq_soln%nj(i)
+                    eq_soln%nj(i) = -eq_soln%nj(i)
+                end if
+            end do
+        end if
         test_nj = 1.0d0/(ng*wtmol)
 
         ! Add the remaining species that meet the minimum size threshold
@@ -3121,19 +3321,60 @@ contains
                 exp(eq_solver%transport_db%pure_transport(selected_transport_pure_idx(i))%calc_lambda(eq_soln%T))
         end do
 
-        ! Build the stoichiometrix matrix for the chemical reactions
+        ! Build the stoichiometric matrix for the chemical reactions.
+        ! Prefer the cached equilibrium component basis to match legacy TRANIN/TRANP behavior.
         alpha = alpha(:, :nm)
         alpha = 0.0d0
-        nr = nm - ne
-        k = 1
-        do i = (ne+1), nm
-            alpha(k, i) = -1.0d0
-            j = idx_list(i)
-            do m = 1, ne
-                alpha(k, m) = A(j, m)
+        is_component = .false.
+        comp_local_idx = 0
+        comp_basis_row = 0
+        ncomp = 0
+
+        if (eq_soln%transport_basis_rows > 0 .and. &
+            allocated(eq_soln%transport_component_idx) .and. &
+            allocated(eq_soln%transport_basis_matrix)) then
+
+            do m = 1, min(eq_soln%transport_basis_rows, size(eq_soln%transport_component_idx))
+                j = eq_soln%transport_component_idx(m)
+                if (j < 1 .or. j > ng) cycle
+                do i = 1, nm
+                    if (idx_list(i) /= j) cycle
+                    if (.not. is_component(i)) then
+                        ncomp = ncomp + 1
+                        if (ncomp > max_tr) exit
+                        comp_local_idx(ncomp) = i
+                        comp_basis_row(ncomp) = m
+                        is_component(i) = .true.
+                    end if
+                    exit
+                end do
             end do
-            k = k + 1
-        end do
+        end if
+
+        if (ncomp > 0 .and. ncomp < nm) then
+            nr = 0
+            do i = 1, nm
+                if (is_component(i)) cycle
+                nr = nr + 1
+                alpha(nr, i) = -1.0d0
+                j = idx_list(i)
+                do k = 1, ncomp
+                    m = comp_local_idx(k)
+                    alpha(nr, m) = eq_soln%transport_basis_matrix(comp_basis_row(k), j)
+                end do
+            end do
+        else
+            nr = nm - ne
+            k = 1
+            do i = (ne+1), nm
+                alpha(k, i) = -1.0d0
+                j = idx_list(i)
+                do m = 1, ne
+                    alpha(k, m) = A(j, m)
+                end do
+                k = k + 1
+            end do
+        end if
 
         do i = 1, nm
             if (xs(i) < 1.d-10) then
@@ -3301,94 +3542,99 @@ contains
         ! Calculate reaction heat capacity and thermal conductivity
         ! --------------------------------------------------------------
 
-        delh = delh(:nr)
-        G = G(:nr, :nr+1)
-        do i = 1, nr
-            delh(i) = 0.0d0
-            do j = 1, nm
-                delh(i) = delh(i) + alpha(i, j)*eq_soln%thermo%enthalpy(idx_list(j))
+        if (nr > 0) then
+            delh = delh(:nr)
+            G = G(:nr, :nr+1)
+            do i = 1, nr
+                delh(i) = 0.0d0
+                do j = 1, nm
+                    delh(i) = delh(i) + alpha(i, j)*eq_soln%thermo%enthalpy(idx_list(j))
+                end do
+                G(i, nr+1) = delh(i)
             end do
-            G(i, nr+1) = delh(i)
-        end do
 
-        do i = 1, nr
-            do j = 1, nm
-                if (abs(alpha(i, j)) < 1.d-6) alpha(i, j) = 0.0d0
+            do i = 1, nr
+                do j = 1, nm
+                    if (abs(alpha(i, j)) < 1.d-6) alpha(i, j) = 0.0d0
+                end do
             end do
-        end do
 
-        xsij = xsij(:nm, :nm)
-        rtpd = rtpd(:nm, :nm)
-        do i = 1, (nm-1)
-            k1 = idx_list(i)
-            wmol1 = eq_solver%products%species(k1)%molecular_weight
-            do j = (i+1), nm
-                k2 = idx_list(j)
-                wmol2 = eq_solver%products%species(k2)%molecular_weight
-                rtpd(i, j) = wmol1*wmol2/(1.1d0 * eta(i, j) * (wmol1 + wmol2))
-                xsij(i, j) = xs(i)*xs(j)
-                xsij(j, i) = xsij(i, j)
-                rtpd(j, i) = rtpd(i, j)
+            xsij = xsij(:nm, :nm)
+            rtpd = rtpd(:nm, :nm)
+            do i = 1, (nm-1)
+                k1 = idx_list(i)
+                wmol1 = eq_solver%products%species(k1)%molecular_weight
+                do j = (i+1), nm
+                    k2 = idx_list(j)
+                    wmol2 = eq_solver%products%species(k2)%molecular_weight
+                    rtpd(i, j) = wmol1*wmol2/(1.1d0 * eta(i, j) * (wmol1 + wmol2))
+                    xsij(i, j) = xs(i)*xs(j)
+                    xsij(j, i) = xsij(i, j)
+                    rtpd(j, i) = rtpd(i, j)
+                end do
             end do
-        end do
 
-        do i = 1, nr
-            do j = 1, nr
-                G(i, j) = 0.0d0
-                gmat(i, j) = 0.0d0
+            do i = 1, nr
+                do j = 1, nr
+                    G(i, j) = 0.0d0
+                    gmat(i, j) = 0.0d0
+                end do
             end do
-        end do
 
-        do k = 1, (nm-1)
-            do m = (k+1), nm
-                if (xs(k) >= 1.d-10 .and. xs(m) >= 1.d-10) then
-                    do j = 1, nr
-                        if ((alpha(j, k) == 0.0d0) .and. (alpha(j, m) == 0.0d0)) then
-                            stx(j) = 0.0d0
-                        else
-                            stx(j) = xs(m)*alpha(j, k) - xs(k)*alpha(j, m)
-                        end if
-                    end do
-                    do i = 1, nr
+            do k = 1, (nm-1)
+                do m = (k+1), nm
+                    if (xs(k) >= 1.d-10 .and. xs(m) >= 1.d-10) then
                         do j = 1, nr
-                            stxij(i, j) = stx(i)*stx(j)/xsij(k, m)
-                            G(i, j) = G(i, j) + stxij(i, j)
-                            gmat(i, j) = gmat(i, j) + stxij(i, j)*rtpd(k, m)
+                            if ((alpha(j, k) == 0.0d0) .and. (alpha(j, m) == 0.0d0)) then
+                                stx(j) = 0.0d0
+                            else
+                                stx(j) = xs(m)*alpha(j, k) - xs(k)*alpha(j, m)
+                            end if
                         end do
-                    end do
-                end if
+                        do i = 1, nr
+                            do j = 1, nr
+                                stxij(i, j) = stx(i)*stx(j)/xsij(k, m)
+                                G(i, j) = G(i, j) + stxij(i, j)
+                                gmat(i, j) = gmat(i, j) + stxij(i, j)*rtpd(k, m)
+                            end do
+                        end do
+                    end if
+                end do
             end do
-        end do
 
-        m = 1 + nr
-        do i = 1, nr
-            do j = 1, nr
-                G(j, i) = G(i, j)
+            m = 1 + nr
+            do i = 1, nr
+                do j = 1, nr
+                    G(j, i) = G(i, j)
+                end do
+                G(i, m) = delh(i)
             end do
-            G(i, m) = delh(i)
-        end do
 
-        call gauss(G, ierr)
-        x => G(:, m)
+            call gauss(G, ierr)
+            x => G(:, m)
 
-        cpreac = 0.0d0
-        do i = 1, nr
-            cpreac = cpreac + (R*1.d-3)*delh(i)*x(i)
-            G(i, m) = delh(i)  ! *** "x" is a pointer, so this updates "x(i)" as well ***
-            do j = i, nr
-                G(i, j) = gmat(i, j)
-                G(j, i) = G(i, j)
+            cpreac = 0.0d0
+            do i = 1, nr
+                cpreac = cpreac + (R*1.d-3)*delh(i)*x(i)
+                G(i, m) = delh(i)  ! *** "x" is a pointer, so this updates "x(i)" as well ***
+                do j = i, nr
+                    G(i, j) = gmat(i, j)
+                    G(j, i) = G(i, j)
+                end do
             end do
-        end do
 
-        call gauss(G, ierr)
-        x => G(:, m)
+            call gauss(G, ierr)
+            x => G(:, m)
 
-        reacon = 0.0d0
-        do i = 1, nr
-            reacon = reacon + (R*1.d-3)*delh(i)*x(i)
-        end do
-        reacon = 0.6d0*reacon
+            reacon = 0.0d0
+            do i = 1, nr
+                reacon = reacon + (R*1.d-3)*delh(i)*x(i)
+            end do
+            reacon = 0.6d0*reacon
+        else
+            cpreac = 0.0d0
+            reacon = 0.0d0
+        end if
 
         wtmol = 0.0d0
         eq_soln%cp_fr = 0.0d0

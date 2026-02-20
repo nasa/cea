@@ -51,8 +51,8 @@ contains
         @assertRelativelyEqual(solution%Pr_fr,           0.67868046264504223d0,tol)
 
         @assertRelativelyEqual(solution%cp_eq,           15.545786271696615d0, tol)
-        @assertRelativelyEqual(solution%conductivity_eq, 29.982995914530928d0, tol)
-        @assertRelativelyEqual(solution%Pr_eq,           0.36277853488125877d0, tol)
+        @assertRelativelyEqual(solution%conductivity_eq, 39.879858727949504d0, tol)
+        @assertRelativelyEqual(solution%Pr_eq,           0.41578154805631812d0, tol)
 
     end subroutine
 
@@ -62,11 +62,14 @@ contains
         type(BinaryTransport) :: binary_data
         real(dp), parameter :: tol = 1.0d-12
 
-        allocate(species_data%T_fit(3,2), species_data%eta_coef(3), species_data%lambda_coef(3))
-        species_data%num_intervals = 3
-        species_data%T_fit(1,:) = [200.d0, 1000.d0]
-        species_data%T_fit(2,:) = [1000.d0, 2000.d0]
-        species_data%T_fit(3,:) = [2000.d0, 6000.d0]
+        allocate(species_data%eta_T_fit(3,2), species_data%lambda_T_fit(3,2), &
+                 species_data%eta_coef(3), species_data%lambda_coef(3))
+        species_data%num_eta_intervals = 3
+        species_data%num_lambda_intervals = 3
+        species_data%eta_T_fit(1,:) = [200.d0, 1000.d0]
+        species_data%eta_T_fit(2,:) = [1000.d0, 2000.d0]
+        species_data%eta_T_fit(3,:) = [2000.d0, 6000.d0]
+        species_data%lambda_T_fit = species_data%eta_T_fit
         species_data%eta_coef(1)%D = 1.0d0
         species_data%eta_coef(2)%D = 2.0d0
         species_data%eta_coef(3)%D = 3.0d0
@@ -83,7 +86,7 @@ contains
 
         allocate(binary_data%T_fit(3,2), binary_data%eta_coef(3))
         binary_data%num_intervals = 3
-        binary_data%T_fit = species_data%T_fit
+        binary_data%T_fit = species_data%eta_T_fit
         binary_data%eta_coef(1)%D = -1.0d0
         binary_data%eta_coef(2)%D = -2.0d0
         binary_data%eta_coef(3)%D = -3.0d0

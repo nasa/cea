@@ -472,15 +472,40 @@ contains
         solver = RocketSolver(products, reactants, all_transport=all_transport)
         soln = solver%solve(weights, pc, pi_p=[10.0d0], supar=[20.0d0], hc=hc)
 
-        write(*,*) "Testing rocket problem with transport properties enabled..."
-        write(*,*) 'Temperature (K): ', soln%eq_soln(1)%T
-        write(*,*) 'Species mass fractions: ', soln%eq_soln(1)%nj
-
         ! Test convergence
         @assertEqual(.true., soln%converged)
-        @assertRelativelyEqual(3185.6731730807096d0, soln%eq_soln(2)%T, tol)
-        @assertRelativelyEqual(-6.1821344716750914d0, soln%eq_soln(2)%ln_nj(1), tol)
-        @assertRelativelyEqual(-3.7758918668469459d0, soln%eq_soln(2)%ln_nj(2), tol)
+
+        ! Chamber transport properties
+        @assertRelativelyEqual(3371.84d0,  soln%eq_soln(1)%T,               tol)
+        @assertRelativelyEqual(1.0391d0,   soln%eq_soln(1)%viscosity,       tol)
+        @assertRelativelyEqual(10.4826d0,  soln%eq_soln(1)%conductivity_eq, tol)
+        @assertRelativelyEqual(0.4635d0,   soln%eq_soln(1)%pr_eq,           tol)
+        @assertRelativelyEqual(4.1984d0,   soln%eq_soln(1)%conductivity_fr, tol)
+        @assertRelativelyEqual(0.6279d0,   soln%eq_soln(1)%pr_fr,           tol)
+
+        ! Throat transport properties
+        @assertRelativelyEqual(3148.65d0,  soln%eq_soln(2)%T,               tol)
+        @assertRelativelyEqual(0.98981d0,  soln%eq_soln(2)%viscosity,       tol)
+        @assertRelativelyEqual(8.7103d0,   soln%eq_soln(2)%conductivity_eq, tol)
+        @assertRelativelyEqual(0.4693d0,   soln%eq_soln(2)%pr_eq,           tol)
+        @assertRelativelyEqual(3.9367d0,   soln%eq_soln(2)%conductivity_fr, tol)
+        @assertRelativelyEqual(0.6324d0,   soln%eq_soln(2)%pr_fr,           tol)
+
+        ! Exit transport properties (pi_p=10, Ae/At=2.3019)
+        @assertRelativelyEqual(2457.73d0,  soln%eq_soln(3)%T,               tol)
+        @assertRelativelyEqual(0.82957d0,  soln%eq_soln(3)%viscosity,       tol)
+        @assertRelativelyEqual(4.2652d0,   soln%eq_soln(3)%conductivity_eq, tol)
+        @assertRelativelyEqual(0.5445d0,   soln%eq_soln(3)%pr_eq,           tol)
+        @assertRelativelyEqual(3.1312d0,   soln%eq_soln(3)%conductivity_fr, tol)
+        @assertRelativelyEqual(0.6423d0,   soln%eq_soln(3)%pr_fr,           tol)
+
+        ! Exit transport properties (supar=20, Ae/At=20)
+        @assertRelativelyEqual(1442.09d0,  soln%eq_soln(4)%T,               tol)
+        @assertRelativelyEqual(0.56764d0,  soln%eq_soln(4)%viscosity,       tol)
+        @assertRelativelyEqual(2.0853d0,   soln%eq_soln(4)%conductivity_eq, tol)
+        @assertRelativelyEqual(0.6351d0,   soln%eq_soln(4)%pr_eq,           tol)
+        @assertRelativelyEqual(1.9610d0,   soln%eq_soln(4)%conductivity_fr, tol)
+        @assertRelativelyEqual(0.6315d0,   soln%eq_soln(4)%pr_fr,           tol)
 
     end subroutine
 
