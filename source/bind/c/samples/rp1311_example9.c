@@ -1,3 +1,4 @@
+#include "stdlib.h"
 #include "stdio.h"
 #include "cea.h"
 
@@ -21,7 +22,7 @@ int main(void) {
     const int nr = LEN(reactants);
 
     // Products
-    const cea_string omitted_products[] = {};
+    const cea_string omitted_products[] = {""};
 
     // Thermo States
     const cea_real pressures = 53.3172*BAR;
@@ -58,11 +59,11 @@ int main(void) {
     // Rocket Solve
     //----------------------------------------------------------------
 
-    cea_real weights[nr];
+    cea_real* weights = calloc(nr, sizeof(cea_real));
     cea_mixture_of_ratio_to_weights(reac, LEN(reactants), oxidant_weights, fuel_weights, of_ratio, weights);
 
     const cea_real pip[] = { 10.0, 100.0, 1000.0 };
-    const cea_real subar[] = {};
+    const cea_real subar[] = {0.0};
     const cea_real supar[] = { 25.0, 50.0, 75.0 };
     const cea_real pc = 53.3172;
     const cea_real ac_at = 1.58;
@@ -73,8 +74,15 @@ int main(void) {
 
     cea_rocket_solver_solve_fac(solver, soln, weights, pc, pip, 3, subar, 0, supar, 3, 0, hc, TRUE, ac_at, FALSE, 0.0, FALSE);
 
-    cea_real temperature[num_pts], pressure[num_pts], gamma[num_pts], mach[num_pts];
-    cea_real area_ratio[num_pts], isp[num_pts], isp_vac[num_pts], cstar[num_pts], cf[num_pts];
+    cea_real* temperature = calloc(num_pts, sizeof(cea_real));
+    cea_real* pressure = calloc(num_pts, sizeof(cea_real));
+    cea_real* gamma = calloc(num_pts, sizeof(cea_real));
+    cea_real* mach = calloc(num_pts, sizeof(cea_real));
+    cea_real* area_ratio = calloc(num_pts, sizeof(cea_real));
+    cea_real* isp = calloc(num_pts, sizeof(cea_real));
+    cea_real* isp_vac = calloc(num_pts, sizeof(cea_real));
+    cea_real* cstar = calloc(num_pts, sizeof(cea_real));
+    cea_real* cf = calloc(num_pts, sizeof(cea_real));
     cea_rocket_solution_get_property(soln, CEA_ROCKET_TEMPERATURE, num_pts, temperature);
     cea_rocket_solution_get_property(soln, CEA_ROCKET_PRESSURE, num_pts, pressure);
     cea_rocket_solution_get_property(soln, CEA_ROCKET_GAMMA_S, num_pts, gamma);
@@ -146,7 +154,16 @@ int main(void) {
     cea_rocket_solver_destroy(&solver);
     cea_mixture_destroy(&prod);
     cea_mixture_destroy(&reac);
+    free(weights);
+    free(temperature);
+    free(pressure);
+    free(gamma);
+    free(mach);
+    free(area_ratio);
+    free(isp);
+    free(isp_vac);
+    free(cstar);
+    free(cf);
 
     return 0;
-
 }

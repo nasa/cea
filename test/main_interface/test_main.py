@@ -27,6 +27,36 @@ REPO_ROOT = SCRIPT_DIR.parent.parent
 reference_dir = SCRIPT_DIR / "reference_output"
 test_dir = SCRIPT_DIR / "test_output"
 
+
+def resolve_cea_exe(repo_root: Path) -> str:
+    cea_exe = os.environ.get("CEA_EXE")
+    if cea_exe is not None:
+        return cea_exe
+
+    candidate_exes = []
+
+    run_dir = os.environ.get("CEA_RUN_DIR")
+    if run_dir is not None:
+        candidate_exes.append(Path(run_dir).expanduser() / "cea")
+
+    # Prefer binaries built from this checkout to avoid stale external builds.
+    candidate_exes.extend(sorted(repo_root.glob("build*/source/cea")))
+
+    # Keep the historical default location as a final fallback.
+    candidate_exes.append(Path("~/git/cea/build-dev/source/cea").expanduser())
+
+    existing_exes = [path for path in candidate_exes if path.exists()]
+    if existing_exes:
+        return str(max(existing_exes, key=lambda path: path.stat().st_mtime))
+
+    cea_exe = shutil.which("cea")
+    if cea_exe is not None:
+        return cea_exe
+
+    raise FileNotFoundError(
+        "Could not locate `cea` executable. Set CEA_EXE/CEA_RUN_DIR or build `build*/source/cea` in this repository."
+    )
+
 # Initialize values
 test_passed = True  # Flag for each individual test case
 passed_count = 0  # Count the number of tests that fully passed
@@ -65,17 +95,7 @@ def ref_round(ref_val, test_val):
     return test_val
 
 def run_tests(test_names):
-
-    run_dir = Path(os.environ.get("CEA_RUN_DIR", "~/git/cea/build-dev/source")).expanduser()
-    default_exe = run_dir / "cea"
-    cea_exe = os.environ.get("CEA_EXE")
-    if cea_exe is None:
-        if default_exe.exists():
-            cea_exe = str(default_exe)
-        else:
-            cea_exe = shutil.which("cea")
-    if cea_exe is None:
-        raise FileNotFoundError("Could not locate `cea` executable. Set CEA_EXE or CEA_RUN_DIR, or add `cea` to PATH.")
+    cea_exe = resolve_cea_exe(REPO_ROOT)
 
     test_dir.mkdir(parents=True, exist_ok=True)
 
