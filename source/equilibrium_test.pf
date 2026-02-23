@@ -1870,7 +1870,7 @@ contains
             'N2O3', 'O   ', 'O2  ', 'OH  ', 'O3  '  &
         ])
 
-        solver = EqSolver(prod, reac, smooth_truncation=.true.)
+        solver = EqSolver(prod, reac, smooth_truncation=.true., truncation_width=0.1d0)
         solution = EqSolution(solver)
 
         ! Get the oxidant to fuel ratio
@@ -1912,7 +1912,7 @@ contains
             'N2O3', 'O   ', 'O2  ', 'OH  ', 'O3  '  &
         ])
 
-        solver = EqSolver(prod, reac, smooth_truncation=.true.)
+        solver = EqSolver(prod, reac, smooth_truncation=.true., truncation_width=0.1d0)
         solution = EqSolution(solver)
 
         ! Get the oxidant to fuel ratio
@@ -1963,7 +1963,7 @@ contains
             'C(gr)',           'H2O(cr)'  &
         ])
 
-        solver = EqSolver(prod, reac, 1d-15, smooth_truncation=.true.)
+        solver = EqSolver(prod, reac, 1d-15, smooth_truncation=.true., truncation_width=0.1d0)
         solution = EqSolution(solver)
 
         ! Get the reactant weights
@@ -1972,8 +1972,6 @@ contains
         ! Get the constraint values
         h_reac = reac%calc_enthalpy(weights, [700.0d0, 298.15d0, 298.15d0])/R
         p_reac = 100.0d0
-        b_reac = reac%element_amounts_from_weights(weights)
-        solution%constraints = EqConstraints('hp', h_reac, p_reac, b_reac)
 
         ! Test the full solve
         call solver%solve(solution, 'hp', h_reac, p_reac, weights)
@@ -2019,7 +2017,7 @@ contains
             'C(gr)',           'H2O(cr)'  &
         ])
 
-        solver = EqSolver(prod, reac, 1d-15, smooth_truncation=.true.)
+        solver = EqSolver(prod, reac, 1d-15, smooth_truncation=.true., truncation_width=0.1d0)
         solution = EqSolution(solver)
 
         ! Get the reactant weights
@@ -2151,7 +2149,7 @@ contains
         product_names = reactants%get_products(all_thermo, omit=["C(gr)"])
         products = Mixture(all_thermo, product_names, ions=.true.)
 
-        solver = EqSolver(products, reactants, ions=.true., smooth_truncation=.true.)
+        solver = EqSolver(products, reactants, ions=.true., smooth_truncation=.true., truncation_width=0.1d0)
         soln = EqSolution(solver)
 
         weights = [1.0d0]
@@ -2197,7 +2195,7 @@ contains
         product_names = reactants%get_products(all_thermo)
         products = Mixture(all_thermo, product_names)
 
-        solver = EqSolver(products, reactants, all_transport=all_transport, smooth_truncation=.true.)
+        solver = EqSolver(products, reactants, all_transport=all_transport, smooth_truncation=.true., truncation_width=0.1d0)
         solution = EqSolution(solver)
 
         weights = reactants%weights_from_of([0.0d0, 1.0d0], [1.0d0, 0.0d0], 2.6d0)

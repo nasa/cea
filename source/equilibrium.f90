@@ -535,6 +535,20 @@ contains
         end if
     end subroutine
 
+    pure real(dp) function gas_amount_ln_threshold(ln_n, tsize, esize, ion_species) result(ln_threshold)
+        ! Species-amount truncation threshold: ions use esize, non-ions use tsize.
+        real(dp), intent(in) :: ln_n
+        real(dp), intent(in) :: tsize
+        real(dp), intent(in) :: esize
+        logical, intent(in) :: ion_species
+
+        if (ion_species) then
+            ln_threshold = ln_n - esize
+        else
+            ln_threshold = ln_n - tsize
+        end if
+    end function
+
     !-----------------------------------------------------------------------
     ! EquilibriumSolver
     !-----------------------------------------------------------------------
@@ -893,6 +907,7 @@ contains
         real(dp) :: dln_T                     ! 𝛥ln(T)
         integer :: i, idx_c                   ! Indices
         integer, allocatable :: active_idx(:) ! Active condensed indices in legacy order
+        logical :: ion_species                ! True if gas species is charged and ions are active
         logical :: const_p, const_t           ! Flags enabling/disabling matrix equations
         type(EqConstraints), pointer :: cons  ! Abbreviation for soln%constraints
         real(dp) :: lambda                    ! Damped update factor
@@ -931,25 +946,14 @@ contains
         ! Compute the damped update factor
         lambda = self%compute_damped_update_factor(soln)
 
-        ! Update gas species concentration
+        ! Update gas species concentration. Use esize for ions and tsize otherwise.
         do i = 1, ng
             ln_nj(i) = ln_nj(i) + lambda*dln_nj(i)
+            ion_species = self%ions .and. self%active_ions .and. ne_full > 0 .and. A_g(i, ne_full) /= 0.0d0
+            ln_threshold = gas_amount_ln_threshold(ln_n, self%tsize, self%esize, ion_species)
             call compute_nj_effective(ln_nj(i), ln_threshold, self%smooth_truncation, self%truncation_width, &
                                       nj_eff=nj_g(i))
         end do
-
-        ! Use a lower threshold for ionized species before truncating the concentrations
-        if (self%ions .and. self%active_ions .and. ne_full > 0) then
-            do i = 1, ng
-                ! TODO(smooth_truncation): This check currently preserves hard-zero ion fallback semantics only.
-                ! For smooth truncation, nj_g(i) is not exactly zero, so this branch is intentionally disabled.
-                if (A_g(i, ne_full) /= 0.0d0 .and. (.not. self%smooth_truncation) .and. nj_g(i) == 0.0d0) then
-                    if (ln_nj(i) - ln_n + self%esize > 0.0d0) then
-                        nj_g(i) = exp(ln_nj(i))
-                    end if
-                end if
-            end do
-        end if
 
         ! Condensed species concentrations
         active_idx = soln%active_condensed_indices()
@@ -2785,6 +2789,8 @@ contains
         real(dp) :: ln_n
         real(dp) :: log_p_over_n
         real(dp) :: ln_threshold
+        real(dp) :: ln_threshold_nj
+        real(dp) :: species_size
         real(dp) :: dlogP_over_n_state1
         real(dp) :: dlogP_over_n_state2
         real(dp), allocatable :: dlogP_over_n_db0(:)
@@ -2804,6 +2810,7 @@ contains
         real(dp), allocatable :: nj_g_eff(:)
         real(dp), allocatable :: dnj_dln_nj(:)
         real(dp), allocatable :: dln_nj_eff_dln_nj(:)
+        real(dp), allocatable :: dln_nj_amount_dln_nj(:)
         real(dp) :: sum_h
         real(dp) :: sum_dh_dT
         real(dp) :: sum_h_dnj
@@ -2819,6 +2826,7 @@ contains
         real(dp) :: threshold_margin
         real(dp) :: fac
         character(256) :: msg
+        logical :: ion_species
         logical :: const_p, const_t, const_s, const_h, const_u  ! Flags enabling/disabling matrix equations
         type(EqConstraints), pointer :: cons    ! Abbreviation for soln%constraints
 
@@ -2898,12 +2906,16 @@ contains
         log_p_over_n = log(P/n)
         ln_threshold = ln_n - solver%tsize
 
-        allocate(ln_nj_eff(ng), nj_g_eff(ng), dnj_dln_nj(ng), dln_nj_eff_dln_nj(ng))
+        allocate(ln_nj_eff(ng), nj_g_eff(ng), dnj_dln_nj(ng), dln_nj_eff_dln_nj(ng), dln_nj_amount_dln_nj(ng))
         do i = 1, ng
             call compute_nj_effective(ln_nj(i), ln_threshold, solver%smooth_truncation, solver%truncation_width, &
                                       nj_eff=nj_g_eff(i), ln_nj_eff=ln_nj_eff(i), dln_nj_eff_dln_nj=dln_nj_eff_dln_nj(i))
+            ion_species = solver%ions .and. solver%active_ions .and. ne > 0 .and. A_g(i, ne) /= 0.0d0
+            ln_threshold_nj = gas_amount_ln_threshold(ln_n, solver%tsize, solver%esize, ion_species)
+            call compute_nj_effective(ln_nj(i), ln_threshold_nj, solver%smooth_truncation, solver%truncation_width, &
+                                      nj_eff=nj_g_eff(i), dln_nj_eff_dln_nj=dln_nj_amount_dln_nj(i))
             if (solver%smooth_truncation) then
-                dnj_dln_nj(i) = exp(ln_nj(i)) * dln_nj_eff_dln_nj(i)
+                dnj_dln_nj(i) = exp(ln_nj(i)) * dln_nj_amount_dln_nj(i)
             else
                 dnj_dln_nj(i) = nj_g_eff(i)
             end if
@@ -3044,9 +3056,15 @@ contains
             dln_nj_eff_dw0(i, :) = dln_nj_eff_dln_nj(i) * dln_nj_dw0(i, :)
         end do
 
-        threshold_margin = 0.05d0*solver%tsize
         do i = 1, ng
-            threshold_value = ln_nj(i) - ln_n + solver%tsize
+            ion_species = solver%ions .and. solver%active_ions .and. ne > 0 .and. A_g(i, ne) /= 0.0d0
+            if (ion_species) then
+                species_size = solver%esize
+            else
+                species_size = solver%tsize
+            end if
+            threshold_value = ln_nj(i) - ln_n + species_size
+            threshold_margin = 0.05d0*species_size
             if (solver%smooth_truncation) then
                 self%dnj_dstate1(i) = dnj_dln_nj(i)*dln_nj_dstate1(i)
                 self%dnj_dstate2(i) = dnj_dln_nj(i)*dln_nj_dstate2(i)
