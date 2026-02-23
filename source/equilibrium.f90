@@ -63,6 +63,10 @@ module cea_equilibrium
             !! log(1.d-14)
         real(dp) :: tsize = 18.420681d0
             !! log(1.d-8)
+        logical :: smooth_truncation = .false.
+            !! Enable smooth logistic gating instead of hard truncation
+        real(dp) :: truncation_width = 0.25d0
+            !! Logistic gate width in log-space (w); only used when smooth_truncation is true
         real(dp) :: trace = 0.0d0
             !! Threshold for trace species
         real(dp) :: log_min = -87.0d0
@@ -453,10 +457,88 @@ module cea_equilibrium
 
 contains
 
+    pure subroutine sigmoid_stable(x, g, log_g)
+        ! Numerically stable sigmoid and log-sigmoid.
+        real(dp), intent(in) :: x
+        real(dp), intent(out) :: g
+        real(dp), intent(out), optional :: log_g
+        real(dp) :: ex
+
+        if (x >= 0.0d0) then
+            ex = exp(-x)
+            g = 1.0d0 / (1.0d0 + ex)
+            if (present(log_g)) log_g = -log(1.0d0 + ex)
+        else
+            ex = exp(x)
+            g = ex / (1.0d0 + ex)
+            if (present(log_g)) log_g = x - log(1.0d0 + ex)
+        end if
+    end subroutine
+
+    pure subroutine compute_nj_effective(ln_nj, ln_threshold, smooth_truncation, width, nj_eff, g, dg_dln, ln_nj_eff, &
+                                         dln_nj_eff_dln_nj, is_hard_active)
+        ! Map log-species amount to the effective physical amount used in thermo/properties.
+        ! In this solver, ln_threshold = log(n) - tsize.
+        real(dp), intent(in) :: ln_nj
+        real(dp), intent(in) :: ln_threshold
+        logical, intent(in) :: smooth_truncation
+        real(dp), intent(in) :: width
+        real(dp), intent(out) :: nj_eff
+        real(dp), intent(out), optional :: g
+        real(dp), intent(out), optional :: dg_dln
+        real(dp), intent(out), optional :: ln_nj_eff
+        real(dp), intent(out), optional :: dln_nj_eff_dln_nj
+        logical, intent(out), optional :: is_hard_active
+
+        real(dp) :: gate
+        real(dp) :: gate_log
+        real(dp) :: gate_prime
+        real(dp) :: x
+        logical :: hard_active
+
+        hard_active = (ln_nj > ln_threshold)
+        if (present(is_hard_active)) is_hard_active = hard_active
+
+        if (.not. smooth_truncation) then
+            if (hard_active) then
+                nj_eff = exp(ln_nj)
+            else
+                nj_eff = 0.0d0
+            end if
+            if (present(g)) then
+                if (hard_active) then
+                    g = 1.0d0
+                else
+                    g = 0.0d0
+                end if
+            end if
+            if (present(dg_dln)) dg_dln = 0.0d0
+            if (present(ln_nj_eff)) ln_nj_eff = ln_nj
+            if (present(dln_nj_eff_dln_nj)) dln_nj_eff_dln_nj = 1.0d0
+            return
+        end if
+
+        x = (ln_nj - ln_threshold) / width
+        call sigmoid_stable(x, gate, gate_log)
+        gate_prime = (1.0d0 / width) * gate * (1.0d0 - gate)
+
+        nj_eff = exp(ln_nj) * gate
+        if (present(g)) g = gate
+        if (present(dg_dln)) dg_dln = gate_prime
+        if (present(ln_nj_eff)) ln_nj_eff = ln_nj + gate_log
+        if (present(dln_nj_eff_dln_nj)) then
+            if (gate > 0.0d0) then
+                dln_nj_eff_dln_nj = 1.0d0 + gate_prime / gate
+            else
+                dln_nj_eff_dln_nj = 1.0d0
+            end if
+        end if
+    end subroutine
+
     !-----------------------------------------------------------------------
     ! EquilibriumSolver
     !-----------------------------------------------------------------------
-    function EqSolver_init(products, reactants, trace, ions, all_transport, insert) result(self)
+    function EqSolver_init(products, reactants, trace, ions, all_transport, insert, smooth_truncation, truncation_width) result(self)
         type(EqSolver) :: self
         type(Mixture), intent(in) :: products
         type(Mixture), intent(in), optional :: reactants
@@ -464,6 +546,8 @@ contains
         logical, intent(in), optional :: ions
         type(TransportDB), intent(in), optional :: all_transport
         character(*), intent(in), optional :: insert(:)  ! List of condensed species to insert
+        logical, intent(in), optional :: smooth_truncation
+        real(dp), intent(in), optional :: truncation_width
         integer :: i
         integer :: ngc_equiv
 
@@ -493,6 +577,12 @@ contains
         if (present(trace)) self%trace = trace
         if (present(ions)) self%ions = ions
         if (present(all_transport)) self%transport = .true.
+        if (present(smooth_truncation)) self%smooth_truncation = smooth_truncation
+        if (present(truncation_width)) self%truncation_width = truncation_width
+
+        if (self%smooth_truncation .and. self%truncation_width <= 0.0d0) then
+            call abort("EqSolver_init: truncation_width must be > 0 when smooth_truncation is enabled.")
+        end if
 
         ! Update size parameters
         if (self%trace > 0.0d0) then
@@ -681,7 +771,11 @@ contains
         real(dp), pointer :: s_g(:)           ! Gas entropies [unitless]
         real(dp), pointer :: A_g(:,:), A(:,:) ! Gas/total stoichiometric matrices
         real(dp) :: n                         ! Total moles of mixture
+        real(dp) :: ln_n                      ! Log total moles
+        real(dp) :: ln_threshold              ! Truncation threshold in log-space
         real(dp), pointer :: ln_nj(:)         ! Log of the product concentrations
+        real(dp) :: ln_nj_eff(self%num_gas)   ! Effective log-species concentrations
+        real(dp) :: nj_eff_tmp                ! Temporary effective species amount
 
         ! Define shorthand
         ng = self%num_gas
@@ -693,6 +787,8 @@ contains
         x => soln%G(:,num_eqn+1)
         ln_nj => soln%ln_nj
         n = soln%n
+        ln_n = log(n)
+        ln_threshold = ln_n - self%tsize
         const_p = cons%is_constant_pressure()
         const_t = cons%is_constant_temperature()
 
@@ -709,7 +805,11 @@ contains
         P = soln%calc_pressure()
 
         ! Compute gas phase chemical potentials
-        mu_g = h_g - s_g + ln_nj + log(P/n)
+        do i = 1, ng
+            call compute_nj_effective(ln_nj(i), ln_threshold, self%smooth_truncation, self%truncation_width, &
+                                      nj_eff=nj_eff_tmp, ln_nj_eff=ln_nj_eff(i))
+        end do
+        mu_g = h_g - s_g + ln_nj_eff + log(P/n)
 
         ! Get the pi variables
         soln%pi = 0.0d0
@@ -796,6 +896,7 @@ contains
         logical :: const_p, const_t           ! Flags enabling/disabling matrix equations
         type(EqConstraints), pointer :: cons  ! Abbreviation for soln%constraints
         real(dp) :: lambda                    ! Damped update factor
+        real(dp) :: ln_threshold              ! Truncation threshold in log-space
 
         ! Get the solution update variables (pi, dnj_c, dln_n, dln_T, dln_nj)
         call self%get_solution_vars(soln)
@@ -815,6 +916,7 @@ contains
         ln_nj => soln%ln_nj
         n = soln%n
         ln_n = log(n)
+        ln_threshold = ln_n - self%tsize
         const_p = cons%is_constant_pressure()
         const_t = cons%is_constant_temperature()
         T = soln%T
@@ -832,17 +934,16 @@ contains
         ! Update gas species concentration
         do i = 1, ng
             ln_nj(i) = ln_nj(i) + lambda*dln_nj(i)
-            if (ln_nj(i) - ln_n + self%tsize > 0.0d0) then
-                nj_g(i) = exp(ln_nj(i))
-            else
-                nj_g(i) = 0.0d0
-            end if
+            call compute_nj_effective(ln_nj(i), ln_threshold, self%smooth_truncation, self%truncation_width, &
+                                      nj_eff=nj_g(i))
         end do
 
         ! Use a lower threshold for ionized species before truncating the concentrations
         if (self%ions .and. self%active_ions .and. ne_full > 0) then
             do i = 1, ng
-                if (A_g(i, ne_full) /= 0.0d0 .and. nj_g(i) == 0.0d0) then
+                ! TODO(smooth_truncation): This check currently preserves hard-zero ion fallback semantics only.
+                ! For smooth truncation, nj_g(i) is not exactly zero, so this branch is intentionally disabled.
+                if (A_g(i, ne_full) /= 0.0d0 .and. (.not. self%smooth_truncation) .and. nj_g(i) == 0.0d0) then
                     if (ln_nj(i) - ln_n + self%esize > 0.0d0) then
                         nj_g(i) = exp(ln_nj(i))
                     end if
@@ -892,6 +993,8 @@ contains
         real(dp), pointer :: nj(:), nj_g(:)   ! Total/gas species concentrations [kmol-per-kg]
         real(dp) :: n, ln_n                   ! Total moles of mixture, log of total moles
         real(dp), pointer :: ln_nj(:)         ! Log of the product concentrations
+        real(dp) :: ln_threshold              ! Truncation threshold in log-space
+        real(dp) :: ln_nj_eff(self%num_gas)   ! Effective log-species concentrations
         real(dp) :: P                         ! Mixture pressure (bar)
         real(dp), pointer :: h_g(:)           ! Gas enthalpies [unitless]
         real(dp), pointer :: s_g(:), s_c(:)   ! Gas entropies [unitless]
@@ -912,6 +1015,7 @@ contains
         real(dp), parameter :: pi_tol = 1.0d-3   ! Tolerance for modified lagrance multipliers
         real(dp), parameter :: ion_tol = 1.0d-4  ! Tolerance for ionized species
         real(dp) :: sum1, sum2, aa, temp         ! Temporary variables for ionized species
+        real(dp) :: nj_eff_tmp                    ! Temporary species amount
 
         ! Define shorthand
         ng = self%num_gas
@@ -923,6 +1027,7 @@ contains
         ln_nj => soln%ln_nj
         n = soln%n
         ln_n = log(n)
+        ln_threshold = ln_n - self%tsize
         const_p = cons%is_constant_pressure()
         const_t = cons%is_constant_temperature()
         const_s = cons%is_constant_entropy()
@@ -946,7 +1051,13 @@ contains
 
         ! Evalutate constraint residuals
         b_delta = b0 - self%products%elements_from_species(nj)
-        if (const_s) s_delta = cons%state1 - dot_product(nj_g, s_g-ln_nj-log(P/n)) - dot_product(nj(ng+1:), s_c)
+        if (const_s) then
+            do i = 1, ng
+                call compute_nj_effective(ln_nj(i), ln_threshold, self%smooth_truncation, self%truncation_width, &
+                                          nj_eff=nj_eff_tmp, ln_nj_eff=ln_nj_eff(i))
+            end do
+            s_delta = cons%state1 - dot_product(nj_g, s_g-ln_nj_eff-log(P/n)) - dot_product(nj(ng+1:), s_c)
+        end if
 
         ! Initialize the convergence to true
         soln%gas_converged         = .true.
@@ -1035,12 +1146,10 @@ contains
 
         ! Update tsize after initial convergence, and adjust species concentrations
         self%tsize = self%xsize
+        ln_threshold = ln_n - self%tsize
         do i = 1, ng
-            if (ln_nj(i) - ln_n + self%tsize > 0.0d0) then
-                nj_g(i) = exp(ln_nj(i))
-            else
-                nj_g(i) = 0.0d0
-            end if
+            call compute_nj_effective(ln_nj(i), ln_threshold, self%smooth_truncation, self%truncation_width, &
+                                      nj_eff=nj_g(i))
         end do
 
         ! If everything converged, check ion convergence: Equation (3.14)
@@ -1053,6 +1162,8 @@ contains
                 sum2 = 0.0d0
                 do j = 1, ng
                     if (A_g(j, ne_full) /= 0.0d0) then
+                        ! TODO(smooth_truncation): Ion convergence still uses legacy hard-threshold semantics.
+                        ! Revisit whether this branch should use a practical-zero test when smooth truncation is enabled.
                         soln%nj(j) = 0.0d0
                         temp = 0.0d0
                         if (soln%ln_nj(j) > -87.0d0) temp = exp(soln%ln_nj(j))
@@ -1107,6 +1218,8 @@ contains
         real(dp) :: P                           ! Pressure of mixture (bar)
         real(dp), pointer :: nj(:), nj_g(:), nj_c(:)  ! Total/gas/condensed species concentrations [kmol-per-kg]
         real(dp), pointer :: ln_nj(:)           ! Log of gas species concentrations [kmol-per-kg]
+        real(dp) :: ln_nj_eff(self%num_gas)     ! Effective log-species concentrations
+        real(dp) :: ln_threshold                ! Truncation threshold in log-space
         real(dp), pointer :: cp(:), cv(:)       ! Species heat capacities [unitless]
         real(dp), pointer :: h_g(:), h_c(:)     ! Gas/condensed enthalpies [unitless]
         real(dp), pointer :: s_g(:), s_c(:)     ! Gas/condensed entropies [unitless]
@@ -1139,6 +1252,7 @@ contains
         A_g => self%products%stoich_matrix(:ng,:) ! NOTE: A is transpose of a_ij in RP-1311
         A_c => self%products%stoich_matrix(ng+1:,:)
         n = soln%n
+        ln_threshold = log(n) - self%tsize
         nj  => soln%nj
         nj_g => soln%nj(:ng)
         ln_nj => soln%ln_nj
@@ -1155,7 +1269,11 @@ contains
         P = soln%calc_pressure()
 
         ! Compute gas phase chemical potentials
-        mu_g = h_g - s_g + ln_nj + log(P/n)
+        do i = 1, ng
+            call compute_nj_effective(ln_nj(i), ln_threshold, self%smooth_truncation, self%truncation_width, &
+                                      nj_eff=tmp(i), ln_nj_eff=ln_nj_eff(i))
+        end do
+        mu_g = h_g - s_g + ln_nj_eff + log(P/n)
 
         ! Evalutate constraint residuals
         b_delta = cons%b0 - self%products%elements_from_species(nj)
@@ -1810,6 +1928,8 @@ contains
         ! Legacy fallback path: seed trace gas species to break persistent singularity.
         if (.not. made_change) then
             do i = 1, ng
+                ! TODO(smooth_truncation): smooth gating means near-trace species may not be exactly zero.
+                ! This legacy singular-recovery path intentionally preserves hard-zero behavior.
                 if (soln%nj(i) <= 0.0d0) then
                     soln%nj(i) = smalno
                     soln%ln_nj(i) = smnol
@@ -2162,8 +2282,13 @@ contains
 
                 ! Compute final species concentrations
                 ! * NOTE: post-processing uses a lower threshold when computing nj = exp(ln(nj))
-                do i = 1,self%num_gas
-                    if (soln%ln_nj(i) > self%log_min) soln%nj(i) = exp(soln%ln_nj(i))
+                do i = 1, self%num_gas
+                    if (self%smooth_truncation) then
+                        call compute_nj_effective(soln%ln_nj(i), log(soln%n)-self%tsize, self%smooth_truncation, &
+                                                  self%truncation_width, nj_eff=soln%nj(i))
+                    else
+                        if (soln%ln_nj(i) > self%log_min) soln%nj(i) = exp(soln%ln_nj(i))
+                    end if
                 end do
 
                 if (.not. soln%converged) then
@@ -2325,6 +2450,8 @@ contains
         real(dp) :: T                           ! Temperature of mixture (K)
         real(dp), pointer :: nj(:), nj_g(:)     ! Total/gas species concentrations [kmol-per-kg]
         real(dp), pointer :: ln_nj(:)           ! Log of gas species concentrations [kmol-per-kg]
+        real(dp) :: ln_nj_eff(solver%num_gas)   ! Effective log-species concentrations
+        real(dp) :: ln_threshold                ! Truncation threshold in log-space
         real(dp), pointer :: h_g(:), h_c(:)     ! Gas enthalpies [unitless]
         real(dp), pointer :: s_g(:)             ! Gas entropies [unitless]
         real(dp), pointer :: u_g(:)             ! Gas energies [unitless]
@@ -2365,9 +2492,14 @@ contains
         ! Get the mixture pressure and temperature
         P = solution%calc_pressure()
         T = solution%T
+        ln_threshold = log(n) - solver%tsize
 
         ! Compute gas phase chemical potentials
-        mu_g = h_g - s_g + ln_nj + log(P/n)
+        do i = 1, ng
+            call compute_nj_effective(ln_nj(i), ln_threshold, solver%smooth_truncation, solver%truncation_width, &
+                                      nj_eff=tmp(i), ln_nj_eff=ln_nj_eff(i))
+        end do
+        mu_g = h_g - s_g + ln_nj_eff + log(P/n)
 
         ! Evalutate constraint residuals
         dhsu_delta_dP = 0.0d0
@@ -2652,6 +2784,7 @@ contains
         integer, allocatable :: active_cond_idx(:)
         real(dp) :: ln_n
         real(dp) :: log_p_over_n
+        real(dp) :: ln_threshold
         real(dp) :: dlogP_over_n_state1
         real(dp) :: dlogP_over_n_state2
         real(dp), allocatable :: dlogP_over_n_db0(:)
@@ -2660,10 +2793,17 @@ contains
         real(dp), allocatable :: dn_db0(:)
         real(dp), allocatable :: dln_nj_dstate1(:)
         real(dp), allocatable :: dln_nj_dstate2(:)
+        real(dp), allocatable :: dln_nj_eff_dstate1(:)
+        real(dp), allocatable :: dln_nj_eff_dstate2(:)
         real(dp), allocatable :: dln_nj_db0(:,:)
         real(dp), allocatable :: dln_nj_dw0(:,:)
+        real(dp), allocatable :: dln_nj_eff_dw0(:,:)
         real(dp), allocatable :: dnj_db0(:,:)
         real(dp), allocatable :: dS_sum_dw0(:)
+        real(dp), allocatable :: ln_nj_eff(:)
+        real(dp), allocatable :: nj_g_eff(:)
+        real(dp), allocatable :: dnj_dln_nj(:)
+        real(dp), allocatable :: dln_nj_eff_dln_nj(:)
         real(dp) :: sum_h
         real(dp) :: sum_dh_dT
         real(dp) :: sum_h_dnj
@@ -2715,9 +2855,6 @@ contains
         P = solution%calc_pressure()
         T = solution%T
 
-        ! Compute gas phase chemical potentials
-        mu_g = h_g - s_g + ln_nj + log(P/n)
-
         ! Compute intermediate derivatives
         do i = 1, ng
             dh_g_dT(i) = solver%products%species(i)%calc_denthalpy_dT(T)/T - h_g(i)/T
@@ -2759,6 +2896,21 @@ contains
         fac = R / 1.d3
         ln_n = log(n)
         log_p_over_n = log(P/n)
+        ln_threshold = ln_n - solver%tsize
+
+        allocate(ln_nj_eff(ng), nj_g_eff(ng), dnj_dln_nj(ng), dln_nj_eff_dln_nj(ng))
+        do i = 1, ng
+            call compute_nj_effective(ln_nj(i), ln_threshold, solver%smooth_truncation, solver%truncation_width, &
+                                      nj_eff=nj_g_eff(i), ln_nj_eff=ln_nj_eff(i), dln_nj_eff_dln_nj=dln_nj_eff_dln_nj(i))
+            if (solver%smooth_truncation) then
+                dnj_dln_nj(i) = exp(ln_nj(i)) * dln_nj_eff_dln_nj(i)
+            else
+                dnj_dln_nj(i) = nj_g_eff(i)
+            end if
+        end do
+
+        ! Compute gas phase chemical potentials
+        mu_g = h_g - s_g + ln_nj_eff + log(P/n)
 
         if (na > 0) then
             allocate(active_cond_idx(na))
@@ -2829,7 +2981,9 @@ contains
         allocate(dT_db0(ne), dn_db0(ne))
         allocate(dlogP_over_n_db0(ne), dlogP_over_n_dw0(nr))
         allocate(dln_nj_dstate1(ng), dln_nj_dstate2(ng))
+        allocate(dln_nj_eff_dstate1(ng), dln_nj_eff_dstate2(ng))
         allocate(dln_nj_db0(ng, ne), dln_nj_dw0(ng, nr))
+        allocate(dln_nj_eff_dw0(ng, nr))
         allocate(dnj_db0(ng+na, ne))
         allocate(dS_sum_dw0(nr))
 
@@ -2859,7 +3013,10 @@ contains
 
         dln_nj_dstate1 = 0.0d0
         dln_nj_dstate2 = 0.0d0
+        dln_nj_eff_dstate1 = 0.0d0
+        dln_nj_eff_dstate2 = 0.0d0
         dln_nj_db0 = 0.0d0
+        dln_nj_eff_dw0 = 0.0d0
         dnj_db0 = 0.0d0
         self%dnj_dstate1 = 0.0d0
         self%dnj_dstate2 = 0.0d0
@@ -2881,14 +3038,23 @@ contains
         end do
 
         dln_nj_dw0 = matmul(dln_nj_db0, db0_dw0)
+        do i = 1, ng
+            dln_nj_eff_dstate1(i) = dln_nj_eff_dln_nj(i) * dln_nj_dstate1(i)
+            dln_nj_eff_dstate2(i) = dln_nj_eff_dln_nj(i) * dln_nj_dstate2(i)
+            dln_nj_eff_dw0(i, :) = dln_nj_eff_dln_nj(i) * dln_nj_dw0(i, :)
+        end do
 
         threshold_margin = 0.05d0*solver%tsize
         do i = 1, ng
             threshold_value = ln_nj(i) - ln_n + solver%tsize
-            if (threshold_value > 0.0d0) then
-                self%dnj_dstate1(i) = nj_g(i)*dln_nj_dstate1(i)
-                self%dnj_dstate2(i) = nj_g(i)*dln_nj_dstate2(i)
-                dnj_db0(i, :) = nj_g(i)*dln_nj_db0(i, :)
+            if (solver%smooth_truncation) then
+                self%dnj_dstate1(i) = dnj_dln_nj(i)*dln_nj_dstate1(i)
+                self%dnj_dstate2(i) = dnj_dln_nj(i)*dln_nj_dstate2(i)
+                dnj_db0(i, :) = dnj_dln_nj(i)*dln_nj_db0(i, :)
+            else if (threshold_value > 0.0d0) then
+                self%dnj_dstate1(i) = nj_g_eff(i)*dln_nj_dstate1(i)
+                self%dnj_dstate2(i) = nj_g_eff(i)*dln_nj_dstate2(i)
+                dnj_db0(i, :) = nj_g_eff(i)*dln_nj_db0(i, :)
             else
                 if (threshold_value >= -threshold_margin) then
                     call log_warning("EqDerivatives_unpack_values: "// &
@@ -2921,14 +3087,14 @@ contains
         ! ---------------------------------------------------------
 
         sum_h = dot_product(nj, solution%thermo%enthalpy)
-        sum_dh_dT = dot_product(nj_g, dh_g_dT)
+        sum_dh_dT = dot_product(nj_g_eff, dh_g_dT)
         if (nc > 0) sum_dh_dT = sum_dh_dT + dot_product(nj_c, dh_c_dT)
 
         do i = 1, ng
-            s_g_minus(i) = s_g(i) - ln_nj(i) - log_p_over_n
+            s_g_minus(i) = s_g(i) - ln_nj_eff(i) - log_p_over_n
         end do
 
-        entropy_sum = dot_product(nj_g, s_g_minus)
+        entropy_sum = dot_product(nj_g_eff, s_g_minus)
         if (nc > 0) entropy_sum = entropy_sum + dot_product(nj_c, s_c)
         entropy_dim = fac*entropy_sum
 
@@ -2997,8 +3163,8 @@ contains
             dS_sum_state1 = 0.0d0
             do i = 1, ng
                 dS_sum_state1 = dS_sum_state1 + self%dnj_dstate1(i)*s_g_minus(i)
-                dS_sum_state1 = dS_sum_state1 + nj_g(i)* &
-                    (ds_g_dT(i)*self%dT_dstate1 - dln_nj_dstate1(i))
+                dS_sum_state1 = dS_sum_state1 + nj_g_eff(i)* &
+                    (ds_g_dT(i)*self%dT_dstate1 - dln_nj_eff_dstate1(i))
             end do
             ! Add the log(P/n) derivative terms once (not once per species)
             dS_sum_state1 = dS_sum_state1 - n*dlogP_over_n_state1
@@ -3017,8 +3183,8 @@ contains
             dS_sum_state2 = 0.0d0
             do i = 1, ng
                 dS_sum_state2 = dS_sum_state2 + self%dnj_dstate2(i)*s_g_minus(i)
-                dS_sum_state2 = dS_sum_state2 + nj_g(i)* &
-                    (ds_g_dT(i)*self%dT_dstate2 - dln_nj_dstate2(i))
+                dS_sum_state2 = dS_sum_state2 + nj_g_eff(i)* &
+                    (ds_g_dT(i)*self%dT_dstate2 - dln_nj_eff_dstate2(i))
             end do
             ! Add the log(P/n) derivative terms once (not once per species)
             dS_sum_state2 = dS_sum_state2 - n*dlogP_over_n_state2
@@ -3038,8 +3204,8 @@ contains
                 dS_sum_dw0(j) = 0.0d0
                 do i = 1, ng
                     dS_sum_dw0(j) = dS_sum_dw0(j) + self%dnj_dw0(i, j)*s_g_minus(i)
-                    dS_sum_dw0(j) = dS_sum_dw0(j) + nj_g(i)* &
-                        (ds_g_dT(i)*self%dT_dw0(j) - dln_nj_dw0(i, j))
+                    dS_sum_dw0(j) = dS_sum_dw0(j) + nj_g_eff(i)* &
+                        (ds_g_dT(i)*self%dT_dw0(j) - dln_nj_eff_dw0(i, j))
                 end do
                 ! Add the log(P/n) derivative terms once (not once per species)
                 dS_sum_dw0(j) = dS_sum_dw0(j) - n*dlogP_over_n_dw0(j)
@@ -3081,7 +3247,7 @@ contains
         ! Add temperature derivative terms: sum_j(nj * dCp_j/dT) * dT/dstate1
         sum_dcp_dT_term = 0.0d0
         do i = 1, ng
-            sum_dcp_dT_term = sum_dcp_dT_term + nj_g(i) * dcp_g_dT(i)
+            sum_dcp_dT_term = sum_dcp_dT_term + nj_g_eff(i) * dcp_g_dT(i)
         end do
         do idx_c = 1, na
             i = active_cond_idx(idx_c)
@@ -3098,7 +3264,7 @@ contains
         ! Add temperature derivative terms: sum_j(nj * dCp_j/dT) * dT/dstate2
         sum_dcp_dT_term = 0.0d0
         do i = 1, ng
-            sum_dcp_dT_term = sum_dcp_dT_term + nj_g(i) * dcp_g_dT(i)
+            sum_dcp_dT_term = sum_dcp_dT_term + nj_g_eff(i) * dcp_g_dT(i)
         end do
         do idx_c = 1, na
             i = active_cond_idx(idx_c)
@@ -3116,7 +3282,7 @@ contains
             ! Add temperature derivative terms: sum_j(nj * dCp_j/dT) * dT/dw0
             sum_dcp_dT_term = 0.0d0
             do i = 1, ng
-                sum_dcp_dT_term = sum_dcp_dT_term + nj_g(i) * dcp_g_dT(i)
+                sum_dcp_dT_term = sum_dcp_dT_term + nj_g_eff(i) * dcp_g_dT(i)
             end do
             do idx_c = 1, na
                 i = active_cond_idx(idx_c)
@@ -3876,6 +4042,7 @@ contains
         if (size(nj_init) == solver%num_products) then
             self%nj = nj_init
             do i = 1, solver%num_gas
+                ! TODO(smooth_truncation): this initializer still normalizes non-positive seeds to a hard floor.
                 if (self%nj(i) <= 0.0d0) then
                     self%nj(i) = smalno
                     self%ln_nj(i) = smnol
@@ -4081,7 +4248,11 @@ contains
         real(dp) :: P                        ! Pressure of mixture (bar)
         real(dp), pointer :: nj(:)           ! Total/gas species concentrations [kmol-per-kg]
         real(dp), pointer :: ln_nj(:)        ! Log of gas species concentrations [kmol-per-kg]
+        real(dp) :: ln_nj_eff(solver%num_gas)
+        real(dp) :: ln_threshold
         real(dp), pointer :: s_g(:), s_c(:)  ! Gas/condensed entropies [unitless]
+        integer :: i
+        real(dp) :: nj_eff_tmp
 
         ! Shorthand
         ng = solver%num_gas
@@ -4091,8 +4262,14 @@ contains
         s_g => self%thermo%entropy(:ng)
         s_c => self%thermo%entropy(ng+1:)
         P = self%calc_pressure()
+        ln_threshold = log(n) - solver%tsize
 
-        S = dot_product(nj(:ng), s_g-ln_nj-log(P/n)) + dot_product(nj(ng+1:), s_c)
+        do i = 1, ng
+            call compute_nj_effective(ln_nj(i), ln_threshold, solver%smooth_truncation, solver%truncation_width, &
+                                      nj_eff=nj_eff_tmp, ln_nj_eff=ln_nj_eff(i))
+        end do
+
+        S = dot_product(nj(:ng), s_g-ln_nj_eff-log(P/n)) + dot_product(nj(ng+1:), s_c)
 
     end function
 
@@ -4727,6 +4904,8 @@ contains
         nj_el = 0.0d0
 
         do i = 1, ng
+            ! TODO(smooth_truncation): transport species screening currently uses hard-zero semantics.
+            ! Revisit whether smooth mode should use a practical-zero cutoff instead.
             if (eq_soln%nj(i) <= 0.0d0) then
                 if (eq_soln%ln_nj(i) - log(eq_soln%n) + eq_solver%xsize > 0.0d0) then
                     eq_soln%nj(i) = exp(eq_soln%ln_nj(i))

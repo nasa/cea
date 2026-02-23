@@ -96,7 +96,7 @@ contains
     !-----------------------------------------------------------------------
     ! RocketSolver
     !-----------------------------------------------------------------------
-    function RocketSolver_init(products, reactants, trace, ions, all_transport, insert) result(self)
+    function RocketSolver_init(products, reactants, trace, ions, all_transport, insert, smooth_truncation, truncation_width) result(self)
         type(RocketSolver) :: self
         type(Mixture), intent(in) :: products
         type(Mixture), intent(in), optional :: reactants
@@ -104,11 +104,14 @@ contains
         logical, intent(in), optional :: ions
         type(TransportDB), intent(in), optional :: all_transport
         character(*), intent(in), optional :: insert(:)  ! List of condensed species to insert
+        logical, intent(in), optional :: smooth_truncation
+        real(dp), intent(in), optional :: truncation_width
 
         call log_debug("Initializing RocketSolver")
 
         self%eq_solver = EqSolver(products, reactants, trace=trace, ions=ions, &
-                                  all_transport=all_transport, insert=insert)
+                                  all_transport=all_transport, insert=insert, &
+                                  smooth_truncation=smooth_truncation, truncation_width=truncation_width)
 
         call log_debug("RocketSolver initialized successfully")
 
@@ -189,6 +192,8 @@ contains
                 ! valid temperature range by more than 50 K.
                 in_range = .true.
                 do j = 1, self%eq_solver%num_condensed
+                    ! TODO(smooth_truncation): smooth gating means species are rarely exactly zero.
+                    ! Frozen-mode checks intentionally use a practical-zero tolerance.
                     if (abs(soln%eq_soln(n_frz)%nj(ng+j)) <= approx_zero_tol) cycle
                     T_low = minval(self%eq_solver%products%species(ng+j)%T_fit(:, 1))
                     T_high = maxval(self%eq_solver%products%species(ng+j)%T_fit(:, 2))

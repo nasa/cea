@@ -36,6 +36,64 @@ contains
     end subroutine
 
     @test
+    subroutine test_compute_nj_effective_smooth_gate
+        real(dp), parameter :: ln_threshold = -8.0d0
+        real(dp), parameter :: width = 0.25d0
+        real(dp), parameter :: h = 1.0d-7
+        real(dp), parameter :: tol = 1.0d-8
+        real(dp) :: ln_nj, nj_eff, g, dg_dln, nj_plus, nj_minus, fd, an
+
+        ln_nj = ln_threshold
+        call compute_nj_effective(ln_nj, ln_threshold, .true., width, nj_eff, g=g, dg_dln=dg_dln)
+
+        @assertRelativelyEqual(0.5d0, g, tol)
+        @assertRelativelyEqual(exp(ln_nj)*0.5d0, nj_eff, tol)
+
+        call compute_nj_effective(ln_nj + h, ln_threshold, .true., width, nj_plus)
+        call compute_nj_effective(ln_nj - h, ln_threshold, .true., width, nj_minus)
+        fd = (nj_plus - nj_minus)/(2.0d0*h)
+        an = exp(ln_nj)*(g + dg_dln)
+        @assertRelativelyEqual(an, fd, 1.0d-6)
+
+        call compute_nj_effective(ln_threshold - 0.5d0, ln_threshold, .false., width, nj_eff)
+        @assertEqual(0.0d0, nj_eff)
+        call compute_nj_effective(ln_threshold + 0.5d0, ln_threshold, .false., width, nj_eff)
+        @assertEqual(exp(ln_threshold + 0.5d0), nj_eff)
+    end subroutine
+
+    @test
+    subroutine test_smooth_truncation_disabled_is_unchanged
+        type(Mixture) :: products
+        type(Mixture) :: reactants
+        type(EqSolver) :: solver_default, solver_hard
+        type(EqSolution) :: sol_default, sol_hard
+        real(dp) :: h_reac, p_reac, b_reac(2), weights(2)
+
+        reactants = Mixture(all_thermo, ['H2', 'O2'])
+        products  = Mixture(all_thermo, ['H  ', 'H2 ', 'H2O', 'O  ', 'O2 ', 'OH '])
+
+        solver_default = EqSolver(products, reactants)
+        solver_hard = EqSolver(products, reactants, smooth_truncation=.false., truncation_width=0.1d0)
+        @assertFalse(solver_default%smooth_truncation)
+        @assertFalse(solver_hard%smooth_truncation)
+
+        sol_default = EqSolution(solver_default)
+        sol_hard = EqSolution(solver_hard)
+
+        weights = reactants%weights_from_of([0.0d0, 1.0d0], [1.0d0, 0.0d0], 15.87336d0)
+        h_reac = reactants%calc_enthalpy(weights, 2000.0d0)/R
+        p_reac = 1.01325d0
+        b_reac = reactants%element_amounts_from_weights(weights)
+
+        call solver_default%solve(sol_default, 'hp', h_reac, p_reac, weights)
+        call solver_hard%solve(sol_hard, 'hp', h_reac, p_reac, weights)
+
+        @assertEqual(sol_default%T, sol_hard%T)
+        @assertTrue(all(sol_default%nj == sol_hard%nj))
+        @assertTrue(all(sol_default%ln_nj == sol_hard%ln_nj))
+    end subroutine
+
+    @test
     subroutine test_h2_o2
         type(Mixture) :: products
         type(Mixture) :: reactants

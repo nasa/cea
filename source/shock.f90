@@ -79,7 +79,7 @@ contains
     !-----------------------------------------------------------------------
     ! ShockSolver
     !-----------------------------------------------------------------------
-    function ShockSolver_init(products, reactants, trace, ions, all_transport, insert) result(self)
+    function ShockSolver_init(products, reactants, trace, ions, all_transport, insert, smooth_truncation, truncation_width) result(self)
         type(ShockSolver) :: self
         type(Mixture), intent(in) :: products
         type(Mixture), intent(in), optional :: reactants
@@ -87,13 +87,19 @@ contains
         logical, intent(in), optional :: ions
         type(TransportDB), intent(in), optional :: all_transport
         character(*), intent(in), optional :: insert(:)  ! List of condensed species to insert
+        logical, intent(in), optional :: smooth_truncation
+        real(dp), intent(in), optional :: truncation_width
 
         ! Initialize the equilibrium solver
         if (present(trace)) then
-            self%eq_solver = EqSolver(products, reactants, trace, ions, all_transport, insert)
+            self%eq_solver = EqSolver(products, reactants, trace=trace, ions=ions, all_transport=all_transport, &
+                                      insert=insert, smooth_truncation=smooth_truncation, &
+                                      truncation_width=truncation_width)
         else
             ! CEA2 uses default trace of 5e-9 for shock problems
-            self%eq_solver = EqSolver(products, reactants, 5.d-9, ions, all_transport, insert)
+            self%eq_solver = EqSolver(products, reactants, trace=5.d-9, ions=ions, all_transport=all_transport, &
+                                      insert=insert, smooth_truncation=smooth_truncation, &
+                                      truncation_width=truncation_width)
         end if
 
     end function

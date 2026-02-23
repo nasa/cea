@@ -78,7 +78,7 @@ contains
     !-----------------------------------------------------------------------
     ! DetonSolver
     !-----------------------------------------------------------------------
-    function DetonSolver_init(products, reactants, trace, ions, all_transport, insert) result(self)
+    function DetonSolver_init(products, reactants, trace, ions, all_transport, insert, smooth_truncation, truncation_width) result(self)
         type(DetonSolver) :: self
         type(Mixture), intent(in) :: products
         type(Mixture), intent(in), optional :: reactants
@@ -86,9 +86,13 @@ contains
         logical, intent(in), optional :: ions
         type(TransportDB), intent(in), optional :: all_transport
         character(*), intent(in), optional :: insert(:)  ! List of condensed species to insert
+        logical, intent(in), optional :: smooth_truncation
+        real(dp), intent(in), optional :: truncation_width
 
         ! Initialize the equilibrium solver
-        self%eq_solver = EqSolver(products, reactants, trace, ions, all_transport, insert)
+        self%eq_solver = EqSolver(products, reactants, trace=trace, ions=ions, all_transport=all_transport, &
+                                  insert=insert, smooth_truncation=smooth_truncation, &
+                                  truncation_width=truncation_width)
 
     end function
 
