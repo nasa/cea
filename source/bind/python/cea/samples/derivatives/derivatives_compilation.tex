@@ -1,0 +1,202 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{subcaption}
+
+\title{CEA Equilibrium Derivatives\\Finite-Difference Convergence Studies}
+\author{Chemical Equilibrium with Applications}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\clearpage
+
+% ============================================================================
+\section{HP Problem: Enthalpy-Pressure}
+% ============================================================================
+
+The HP problem solves for equilibrium given specified enthalpy and pressure.
+The plots below show finite-difference convergence studies for derivatives
+with respect to enthalpy (H), pressure (P), and mixture composition ($w_0$).
+
+\subsection{Temperature Derivatives}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{hp_temperature_derivative_convergence.pdf}
+    \caption{Temperature derivative convergence for HP problem}
+\end{figure}
+
+\subsection{Entropy Derivatives}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{hp_entropy_derivative_convergence.pdf}
+    \caption{Entropy derivative convergence for HP problem}
+\end{figure}
+
+\subsection{Species Concentration Derivatives}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{hp_species_derivative_convergence.pdf}
+    \caption{Species concentration derivative convergence for HP problem}
+\end{figure}
+
+\clearpage
+
+% ============================================================================
+\section{SP Problem: Entropy-Pressure}
+% ============================================================================
+
+The SP problem solves for equilibrium given specified entropy and pressure.
+The plots below show finite-difference convergence studies for derivatives
+with respect to entropy (S), pressure (P), and mixture composition ($w_0$).
+
+\subsection{Temperature Derivatives}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{sp_temperature_derivative_convergence.pdf}
+    \caption{Temperature derivative convergence for SP problem}
+\end{figure}
+
+\subsection{Enthalpy Derivatives}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{sp_enthalpy_derivative_convergence.pdf}
+    \caption{Enthalpy derivative convergence for SP problem}
+\end{figure}
+
+\subsection{Species Concentration Derivatives}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{sp_species_derivative_convergence.pdf}
+    \caption{Species concentration derivative convergence for SP problem}
+\end{figure}
+
+\clearpage
+
+% ============================================================================
+\section{SV Problem: Entropy-Volume}
+% ============================================================================
+
+The SV problem solves for equilibrium given specified entropy and volume.
+The plots below show finite-difference convergence studies for derivatives
+with respect to entropy (S), volume (V), and mixture composition ($w_0$).
+
+\subsection{Enthalpy Derivatives}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{sv_enthalpy_derivative_convergence.pdf}
+    \caption{Enthalpy derivative convergence for SV problem}
+\end{figure}
+
+\subsection{Temperature Derivatives}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{sv_temperature_derivative_convergence.pdf}
+    \caption{Temperature derivative convergence for SV problem}
+\end{figure}
+
+\subsection{Species Concentration Derivatives}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{sv_species_derivative_convergence.pdf}
+    \caption{Species concentration derivative convergence for SV problem}
+\end{figure}
+
+\clearpage
+
+% ============================================================================
+\section{TP Problem: Temperature-Pressure}
+% ============================================================================
+
+The TP problem solves for equilibrium given specified temperature and pressure.
+The plots below show finite-difference convergence studies for derivatives
+with respect to temperature (T), pressure (P), and mixture composition ($w_0$).
+
+\subsection{Enthalpy Derivatives}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{tp_enthalpy_derivative_convergence.pdf}
+    \caption{Enthalpy derivative convergence for TP problem}
+\end{figure}
+
+\subsection{Entropy Derivatives}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{tp_entropy_derivative_convergence.pdf}
+    \caption{Entropy derivative convergence for TP problem}
+\end{figure}
+
+\subsection{Species Concentration Derivatives}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{tp_species_derivative_convergence.pdf}
+    \caption{Species concentration derivative convergence for TP problem}
+\end{figure}
+
+\clearpage
+
+% ============================================================================
+\section{TV Problem: Temperature-Volume}
+% ============================================================================
+
+The TV problem solves for equilibrium given specified temperature and volume.
+The plots below show finite-difference convergence studies for derivatives
+with respect to temperature (T), volume (V), and mixture composition ($w_0$).
+
+\subsection{Enthalpy Derivatives}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{tv_enthalpy_derivative_convergence.pdf}
+    \caption{Enthalpy derivative convergence for TV problem}
+\end{figure}
+
+\subsection{Entropy Derivatives}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{tv_entropy_derivative_convergence.pdf}
+    \caption{Entropy derivative convergence for TV problem}
+\end{figure}
+
+\subsection{Species Concentration Derivatives}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{tv_species_derivative_convergence.pdf}
+    \caption{Species concentration derivative convergence for TV problem}
+\end{figure}
+
+\clearpage
+
+% ============================================================================
+\section{UV Problem: Internal Energy-Volume}
+% ============================================================================
+
+The UV problem solves for equilibrium given specified internal energy and volume.
+The plots below show finite-difference convergence studies for derivatives
+with respect to internal energy (U), volume (V), and mixture composition ($w_0$).
+
+\subsection{Enthalpy Derivatives}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{uv_enthalpy_derivative_convergence.pdf}
+    \caption{Enthalpy derivative convergence for UV problem}
+\end{figure}
+
+\subsection{Temperature Derivatives}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{uv_temperature_derivative_convergence.pdf}
+    \caption{Temperature derivative convergence for UV problem}
+\end{figure}
+
+\subsection{Species Concentration Derivatives}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{uv_species_derivative_convergence.pdf}
+    \caption{Species concentration derivative convergence for UV problem}
+\end{figure}
+
+\end{document}
