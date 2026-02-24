@@ -1018,7 +1018,8 @@ contains
         real(dp), parameter :: s_tol = 0.5d-4    ! Tolerance for the entropy
         real(dp), parameter :: pi_tol = 1.0d-3   ! Tolerance for modified lagrance multipliers
         real(dp), parameter :: ion_tol = 1.0d-4  ! Tolerance for ionized species
-        real(dp) :: sum1, sum2, aa, temp         ! Temporary variables for ionized species
+        real(dp) :: sum1, sum2, aa, temp_raw, temp_eff, gate, x_gate
+            ! Temporary variables for ionized species
         real(dp) :: nj_eff_tmp                    ! Temporary species amount
 
         ! Define shorthand
@@ -1166,16 +1167,26 @@ contains
                 sum2 = 0.0d0
                 do j = 1, ng
                     if (A_g(j, ne_full) /= 0.0d0) then
-                        ! TODO(smooth_truncation): Ion convergence still uses legacy hard-threshold semantics.
-                        ! Revisit whether this branch should use a practical-zero test when smooth truncation is enabled.
-                        soln%nj(j) = 0.0d0
-                        temp = 0.0d0
-                        if (soln%ln_nj(j) > -87.0d0) temp = exp(soln%ln_nj(j))
-                        if (soln%ln_nj(j) - log(n) + self%tsize > 0.0d0) then
-                            !soln%pi_e = 0.0d0
-                            soln%nj(j) = temp
+                        ! NOTE(smooth_truncation): Preserve legacy hard-threshold semantics
+                        ! when smooth truncation is disabled. Smooth mode uses
+                        ! sigmoid-gated amounts in this ion-convergence loop.
+                        temp_raw = 0.0d0
+                        if (soln%ln_nj(j) > -87.0d0) temp_raw = exp(soln%ln_nj(j))
+
+                        if (self%smooth_truncation) then
+                            x_gate = (soln%ln_nj(j) - ln_n + self%tsize) / self%truncation_width
+                            call sigmoid_stable(x_gate, gate)
+                            temp_eff = temp_raw*gate
+                            soln%nj(j) = temp_eff
+                        else
+                            temp_eff = temp_raw
+                            soln%nj(j) = 0.0d0
+                            if (soln%ln_nj(j) - ln_n + self%tsize > 0.0d0) then
+                                soln%nj(j) = temp_raw
+                            end if
                         end if
-                        aa = A_g(j, ne_full)*temp
+
+                        aa = A_g(j, ne_full)*temp_eff
                         sum1 = sum1 + aa
                         sum2 = sum2 + aa*A_g(j, ne_full)
                     end if
@@ -1932,8 +1943,8 @@ contains
         ! Legacy fallback path: seed trace gas species to break persistent singularity.
         if (.not. made_change) then
             do i = 1, ng
-                ! TODO(smooth_truncation): smooth gating means near-trace species may not be exactly zero.
-                ! This legacy singular-recovery path intentionally preserves hard-zero behavior.
+                ! NOTE(smooth_truncation): Legacy singular-recovery path intentionally seeds
+                ! only non-positive species to preserve historical restart behavior.
                 if (soln%nj(i) <= 0.0d0) then
                     soln%nj(i) = smalno
                     soln%ln_nj(i) = smnol
@@ -4060,7 +4071,8 @@ contains
         if (size(nj_init) == solver%num_products) then
             self%nj = nj_init
             do i = 1, solver%num_gas
-                ! TODO(smooth_truncation): this initializer still normalizes non-positive seeds to a hard floor.
+                ! NOTE(smooth_truncation): Initialization keeps the legacy hard floor for
+                ! non-positive seeds to preserve stable and backward-compatible starts.
                 if (self%nj(i) <= 0.0d0) then
                     self%nj(i) = smalno
                     self%ln_nj(i) = smnol
