@@ -96,7 +96,8 @@ contains
     !-----------------------------------------------------------------------
     ! RocketSolver
     !-----------------------------------------------------------------------
-    function RocketSolver_init(products, reactants, trace, ions, all_transport, insert, smooth_truncation, truncation_width) result(self)
+    function RocketSolver_init(products, reactants, trace, ions, all_transport, insert, &
+            smooth_truncation, truncation_width) result(self)
         type(RocketSolver) :: self
         type(Mixture), intent(in) :: products
         type(Mixture), intent(in), optional :: reactants

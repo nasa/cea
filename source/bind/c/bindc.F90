@@ -246,6 +246,8 @@ module cea_bindc
         type(c_ptr) :: reactants = c_null_ptr
         integer(c_int) :: ninsert = 0
         type(c_ptr) :: insert = c_null_ptr
+        logical(c_bool) :: smooth_truncation = .false.
+        real(c_double)  :: truncation_width  = -1.0d0
     end type
 
     !-----------------------------------------------------------------
@@ -272,6 +274,8 @@ contains
         opts%reactants = c_null_ptr
         opts%ninsert = 0
         opts%insert = c_null_ptr
+        opts%smooth_truncation = .false.
+        opts%truncation_width  = -1.0d0
     end function
 
     function cea_species_name_len(name_len) result(ierr) bind(c)
@@ -1410,6 +1414,12 @@ contains
         end if
 
         sptr = c_loc(solver)
+        if (logical(opts%smooth_truncation)) then
+            if (opts%truncation_width == 0.0d0) &
+                error stop 'cea_eqsolver_create_with_options: truncation_width must be > 0 when smooth_truncation is enabled.'
+            solver%smooth_truncation = .true.
+            if (opts%truncation_width > 0.0d0) solver%truncation_width = opts%truncation_width
+        end if
         call log_info('BINDC: Created EqSolver from product mixture with options at '//to_str(sptr))
     end function
 
@@ -1686,6 +1696,12 @@ contains
             end if
         end if
         sptr = c_loc(solver)
+        if (logical(opts%smooth_truncation)) then
+            if (opts%truncation_width == 0.0d0) &
+                error stop 'cea_rocket_solver_create_with_options: truncation_width must be > 0 when smooth_truncation is enabled.'
+            solver%eq_solver%smooth_truncation = .true.
+            if (opts%truncation_width > 0.0d0) solver%eq_solver%truncation_width = opts%truncation_width
+        end if
         call log_info('BINDC: Created RocketSolver with options at '//to_str(sptr))
     end function
 
@@ -2505,6 +2521,12 @@ contains
             end if
         end if
         sptr = c_loc(solver)
+        if (logical(opts%smooth_truncation)) then
+            if (opts%truncation_width == 0.0d0) &
+                error stop 'cea_shock_solver_create_with_options: truncation_width must be > 0 when smooth_truncation is enabled.'
+            solver%eq_solver%smooth_truncation = .true.
+            if (opts%truncation_width > 0.0d0) solver%eq_solver%truncation_width = opts%truncation_width
+        end if
         call log_info('BINDC: Created ShockSolver with options at '//to_str(sptr))
     end function
 
@@ -2760,6 +2782,12 @@ contains
             end if
         end if
         sptr = c_loc(solver)
+        if (logical(opts%smooth_truncation)) then
+            if (opts%truncation_width == 0.0d0) &
+                error stop 'cea_detonation_solver_create_with_options: truncation_width must be > 0 when smooth_truncation is set.'
+            solver%eq_solver%smooth_truncation = .true.
+            if (opts%truncation_width > 0.0d0) solver%eq_solver%truncation_width = opts%truncation_width
+        end if
         call log_info('BINDC: Created DetonSolver with options at '//to_str(sptr))
     end function
 

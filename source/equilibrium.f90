@@ -552,7 +552,8 @@ contains
     !-----------------------------------------------------------------------
     ! EquilibriumSolver
     !-----------------------------------------------------------------------
-    function EqSolver_init(products, reactants, trace, ions, all_transport, insert, smooth_truncation, truncation_width) result(self)
+    function EqSolver_init(products, reactants, trace, ions, all_transport, insert, &
+            smooth_truncation, truncation_width) result(self)
         type(EqSolver) :: self
         type(Mixture), intent(in) :: products
         type(Mixture), intent(in), optional :: reactants

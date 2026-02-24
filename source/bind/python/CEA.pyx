@@ -965,6 +965,10 @@ cdef class EqSolver:
             Trace species threshold value; values < 0.0 uses default value
         insert : list of str, default []
             Additional species to insert into calculation; used to start initial guess with condensed species
+        smooth_truncation : bool, default False
+            Enable smooth logistic truncation instead of hard cutoff for trace species
+        truncation_width : float, default -1.0
+            Gate width in log-space for smooth truncation; values <= 0 use the solver default (0.25)
     """
     cdef cea_eqsolver ptr
     cdef Mixture products
@@ -976,6 +980,8 @@ cdef class EqSolver:
         cdef bint transport = kwargs.get('transport', False)
         cdef bint ions = kwargs.get('ions', False)
         cdef double trace_val = kwargs.get('trace', -1.0)
+        cdef bint smooth_truncation = kwargs.get('smooth_truncation', False)
+        cdef double truncation_width_val = kwargs.get('truncation_width', -1.0)
         cdef cea_string* cea_insert = NULL
         insert = kwargs.get('insert', [])
         cdef list _insert_keepalive = []
@@ -1006,6 +1012,8 @@ cdef class EqSolver:
         opts.trace = trace_val
         opts.ninsert = <int>len(insert)
         opts.insert = cea_insert
+        opts.smooth_truncation = smooth_truncation
+        opts.truncation_width = truncation_width_val
 
         if "reactants" in kwargs:
             reactants = kwargs["reactants"]
@@ -1939,6 +1947,10 @@ cdef class RocketSolver:
             Trace species threshold value; values < 0.0 uses default value
         insert : list of str, default []
             Additional species to insert into calculation; used to start initial guess with condensed species
+        smooth_truncation : bool, default False
+            Enable smooth logistic truncation instead of hard cutoff for trace species
+        truncation_width : float, default -1.0
+            Gate width in log-space for smooth truncation; values <= 0 use the solver default (0.25)
     """
     cdef cea_rocket_solver ptr
     cdef Mixture products
@@ -1950,6 +1962,8 @@ cdef class RocketSolver:
         cdef bint transport = kwargs.get('transport', False)
         cdef bint ions = kwargs.get('ions', False)
         cdef double trace_val = kwargs.get('trace', -1.0)
+        cdef bint smooth_truncation = kwargs.get('smooth_truncation', False)
+        cdef double truncation_width_val = kwargs.get('truncation_width', -1.0)
         cdef cea_string* cea_insert = NULL
         insert = kwargs.get('insert', [])
         cdef list _insert_keepalive = []
@@ -1980,6 +1994,8 @@ cdef class RocketSolver:
         opts.trace = trace_val
         opts.ninsert = <int>len(insert)
         opts.insert = cea_insert
+        opts.smooth_truncation = smooth_truncation
+        opts.truncation_width = truncation_width_val
 
         if "reactants" in kwargs:
             reactants = kwargs["reactants"]
@@ -2862,6 +2878,10 @@ cdef class ShockSolver:
             Trace species threshold value; values < 0.0 uses default value
         insert : list of str, default []
             Additional species to insert into calculation; used to start initial guess with condensed species
+        smooth_truncation : bool, default False
+            Enable smooth logistic truncation instead of hard cutoff for trace species
+        truncation_width : float, default -1.0
+            Gate width in log-space for smooth truncation; values <= 0 use the solver default (0.25)
     """
     cdef cea_shock_solver ptr
     cdef Mixture products
@@ -2873,6 +2893,8 @@ cdef class ShockSolver:
         cdef bint transport = kwargs.get('transport', False)
         cdef bint ions = kwargs.get('ions', False)
         cdef double trace_val = kwargs.get('trace', -1.0)
+        cdef bint smooth_truncation = kwargs.get('smooth_truncation', False)
+        cdef double truncation_width_val = kwargs.get('truncation_width', -1.0)
         cdef cea_string* cea_insert = NULL
         insert = kwargs.get('insert', [])
         cdef list _insert_keepalive = []
@@ -2903,6 +2925,8 @@ cdef class ShockSolver:
         opts.trace = trace_val
         opts.ninsert = <int>len(insert)
         opts.insert = cea_insert
+        opts.smooth_truncation = smooth_truncation
+        opts.truncation_width = truncation_width_val
 
         if "reactants" in kwargs:
             reactants = kwargs["reactants"]
@@ -3726,6 +3750,10 @@ cdef class DetonationSolver:
             Trace species threshold value; values < 0.0 uses default value
         insert : list of str, default []
             Additional species to insert into calculation; used to start initial guess with condensed species
+        smooth_truncation : bool, default False
+            Enable smooth logistic truncation instead of hard cutoff for trace species
+        truncation_width : float, default -1.0
+            Gate width in log-space for smooth truncation; values <= 0 use the solver default (0.25)
     """
     cdef cea_detonation_solver ptr
     cdef Mixture products
@@ -3737,6 +3765,8 @@ cdef class DetonationSolver:
         cdef bint transport = kwargs.get('transport', False)
         cdef bint ions = kwargs.get('ions', False)
         cdef double trace_val = kwargs.get('trace', -1.0)
+        cdef bint smooth_truncation = kwargs.get('smooth_truncation', False)
+        cdef double truncation_width_val = kwargs.get('truncation_width', -1.0)
         cdef cea_string* cea_insert = NULL
         insert = kwargs.get('insert', [])
         cdef list _insert_keepalive = []
@@ -3767,6 +3797,8 @@ cdef class DetonationSolver:
         opts.trace = trace_val
         opts.ninsert = <int>len(insert)
         opts.insert = cea_insert
+        opts.smooth_truncation = smooth_truncation
+        opts.truncation_width = truncation_width_val
 
         if "reactants" in kwargs:
             reactants = kwargs["reactants"]

@@ -27,6 +27,7 @@ This repository contains CEA (Chemical Equilibrium with Applications), a NASA sc
 - **AVOID** restructuring code for style alone
 - **KEEP** diffs minimal and focused
 - **PRESERVE** existing naming conventions and patterns
+- **FORTRAN LINE LIMIT**: Fortran 2008 (`-std=f2008`) enforces a hard 132-character line limit. When writing or editing Fortran (`.f90`, `.F90`, `.pf`), count line lengths and use `&` continuation to wrap any line that meets or exceeds 132 characters. This applies especially to long function/subroutine signatures and `error stop` messages.
 
 ## Architecture & Layer Boundaries
 

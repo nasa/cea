@@ -79,7 +79,8 @@ contains
     !-----------------------------------------------------------------------
     ! ShockSolver
     !-----------------------------------------------------------------------
-    function ShockSolver_init(products, reactants, trace, ions, all_transport, insert, smooth_truncation, truncation_width) result(self)
+    function ShockSolver_init(products, reactants, trace, ions, all_transport, insert, &
+            smooth_truncation, truncation_width) result(self)
         type(ShockSolver) :: self
         type(Mixture), intent(in) :: products
         type(Mixture), intent(in), optional :: reactants

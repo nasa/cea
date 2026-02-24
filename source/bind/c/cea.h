@@ -100,6 +100,8 @@ extern "C"
     cea_mixture reactants;
     cea_int ninsert;
     const cea_string *insert;
+    bool smooth_truncation;    // enable smooth logistic truncation instead of hard cutoff (default false)
+    cea_real truncation_width; // gate width in log-space; <= 0 means use solver default (0.25)
   } cea_solver_opts;
 
   // Initialize optional arguments

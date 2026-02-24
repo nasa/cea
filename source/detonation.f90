@@ -78,7 +78,8 @@ contains
     !-----------------------------------------------------------------------
     ! DetonSolver
     !-----------------------------------------------------------------------
-    function DetonSolver_init(products, reactants, trace, ions, all_transport, insert, smooth_truncation, truncation_width) result(self)
+    function DetonSolver_init(products, reactants, trace, ions, all_transport, insert, &
+            smooth_truncation, truncation_width) result(self)
         type(DetonSolver) :: self
         type(Mixture), intent(in) :: products
         type(Mixture), intent(in), optional :: reactants
