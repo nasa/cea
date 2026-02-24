@@ -73,7 +73,7 @@ contains
         products  = Mixture(all_thermo, ['H  ', 'H2 ', 'H2O', 'O  ', 'O2 ', 'OH '])
 
         solver_default = EqSolver(products, reactants)
-        solver_hard = EqSolver(products, reactants, smooth_truncation=.false., truncation_width=0.1d0)
+        solver_hard = EqSolver(products, reactants, smooth_truncation=.false.)
         @assertFalse(solver_default%smooth_truncation)
         @assertFalse(solver_hard%smooth_truncation)
 
@@ -1870,7 +1870,7 @@ contains
             'N2O3', 'O   ', 'O2  ', 'OH  ', 'O3  '  &
         ])
 
-        solver = EqSolver(prod, reac, smooth_truncation=.true., truncation_width=0.1d0)
+        solver = EqSolver(prod, reac, smooth_truncation=.true.)
         solution = EqSolution(solver)
 
         ! Get the oxidant to fuel ratio
@@ -1889,10 +1889,10 @@ contains
 
         ! Check the solution
         @assertTrue(solution%converged)
-        @assertRelativelyEqual(-8.0656088776551407d0, solution%ln_nj(1), tol)
-        @assertRelativelyEqual(-13.309572174898214d0, solution%ln_nj(2), tol)
-        @assertRelativelyEqual(-10.735052660986222d0, solution%ln_nj(3), tol)
-        @assertRelativelyEqual(-11.594481166112747d0, solution%ln_nj(4), tol)
+        @assertRelativelyEqual(3000.0d0, solution%T, tol)
+        @assertRelativelyEqual(3.1415977104767563d-4, solution%nj(1), tol)
+        @assertRelativelyEqual(7.5566009270660714d-6, solution%nj(3), tol)
+        @assertRelativelyEqual(3.1458036914441603d-6, solution%nj(4), tol)
 
     end subroutine
 
@@ -1912,7 +1912,7 @@ contains
             'N2O3', 'O   ', 'O2  ', 'OH  ', 'O3  '  &
         ])
 
-        solver = EqSolver(prod, reac, smooth_truncation=.true., truncation_width=0.1d0)
+        solver = EqSolver(prod, reac, smooth_truncation=.true.)
         solution = EqSolution(solver)
 
         ! Get the oxidant to fuel ratio
@@ -1924,10 +1924,9 @@ contains
 
         ! Check the solution
         @assertTrue(solution%converged)
-        @assertRelativelyEqual(-8.0656088776551442d0, solution%ln_nj(1), tol)
-        @assertRelativelyEqual(-13.144331312385770d0, solution%ln_nj(2), tol)
-        @assertRelativelyEqual(-10.891773167555046d0, solution%ln_nj(3), tol)
-        @assertRelativelyEqual(-11.749845936681968d0, solution%ln_nj(4), tol)
+        @assertRelativelyEqual(3.1415977104767677d-4, solution%nj(1), tol)
+        @assertRelativelyEqual(7.5550939604896579d-6, solution%nj(3), tol)
+        @assertRelativelyEqual(3.1462180783843418d-6, solution%nj(4), tol)
 
     end subroutine
 
@@ -1963,7 +1962,7 @@ contains
             'C(gr)',           'H2O(cr)'  &
         ])
 
-        solver = EqSolver(prod, reac, 1d-15, smooth_truncation=.true., truncation_width=0.1d0)
+        solver = EqSolver(prod, reac, 1d-15, smooth_truncation=.true.)
         solution = EqSolution(solver)
 
         ! Get the reactant weights
@@ -1977,12 +1976,12 @@ contains
         call solver%solve(solution, 'hp', h_reac, p_reac, weights)
 
         @assertTrue(solution%converged)
-        @assertRelativelyEqual(2604.0671312204277d0, solution%T, tol)
-        @assertRelativelyEqual(3.0535773627690644d-4, solution%nj(2), tol)
-        @assertRelativelyEqual(1.8242871709973473d-4, solution%nj(7), tol)
-        @assertRelativelyEqual(4.7783603341560350d-3, solution%nj(8), tol)
-        @assertRelativelyEqual(3.6969126335943867d-3, solution%nj(56), tol)
-        @assertRelativelyEqual(2.5321411463794154d-2, solution%nj(12), tol)
+        @assertRelativelyEqual(2418.6600226586033d0, solution%T, tol)
+        @assertRelativelyEqual(3.0535773627690590d-4, solution%nj(2), tol)
+        @assertRelativelyEqual(5.7795659563264964d-5, solution%nj(7), tol)
+        @assertRelativelyEqual(3.9753864316861218d-3, solution%nj(8), tol)
+        @assertRelativelyEqual(3.5412635901275881d-3, solution%nj(56), tol)
+        @assertRelativelyEqual(2.5342964740943361d-2, solution%nj(12), tol)
 
     end subroutine
 
@@ -2017,7 +2016,7 @@ contains
             'C(gr)',           'H2O(cr)'  &
         ])
 
-        solver = EqSolver(prod, reac, 1d-15, smooth_truncation=.true., truncation_width=0.1d0)
+        solver = EqSolver(prod, reac, 1d-15, smooth_truncation=.true.)
         solution = EqSolution(solver)
 
         ! Get the reactant weights
@@ -2030,11 +2029,9 @@ contains
         call solver%solve(solution, 'uv', u_reac, v_reac, weights)
 
         @assertTrue(solution%converged)
-        @assertRelativelyEqual(2459.9986220183546d0,  solution%T, tol)
-        @assertRelativelyEqual(-22.278325953258285d0, solution%ln_nj(1), tol)
-        @assertRelativelyEqual(-8.0940265628475920d0, solution%ln_nj(2), tol)
-        @assertRelativelyEqual(-21.132509952633715d0, solution%ln_nj(3), tol)
-        @assertRelativelyEqual(-9.4728636945463869d0, solution%ln_nj(7), tol)
+        @assertRelativelyEqual(2418.5380919467752d0,  solution%T, tol)
+        @assertRelativelyEqual(3.0535773627690644d-4, solution%nj(2), tol)
+        @assertRelativelyEqual(5.7763282918335246d-5, solution%nj(7), tol)
 
     end subroutine
 
@@ -2149,7 +2146,7 @@ contains
         product_names = reactants%get_products(all_thermo, omit=["C(gr)"])
         products = Mixture(all_thermo, product_names, ions=.true.)
 
-        solver = EqSolver(products, reactants, ions=.true., smooth_truncation=.true., truncation_width=0.1d0)
+        solver = EqSolver(products, reactants, ions=.true., smooth_truncation=.true.)
         soln = EqSolution(solver)
 
         weights = [1.0d0]
@@ -2160,25 +2157,13 @@ contains
 
         ! Testing products (in order): e-, Ar, Ar+, C, C+, C-, CO, CO+, CO2, CO2+, N, N+, N-, N2, N2+, N2-, O2, O2+, O2-
         @assertTrue(soln%converged)
-        @assertRelativelyEqual(-11.875719399988201d0, soln%ln_nj(55), tol)
-        @assertRelativelyEqual(-8.0368687059428083d0, soln%ln_nj(1), tol)
-        @assertRelativelyEqual(-21.684411986036849d0, soln%ln_nj(2), tol)
-        @assertRelativelyEqual(-11.732426156341274d0, soln%ln_nj(3), tol)
-        @assertRelativelyEqual(-17.783583987908440d0, soln%ln_nj(4), tol)
-        @assertRelativelyEqual(-23.420648327208966d0, soln%ln_nj(5), tol)
-        @assertRelativelyEqual(-8.2610445232532115d0, soln%ln_nj(23), tol)
-        @assertRelativelyEqual(-19.596969852704138d0, soln%ln_nj(24), tol)
-        @assertRelativelyEqual(-19.102721565032294d0, soln%ln_nj(25), tol)
-        @assertRelativelyEqual(-25.911676113519061d0, soln%ln_nj(26), tol)
-        @assertRelativelyEqual(-4.5314620899497937d0, soln%ln_nj(27), tol)
-        @assertRelativelyEqual(-16.959835126694120d0, soln%ln_nj(28), tol)
-        @assertRelativelyEqual(-21.933643665706462d0, soln%ln_nj(29), tol)
-        @assertRelativelyEqual(-3.8217076437845172d0, soln%ln_nj(30), tol)
-        @assertRelativelyEqual(-18.506028404529232d0, soln%ln_nj(31), tol)
-        @assertRelativelyEqual(-25.910235396071805d0, soln%ln_nj(32), tol)
-        @assertRelativelyEqual(-13.699466786439109d0, soln%ln_nj(50), tol)
-        @assertRelativelyEqual(-21.066728987128506d0, soln%ln_nj(51), tol)
-        @assertRelativelyEqual(-32.388563953873557d0, soln%ln_nj(52), tol)
+        @assertRelativelyEqual(5.7267835261230931d-6, soln%nj(55), tol)
+        @assertRelativelyEqual(3.2331974188553995d-4, soln%nj(1), tol)
+        @assertRelativelyEqual(3.5936041313142031d-7, soln%nj(3), tol)
+        @assertRelativelyEqual(1.0633967384370233d-5, soln%nj(23), tol)
+        @assertRelativelyEqual(1.0500336341966676d-2, soln%nj(27), tol)
+        @assertRelativelyEqual(2.1670128503500238d-2, soln%nj(30), tol)
+        @assertRelativelyEqual(9.1264090127626698d-7, soln%nj(50), tol)
 
     end subroutine
 
@@ -2195,7 +2180,7 @@ contains
         product_names = reactants%get_products(all_thermo)
         products = Mixture(all_thermo, product_names)
 
-        solver = EqSolver(products, reactants, all_transport=all_transport, smooth_truncation=.true., truncation_width=0.1d0)
+        solver = EqSolver(products, reactants, all_transport=all_transport, smooth_truncation=.true.)
         solution = EqSolution(solver)
 
         weights = reactants%weights_from_of([0.0d0, 1.0d0], [1.0d0, 0.0d0], 2.6d0)

@@ -789,7 +789,9 @@ contains
         real(dp) :: ln_threshold              ! Truncation threshold in log-space
         real(dp), pointer :: ln_nj(:)         ! Log of the product concentrations
         real(dp) :: ln_nj_eff(self%num_gas)   ! Effective log-species concentrations
+        real(dp) :: dln_nj_eff_dln_nj(self%num_gas)  ! d(ln(nj_eff))/d(ln_nj)
         real(dp) :: nj_eff_tmp                ! Temporary effective species amount
+        logical :: ion_species                ! True if gas species is charged and ions are active
 
         ! Define shorthand
         ng = self%num_gas
@@ -802,7 +804,6 @@ contains
         ln_nj => soln%ln_nj
         n = soln%n
         ln_n = log(n)
-        ln_threshold = ln_n - self%tsize
         const_p = cons%is_constant_pressure()
         const_t = cons%is_constant_temperature()
 
@@ -820,8 +821,11 @@ contains
 
         ! Compute gas phase chemical potentials
         do i = 1, ng
+            ion_species = self%ions .and. self%active_ions .and. ne_full > 0 .and. A_g(i, ne_full) /= 0.0d0
+            ln_threshold = gas_amount_ln_threshold(ln_n, self%tsize, self%esize, ion_species)
             call compute_nj_effective(ln_nj(i), ln_threshold, self%smooth_truncation, self%truncation_width, &
-                                      nj_eff=nj_eff_tmp, ln_nj_eff=ln_nj_eff(i))
+                                      nj_eff=nj_eff_tmp, ln_nj_eff=ln_nj_eff(i), &
+                                      dln_nj_eff_dln_nj=dln_nj_eff_dln_nj(i))
         end do
         mu_g = h_g - s_g + ln_nj_eff + log(P/n)
 
@@ -870,6 +874,9 @@ contains
 
             soln%dln_nj(i) = -mu_g(i) + soln%dln_n + dot_product(A_g(i, :ne), soln%pi(:ne)) + soln%dln_T*h_g(i)
             if (.not. const_p) soln%dln_nj(i) = soln%dln_nj(i) - soln%dln_T
+            if (self%smooth_truncation) then
+                soln%dln_nj(i) = soln%dln_nj(i) / max(dln_nj_eff_dln_nj(i), tiny(1.0d0))
+            end if
 
             ! Ionized species update
             if (self%ions .and. self%active_ions .and. ne_full > 0 .and. soln%pi_e /= 0.0d0) then
@@ -1021,6 +1028,9 @@ contains
         real(dp) :: sum1, sum2, aa, temp_raw, temp_eff, gate, x_gate
             ! Temporary variables for ionized species
         real(dp) :: nj_eff_tmp                    ! Temporary species amount
+        real(dp) :: sum_nj                        ! Total species amount used in convergence checks
+        logical :: ion_species                    ! True if gas species is charged and ions are active
+        logical :: hard_active                    ! Legacy hard-threshold activity flag
 
         ! Define shorthand
         ng = self%num_gas
@@ -1032,7 +1042,7 @@ contains
         ln_nj => soln%ln_nj
         n = soln%n
         ln_n = log(n)
-        ln_threshold = ln_n - self%tsize
+        sum_nj = sum(nj)
         const_p = cons%is_constant_pressure()
         const_t = cons%is_constant_temperature()
         const_s = cons%is_constant_entropy()
@@ -1058,6 +1068,8 @@ contains
         b_delta = b0 - self%products%elements_from_species(nj)
         if (const_s) then
             do i = 1, ng
+                ion_species = self%ions .and. self%active_ions .and. ne_full > 0 .and. A_g(i, ne_full) /= 0.0d0
+                ln_threshold = gas_amount_ln_threshold(ln_n, self%tsize, self%esize, ion_species)
                 call compute_nj_effective(ln_nj(i), ln_threshold, self%smooth_truncation, self%truncation_width, &
                                           nj_eff=nj_eff_tmp, ln_nj_eff=ln_nj_eff(i))
             end do
@@ -1080,7 +1092,13 @@ contains
 
         ! Check gas species updates
         do i = 1, ng
-            if ((nj_g(i)*abs(dln_nj(i))/sum(nj)) > nj_tol) then
+            ion_species = self%ions .and. self%active_ions .and. ne_full > 0 .and. A_g(i, ne_full) /= 0.0d0
+            ln_threshold = gas_amount_ln_threshold(ln_n, self%tsize, self%esize, ion_species)
+            if (self%smooth_truncation) then
+                hard_active = (ln_nj(i) > ln_threshold)
+                if (.not. hard_active) cycle
+            end if
+            if ((nj_g(i)*abs(dln_nj(i))/sum_nj) > nj_tol) then
                 soln%gas_converged = .false.
                 return
             end if
@@ -1088,7 +1106,7 @@ contains
 
         ! Check condensed species updates
         do i = 1, na
-            if (abs(dnj_c(i))/sum(nj) > nj_tol) then
+            if (abs(dnj_c(i))/sum_nj > nj_tol) then
                 soln%condensed_converged = .false.
                 return
             end if
@@ -1151,8 +1169,9 @@ contains
 
         ! Update tsize after initial convergence, and adjust species concentrations
         self%tsize = self%xsize
-        ln_threshold = ln_n - self%tsize
         do i = 1, ng
+            ion_species = self%ions .and. self%active_ions .and. ne_full > 0 .and. A_g(i, ne_full) /= 0.0d0
+            ln_threshold = gas_amount_ln_threshold(ln_n, self%tsize, self%esize, ion_species)
             call compute_nj_effective(ln_nj(i), ln_threshold, self%smooth_truncation, self%truncation_width, &
                                       nj_eff=nj_g(i))
         end do
@@ -1174,14 +1193,16 @@ contains
                         if (soln%ln_nj(j) > -87.0d0) temp_raw = exp(soln%ln_nj(j))
 
                         if (self%smooth_truncation) then
-                            x_gate = (soln%ln_nj(j) - ln_n + self%tsize) / self%truncation_width
+                            ln_threshold = gas_amount_ln_threshold(ln_n, self%tsize, self%esize, .true.)
+                            x_gate = (soln%ln_nj(j) - ln_threshold) / self%truncation_width
                             call sigmoid_stable(x_gate, gate)
                             temp_eff = temp_raw*gate
                             soln%nj(j) = temp_eff
                         else
                             temp_eff = temp_raw
                             soln%nj(j) = 0.0d0
-                            if (soln%ln_nj(j) - ln_n + self%tsize > 0.0d0) then
+                            ln_threshold = gas_amount_ln_threshold(ln_n, self%tsize, self%esize, .true.)
+                            if (soln%ln_nj(j) > ln_threshold) then
                                 soln%nj(j) = temp_raw
                             end if
                         end if
@@ -1223,6 +1244,7 @@ contains
         integer  :: nc                          ! Number of condensed species
         integer  :: na                          ! Number of active condensed species
         integer  :: ne                          ! Number of elements
+        integer  :: ne_full                     ! Total number of elements (including electron)
         integer  :: num_eqn                     ! Active number of equations
         real(dp) :: tmp(self%num_gas)           ! Common sub-expression storage
         real(dp) :: mu_g(self%num_gas)          ! Gas phase chemical potentials [unitless]
@@ -1231,10 +1253,15 @@ contains
         real(dp) :: hsu_delta                   ! Residual for enthalpy / entropy constraint
         real(dp) :: n                           ! Total moles of mixture
         real(dp) :: P                           ! Pressure of mixture (bar)
-        real(dp), pointer :: nj(:), nj_g(:), nj_c(:)  ! Total/gas/condensed species concentrations [kmol-per-kg]
+        real(dp), pointer :: nj(:), nj_c(:)      ! Total/condensed species concentrations [kmol-per-kg]
         real(dp), pointer :: ln_nj(:)           ! Log of gas species concentrations [kmol-per-kg]
         real(dp) :: ln_nj_eff(self%num_gas)     ! Effective log-species concentrations
+        real(dp) :: nj_eff_g(self%num_gas)      ! Smooth-mapped gas species concentrations
+        real(dp) :: nj_linear(self%num_gas)     ! d(nj_eff)/d(ln_nj) weights used in Newton linearization
+        real(dp) :: dln_nj_eff_dln_nj(self%num_gas)  ! d(ln(nj_eff))/d(ln_nj)
         real(dp) :: ln_threshold                ! Truncation threshold in log-space
+        real(dp) :: ln_n                        ! Log of total moles
+        real(dp) :: nj_eval(self%num_products)  ! Physical amounts consistent with smooth mapping
         real(dp), pointer :: cp(:), cv(:)       ! Species heat capacities [unitless]
         real(dp), pointer :: h_g(:), h_c(:)     ! Gas/condensed enthalpies [unitless]
         real(dp), pointer :: s_g(:), s_c(:)     ! Gas/condensed entropies [unitless]
@@ -1245,6 +1272,7 @@ contains
         integer :: r, c                         ! Iteration matrix row/column indices
         integer :: i, j                         ! Loop counters
         integer, allocatable :: active_idx(:)   ! Active condensed indices in legacy order
+        logical :: ion_species                  ! True if gas species is charged and ions are active
         logical :: const_p, const_t, const_s, const_h, const_u  ! Flags enabling/disabling matrix equations
         type(EqConstraints), pointer :: cons    ! Abbreviation for soln%constraints
 
@@ -1252,6 +1280,7 @@ contains
         ng = self%num_gas
         nc = self%num_condensed
         ne = self%num_active_elements()
+        ne_full = self%num_elements
         na = count(soln%is_active)
         active_idx = soln%active_condensed_indices()
         num_eqn = soln%num_equations(self)
@@ -1267,9 +1296,8 @@ contains
         A_g => self%products%stoich_matrix(:ng,:) ! NOTE: A is transpose of a_ij in RP-1311
         A_c => self%products%stoich_matrix(ng+1:,:)
         n = soln%n
-        ln_threshold = log(n) - self%tsize
+        ln_n = log(n)
         nj  => soln%nj
-        nj_g => soln%nj(:ng)
         ln_nj => soln%ln_nj
         cp  => soln%thermo%cp
         cv  => soln%thermo%cv
@@ -1285,20 +1313,26 @@ contains
 
         ! Compute gas phase chemical potentials
         do i = 1, ng
+            ion_species = self%ions .and. self%active_ions .and. ne_full > 0 .and. A_g(i, ne_full) /= 0.0d0
+            ln_threshold = gas_amount_ln_threshold(ln_n, self%tsize, self%esize, ion_species)
             call compute_nj_effective(ln_nj(i), ln_threshold, self%smooth_truncation, self%truncation_width, &
-                                      nj_eff=tmp(i), ln_nj_eff=ln_nj_eff(i))
+                                      nj_eff=nj_eff_g(i), ln_nj_eff=ln_nj_eff(i), &
+                                      dln_nj_eff_dln_nj=dln_nj_eff_dln_nj(i))
+            nj_linear(i) = nj_eff_g(i)
         end do
         mu_g = h_g - s_g + ln_nj_eff + log(P/n)
+        nj_eval = nj
+        nj_eval(:ng) = nj_eff_g
 
         ! Evalutate constraint residuals
-        b_delta = cons%b0 - self%products%elements_from_species(nj)
-        n_delta = n - sum(nj_g)
+        b_delta = cons%b0 - self%products%elements_from_species(nj_eval)
+        n_delta = n - sum(nj_eff_g)
         if (const_s) then
             hsu_delta = (cons%state1 - soln%calc_entropy_sum(self))
         else if (const_h) then
-            hsu_delta = (cons%state1/soln%T - dot_product(nj, soln%thermo%enthalpy))
+            hsu_delta = (cons%state1/soln%T - dot_product(nj_eval, soln%thermo%enthalpy))
         else if (const_u) then
-            hsu_delta = (cons%state1/soln%T - dot_product(nj, soln%thermo%energy))
+            hsu_delta = (cons%state1/soln%T - dot_product(nj_eval, soln%thermo%energy))
         end if
 
         ! Initialize the iteration matrix
@@ -1310,7 +1344,7 @@ contains
         ! Equation (2.24/2.45): Element constraints
         !-------------------------------------------------------
         do i = 1,ne
-            tmp = nj_g*A_g(:,i)
+            tmp = nj_linear*A_g(:,i)
             r = r+1
             c = 0
 
@@ -1406,11 +1440,11 @@ contains
             ! Delta ln(T) derviative
             if (.not. const_t) then
                 c = c+1
-                G(r,c) = dot_product(nj_g, h_g)
+                G(r,c) = dot_product(nj_linear, h_g)
             end if
 
             ! Right-hand-side
-            G(r,c+1) = n_delta + dot_product(nj_g, mu_g)
+            G(r,c+1) = n_delta + dot_product(nj_linear, mu_g)
 
         end if
 
@@ -1423,13 +1457,13 @@ contains
 
             ! Select entropy/enthalpy constraint
             if (const_s) then
-                tmp = nj_g*(h_g-mu_g)
+                tmp = nj_linear*(h_g-mu_g)
                 h_or_s_or_u => soln%thermo%entropy(ng+1:)
             else if (const_h) then
-                tmp = nj_g*h_g
+                tmp = nj_linear*h_g
                 h_or_s_or_u => soln%thermo%enthalpy(ng+1:)
             else if (const_u) then
-                tmp = nj_g*u_g
+                tmp = nj_linear*u_g
                 h_or_s_or_u => soln%thermo%energy(ng+1:)
             end if
 
@@ -1438,7 +1472,7 @@ contains
                 c = c+1
                 G(r,c) = dot_product(tmp, A_g(:,j))
                 if (.not. const_p .and. const_s) then
-                    G(r,c) = G(r,c) - dot_product(nj_g, A_g(:, j))
+                    G(r,c) = G(r,c) - dot_product(nj_linear, A_g(:, j))
                 end if
             end do
 
@@ -1458,11 +1492,11 @@ contains
             ! Delta ln(T) derivative
             c = c+1
             if (const_p) then
-                G(r,c) = dot_product(nj, cp) + dot_product(tmp, h_g)
+                G(r,c) = dot_product(nj_eval, cp) + dot_product(tmp, h_g)
             else
-                G(r,c) = dot_product(nj, cv) + dot_product(tmp, u_g)
+                G(r,c) = dot_product(nj_eval, cv) + dot_product(tmp, u_g)
                 if (const_s) then
-                    G(r,c) = G(r,c) - dot_product(nj_g, u_g)
+                    G(r,c) = G(r,c) - dot_product(nj_linear, u_g)
                 end if
             end if
 
@@ -1472,7 +1506,7 @@ contains
                 if (const_p) then
                     G(r,c+1) = G(r,c+1) + n_delta
                 else
-                    G(r,c+1) = G(r,c+1) - dot_product(nj_g, mu_g)
+                    G(r,c+1) = G(r,c+1) - dot_product(nj_linear, mu_g)
                 end if
             end if
 
@@ -4274,7 +4308,9 @@ contains
 
         ! Locals
         integer  :: ng                       ! Number of gas species
+        integer  :: ne_full                  ! Total number of elements (including electron)
         real(dp) :: n                        ! Total moles of mixture
+        real(dp) :: ln_n                     ! Log total moles
         real(dp) :: P                        ! Pressure of mixture (bar)
         real(dp), pointer :: nj(:)           ! Total/gas species concentrations [kmol-per-kg]
         real(dp), pointer :: ln_nj(:)        ! Log of gas species concentrations [kmol-per-kg]
@@ -4283,18 +4319,23 @@ contains
         real(dp), pointer :: s_g(:), s_c(:)  ! Gas/condensed entropies [unitless]
         integer :: i
         real(dp) :: nj_eff_tmp
+        logical :: ion_species
 
         ! Shorthand
         ng = solver%num_gas
+        ne_full = solver%num_elements
         n = self%n
+        ln_n = log(n)
         nj => self%nj
         ln_nj => self%ln_nj
         s_g => self%thermo%entropy(:ng)
         s_c => self%thermo%entropy(ng+1:)
         P = self%calc_pressure()
-        ln_threshold = log(n) - solver%tsize
 
         do i = 1, ng
+            ion_species = solver%ions .and. solver%active_ions .and. ne_full > 0 .and. &
+                          solver%products%stoich_matrix(i, ne_full) /= 0.0d0
+            ln_threshold = gas_amount_ln_threshold(ln_n, solver%tsize, solver%esize, ion_species)
             call compute_nj_effective(ln_nj(i), ln_threshold, solver%smooth_truncation, solver%truncation_width, &
                                       nj_eff=nj_eff_tmp, ln_nj_eff=ln_nj_eff(i))
         end do
