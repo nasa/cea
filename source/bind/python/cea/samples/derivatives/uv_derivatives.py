@@ -80,7 +80,7 @@ reac = cea.Mixture(reac_names)
 prod = cea.Mixture(reac_names, products_from_reactants=True, omit=omit_names)
 
 # Solver
-solver = cea.EqSolver(prod, reactants=reac)
+solver = cea.EqSolver(prod, reactants=reac, smooth_truncation=True)
 solution = cea.EqSolution(solver)
 
 # Compute mixture weights

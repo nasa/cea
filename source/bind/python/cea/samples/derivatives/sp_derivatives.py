@@ -64,7 +64,7 @@ reac = cea.Mixture(reac_names)
 prod = cea.Mixture(prod_names)
 
 # Solver
-solver = cea.EqSolver(prod, reactants=reac)
+solver = cea.EqSolver(prod, reactants=reac, smooth_truncation=True)
 solution = cea.EqSolution(solver)
 
 # Unit conversions
@@ -230,7 +230,7 @@ plt.style.use('default')
 
 # Figure 1: Enthalpy derivatives
 fig1, axes1 = plt.subplots(1, 3, figsize=(15, 5))
-fig1.suptitle('Enthalpy Derivative Convergence (SP Problem)', fontsize=14, fontweight='bold')
+fig1.suptitle('Enthalpy Derivative Convergence (SP)', fontsize=14, fontweight='bold')
 
 # Find optimal points
 opt_idx_dH_dS = np.argmin(errors_dH_dS)
@@ -268,7 +268,7 @@ plt.tight_layout()
 
 # Figure 2: Temperature derivatives
 fig2, axes2 = plt.subplots(1, 3, figsize=(15, 5))
-fig2.suptitle('Temperature Derivative Convergence (SP Problem)', fontsize=14, fontweight='bold')
+fig2.suptitle('Temperature Derivative Convergence (SP)', fontsize=14, fontweight='bold')
 
 # Find optimal points
 opt_idx_dT_dS = np.argmin(errors_dT_dS)
@@ -306,7 +306,7 @@ plt.tight_layout()
 
 # Figure 3: Species derivatives
 fig3, axes3 = plt.subplots(1, 3, figsize=(15, 5))
-fig3.suptitle('Species Concentration Derivative Convergence (SP Problem)', fontsize=14, fontweight='bold')
+fig3.suptitle('Species Concentration Derivative Convergence (SP)', fontsize=14, fontweight='bold')
 
 for i, (species_name, idx) in enumerate(zip(plot_species_names, plot_species_indices)):
     axes3[0].loglog(h_values, errors_dnj_dS[:, i], 'o-', linewidth=2, markersize=4,

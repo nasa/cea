@@ -65,7 +65,7 @@ reac = cea.Mixture(reac_names)
 prod = cea.Mixture(prod_names)
 
 # Solver
-solver = cea.EqSolver(prod, reactants=reac)
+solver = cea.EqSolver(prod, reactants=reac, smooth_truncation=True)
 solution = cea.EqSolution(solver)
 
 # Unit conversions
@@ -235,7 +235,7 @@ plt.style.use('default')
 
 # Figure 1: Enthalpy derivatives
 fig1, axes1 = plt.subplots(1, 3, figsize=(15, 5))
-fig1.suptitle('Enthalpy Derivative Convergence', fontsize=14, fontweight='bold')
+fig1.suptitle('Enthalpy Derivative Convergence (TP)', fontsize=14, fontweight='bold')
 
 # Find optimal points
 opt_idx_dH_dT = np.argmin(errors_dH_dT)
@@ -273,7 +273,7 @@ plt.tight_layout()
 
 # Figure 2: Entropy derivatives
 fig2, axes2 = plt.subplots(1, 3, figsize=(15, 5))
-fig2.suptitle('Entropy Derivative Convergence', fontsize=14, fontweight='bold')
+fig2.suptitle('Entropy Derivative Convergence (TP)', fontsize=14, fontweight='bold')
 
 # Find optimal points
 opt_idx_dS_dT = np.argmin(errors_dS_dT)
@@ -311,7 +311,7 @@ plt.tight_layout()
 
 # Figure 3: Species derivatives
 fig3, axes3 = plt.subplots(1, 3, figsize=(15, 5))
-fig3.suptitle('Species Concentration Derivative Convergence', fontsize=14, fontweight='bold')
+fig3.suptitle('Species Concentration Derivative Convergence (TP)', fontsize=14, fontweight='bold')
 
 for i, (species_name, idx) in enumerate(zip(plot_species_names, plot_species_indices)):
     axes3[0].loglog(h_values, errors_dnj_dT[:, i], 'o-', linewidth=2, markersize=4,
@@ -345,16 +345,16 @@ axes3[2].invert_xaxis()
 plt.tight_layout()
 
 # Save figures
-fig1.savefig('enthalpy_derivative_convergence.pdf', dpi=300, bbox_inches='tight')
-fig2.savefig('entropy_derivative_convergence.pdf', dpi=300, bbox_inches='tight')
-fig3.savefig('species_derivative_convergence.pdf', dpi=300, bbox_inches='tight')
+fig1.savefig('tp_enthalpy_derivative_convergence.pdf', dpi=300, bbox_inches='tight')
+fig2.savefig('tp_entropy_derivative_convergence.pdf', dpi=300, bbox_inches='tight')
+fig3.savefig('tp_species_derivative_convergence.pdf', dpi=300, bbox_inches='tight')
 
 print("\n" + "=" * 70)
 print("FIGURES SAVED")
 print("=" * 70)
-print("  - enthalpy_derivative_convergence.pdf")
-print("  - entropy_derivative_convergence.pdf")
-print("  - species_derivative_convergence.pdf")
+print("  - tp_enthalpy_derivative_convergence.pdf")
+print("  - tp_entropy_derivative_convergence.pdf")
+print("  - tp_species_derivative_convergence.pdf")
 print("\n" + "=" * 70)
 print("Derivatives demonstration complete!")
 print("=" * 70)

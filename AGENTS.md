@@ -12,7 +12,6 @@ This repository is a scientific computing library (CEA). Numerical correctness a
 ## Hard Constraints
 
 - Do NOT modify `thermo.inp` or `trans.inp` unless explicitly instructed.
-- Do NOT modify `data/thermo.inp` or `data/trans.inp` unless explicitly instructed.
 - Avoid algorithmic changes unless explicitly requested.
 - Keep changes small and focused; avoid drive-by formatting and whitespace churn.
 - In Fortran files (`.f90`, `.pf`), do not write lines longer than 132 characters; use continuation with `&` when needed.

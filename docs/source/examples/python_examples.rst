@@ -9,3 +9,4 @@ problem set.
 
    sample_plots
    mixture_thermo
+   sp_derivatives

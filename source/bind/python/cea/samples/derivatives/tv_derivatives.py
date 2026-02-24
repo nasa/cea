@@ -65,7 +65,7 @@ reac = cea.Mixture(reac_names)
 prod = cea.Mixture(prod_names)
 
 # Solver
-solver = cea.EqSolver(prod, reactants=reac)
+solver = cea.EqSolver(prod, reactants=reac, smooth_truncation=True)
 solution = cea.EqSolution(solver)
 
 # Unit conversions
@@ -347,16 +347,16 @@ axes3[2].invert_xaxis()
 plt.tight_layout()
 
 # Save figures
-fig1.savefig('enthalpy_derivative_convergence_tv.pdf', dpi=300, bbox_inches='tight')
-fig2.savefig('entropy_derivative_convergence_tv.pdf', dpi=300, bbox_inches='tight')
-fig3.savefig('species_derivative_convergence_tv.pdf', dpi=300, bbox_inches='tight')
+fig1.savefig('tv_enthalpy_derivative_convergence.pdf', dpi=300, bbox_inches='tight')
+fig2.savefig('tv_entropy_derivative_convergence.pdf', dpi=300, bbox_inches='tight')
+fig3.savefig('tv_species_derivative_convergence.pdf', dpi=300, bbox_inches='tight')
 
 print("\n" + "=" * 70)
 print("FIGURES SAVED")
 print("=" * 70)
-print("  - enthalpy_derivative_convergence_tv.pdf")
-print("  - entropy_derivative_convergence_tv.pdf")
-print("  - species_derivative_convergence_tv.pdf")
+print("  - tv_enthalpy_derivative_convergence.pdf")
+print("  - tv_entropy_derivative_convergence.pdf")
+print("  - tv_species_derivative_convergence.pdf")
 print("\n" + "=" * 70)
 print("Derivatives demonstration complete!")
 print("=" * 70)
