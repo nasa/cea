@@ -3,12 +3,14 @@ channels:
   - conda-forge
   - nodefaults
 dependencies:
-  - python
-  - numpy
-  - setuptools
-  - gcc
-  - gxx
-  - gfortran
   - cmake
-  - ninja
   - cython
+  - gcc
+  - gfortran
+  - gxx
+  - ninja
+  - numpy
+  - pandas
+  - pytest
+  - python
+  - setuptools

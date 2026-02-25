@@ -17,7 +17,7 @@ program cea
     implicit none
 
     ! Locals
-    character(:), allocatable :: input_file, thermo_file, trans_file
+    character(:), allocatable :: input_file_stem, thermo_file, trans_file
     character(:), allocatable :: compile_thermo_input, compile_trans_input
     character(:), allocatable :: data_search_dirs(:)
     type(ThermoDB) :: all_thermo
@@ -36,7 +36,7 @@ program cea
     integer :: n
     logical :: ok
 
-    call parse_arguments(input_file, thermo_file, trans_file, compile_thermo_input, compile_trans_input)
+    call parse_arguments(input_file_stem, thermo_file, trans_file, compile_thermo_input, compile_trans_input)
     call log_info('CEA Version: '//version_string)
 
     if (allocated(compile_thermo_input) .or. allocated(compile_trans_input)) then
@@ -51,11 +51,11 @@ program cea
         stop
     end if
 
-    call log_info('Input File:  '//input_file)
+    call log_info('Input File:  '//input_file_stem)
     call log_info('Thermo File: '//thermo_file)
 
-    if (.not. exists(input_file//'.inp')) then
-        call abort('Could not locate input file: '//input_file)
+    if (.not. exists(input_file_stem//'.inp')) then
+        call abort('Could not locate input file: '//input_file_stem)
     end if
 
     call get_data_search_dirs(data_search_dirs)
@@ -73,11 +73,11 @@ program cea
     end if
 
     ! Read and parse the input and data files
-    problems = read_input(input_file//'.inp')
+    problems = read_input(input_file_stem//'.inp')
     all_thermo = read_thermo(thermo_file)
 
     ! Initialize the output file
-    open(1, file=input_file(1:len_trim(input_file))//".out", status="replace")
+    open(1, file=input_file_stem(1:len_trim(input_file_stem))//".out", status="replace")
 
     ! Loop over all problem in the input file
     do n = 1, size(problems)
@@ -129,8 +129,8 @@ program cea
 
 contains
 
-    subroutine parse_arguments(input_file, thermo_file, trans_file, compile_thermo_input, compile_trans_input)
-        character(:), allocatable, intent(out) :: input_file
+    subroutine parse_arguments(input_file_stem, thermo_file, trans_file, compile_thermo_input, compile_trans_input)
+        character(:), allocatable, intent(out) :: input_file_stem
         character(:), allocatable, intent(out) :: thermo_file
         character(:), allocatable, intent(out) :: trans_file
         character(:), allocatable, intent(out) :: compile_thermo_input
@@ -172,12 +172,18 @@ contains
                     stop
                 case default
                     call log_info('Reading input_file from first positional argument')
-                    input_file = arg
+                    ! If the user has added a .inp extension, remove it.
+                    input_file_stem = arg
+                    if (len(arg) > 4) then
+                        if (arg(len(arg)-3:len(arg)) == '.inp') then
+                            input_file_stem = arg(:len(arg)-4)
+                        end if
+                    end if
             end select
         end do
 
         if (allocated(compile_thermo_input) .or. allocated(compile_trans_input)) then
-            if (allocated(input_file)) then
+            if (allocated(input_file_stem)) then
                 call log_error('input_file is not allowed with --compile-thermo/--compile-trans')
                 call display_help
                 call abort
@@ -185,7 +191,7 @@ contains
             return
         end if
 
-        if (.not. allocated(input_file)) then
+        if (.not. allocated(input_file_stem)) then
             call log_error('Required argument not specified: input_file')
             call display_help
             call abort
