@@ -38,3 +38,4 @@ source/bind/excel/~$*.xlsm
 source/bind/excel/*.lib
 source/bind/python/samples
 source/bind/python/cea/samples/*.tex
+source/bind/python/cea/samples/intro.py
