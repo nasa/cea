@@ -88,13 +88,13 @@ dependencies, use the presets below.
 Fortran-only (no C/Python bindings)::
 
     cmake --preset core
-    cmake --build --preset core
+    cmake --build build-core
     cmake --install build-core
 
 Fortran + C (no Python bindings)::
 
     cmake --preset core-c
-    cmake --build --preset core-c
+    cmake --build build-core-c
     cmake --install build-core-c
 
 If you are not using presets, set ``-DCEA_ENABLE_BIND_PYTHON=OFF`` and also
@@ -209,19 +209,100 @@ Windows Notes
 * When building with Microsoft Visual Studio or Intel oneAPI on Windows, run the
   commands from a developer prompt so the compiler environment variables are set
   correctly.
-* Use PowerShell syntax for environment variables::
+* If Ninja is unavailable, add ``-G "Visual Studio 17 2022"`` (or a similar
+  generator) to the ``cmake`` configure command.
+
+Windows + Intel oneAPI (Step-by-Step)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This workflow was validated with Intel oneAPI 2025.3 and Visual Studio 2019 or
+later. It covers the core application plus C and Python bindings.
+
+Prerequisites:
+
+* Visual Studio 2019 or later.
+* Intel oneAPI Base Toolkit (Intel C++ Essentials may work but is untested).
+* Intel oneAPI HPC Toolkit (Intel Fortran Essentials may work but is untested).
+* Python >= 3.11 with ``pip``.
+* Git.
+
+Build and install:
+
+1. Start an Intel oneAPI command prompt.
+2. Create a working directory and clone CEA::
+
+      mkdir \ceabuild
+      cd \ceabuild
+      git clone https://github.com/nasa/cea.git
+      cd cea
+
+3. Prepare Python packages used by the optional binding/tests/docs::
+
+      pip install cython numpy setuptools pandas pytest
+
+4. Configure with the Intel preset (this is the corrected preset usage) and
+   build::
+
+      cmake --preset intel-ifx -DCMAKE_INSTALL_PREFIX=<cea_install_dir> -DCEA_BUILD_TESTING=OFF -DCEA_ENABLE_BIND_PYTHON=ON
+      cmake --build build-intel
+
+5. Install::
+
+      cmake --install build-intel
+
+6. Add ``<cea_install_dir>\\bin`` to ``PATH``.
+
+   In ``cmd.exe``::
+
+      setx PATH "<cea_install_dir>\bin;%PATH%"
+
+   In PowerShell::
 
       setx PATH "$env:PATH;<cea_install_dir>\\bin"
 
-* If Ninja is unavailable, add ``-G "Visual Studio 17 2022"`` (or a similar
-  generator) to the ``cmake`` configure command.
-* Windows Subsystem for Linux (WSL) provides a native Linux environment.  Install
-  a recent Ubuntu distribution from the Microsoft Store, then inside the WSL
-  shell install build tools with::
+7. Smoke-test the CLI::
+
+      cea <cea_source_dir>\samples\rp1311_examples.inp
+
+Validation checks:
+
+* Core interface regression (from the CEA root)::
+
+      cd build-intel\source
+      python ..\..\test\main_interface\test_main.py
+
+  Expected result for this check is 13 out of 14 passing, with a small error on
+  example 11::
+
+      Reference    | Test         | Rel. Error
+      --------------------------------------------------------------
+      F-                :   2.5000e-04 |   2.6000e-04 |       4.000%
+
+* Python binding tests (from the CEA root)::
+
+      pip install .
+      pytest source\bind\python\tests
+
+Optional docs build on Windows (from the CEA root)::
+
+    pip install -e .
+    pip install sphinx breathe
+    doxygen Doxyfile
+    cd docs
+    make html
+
+Rendered docs are in ``docs/_build/html``.
+
+WSL Alternative
+~~~~~~~~~~~~~~~
+
+Windows Subsystem for Linux (WSL) provides a native Linux environment. Install
+a recent Ubuntu distribution from the Microsoft Store, then inside the WSL
+shell install build tools with::
 
       sudo apt update
       sudo apt install gfortran ninja-build cmake python3 python3-pip git
 
-  After that follow the standard Linux instructions in this guide.  Files you
-  compile inside WSL live in the Linux filesystem (``\\wsl$``) and can be run
-  directly from the WSL prompt.
+After that follow the standard Linux instructions in this guide. Files you
+compile inside WSL live in the Linux filesystem (``\\wsl$``) and can be run
+directly from the WSL prompt.

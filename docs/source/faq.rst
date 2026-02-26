@@ -12,7 +12,7 @@ Configure one of the provided CMake presets, build, and then install.  From the
 repository root run::
 
     cmake --preset dev
-    cmake --build --preset dev
+    cmake --build build-dev
 
 This creates the ``cea`` executable plus the ``libcea`` library inside
 ``build-dev``.  See the :doc:`developer guide <developer_guide>` for more
@@ -38,7 +38,7 @@ How do I regenerate the documentation after editing ``docs/source``?
 
 Install the Python requirements for the binding and the docs: ``pip install -e
 .`` plus ``python -m pip install sphinx breathe``.  Then run ``make html`` from
-the ``docs`` directory.  The rendered site is placed in ``docs/html``.  If you
+the ``docs`` directory.  The rendered site is placed in ``docs/_build/html``.  If you
 change public Fortran interfaces, rerun ``doxygen Doxyfile`` first so Breathe
 can pick up the latest XML API descriptions.
 
