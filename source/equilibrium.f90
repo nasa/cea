@@ -1900,6 +1900,28 @@ contains
 
     end subroutine
 
+    subroutine EqSolution_reset_iteration_state(soln)
+        ! Reset transient Newton-update state before each solve call.
+        ! This allows EqSolution instances to be safely reused across solves.
+        type(EqSolution), intent(inout) :: soln
+
+        if (allocated(soln%dln_nj)) soln%dln_nj = 0.0d0
+        if (allocated(soln%dnj_c)) soln%dnj_c = 0.0d0
+        soln%dln_n = 0.0d0
+        soln%dln_T = 0.0d0
+        soln%dpi_e = 0.0d0
+
+        soln%gas_converged = .false.
+        soln%condensed_converged = .false.
+        soln%moles_converged = .false.
+        soln%element_converged = .false.
+        soln%temperature_converged = .false.
+        soln%entropy_converged = .false.
+        soln%pi_converged = .false.
+        soln%ions_converged = .false.
+        soln%converged = .false.
+    end subroutine
+
     subroutine EqSolver_solve(self, soln, type, state1, state2, reactant_weights, partials)
 
         ! Arguments
@@ -1936,6 +1958,10 @@ contains
         if (soln%constraints%is_constant_temperature()) then
             soln%T = state1
         end if
+
+        ! Reset transient update/convergence fields on every solve so a reused
+        ! EqSolution starts from a clean Newton step history.
+        call EqSolution_reset_iteration_state(soln)
 
         ! Initialize values
         self%tsize = 18.420681d0  ! Re-set in case solver is being re-used
