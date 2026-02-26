@@ -41,7 +41,7 @@ Project Layout
      - Python-based integration regression harness plus supporting utilities.
    * - ``docs/``
      - Sphinx documentation sources (``docs/source``); generated snapshots live
-       in ``docs/html`` and ``docs/doctrees``.
+       in ``docs/_build/html`` and ``docs/_build/doctrees``.
 
 Prerequisites
 -------------
@@ -93,7 +93,7 @@ configurations.  The ``dev`` preset enables all bindings and produces a debug
 build in ``build-dev``::
 
     cmake --preset dev
-    cmake --build --preset dev
+    cmake --build build-dev
 
 This compiles the ``cea`` executable (``build-dev/source/cea``) plus the shared
 library ``libcea``.  A few tips:
@@ -173,8 +173,8 @@ generated from the Fortran sources via Doxygen/Breathe.
        cd docs
        make html
 
-   The rendered site is in ``docs/html``.  This repository also carries a
-   snapshot of ``docs/html`` and ``docs/doctrees`` for release publishing and
+   The rendered site is in ``docs/_build/html``.  This repository also carries a
+   snapshot of ``docs/_build/html`` and ``docs/_build/doctrees`` for release publishing and
    quick browsing; those files are generated and can lag behind.  For normal
    documentation updates, commit only ``docs/source`` and regenerate the HTML
    snapshots when preparing a release or when explicitly requested.
@@ -223,7 +223,7 @@ Contribution Workflow
 ---------------------
 
 1. Fork the repository (export control rules still apply) and open a feature
-   branch named ``feature/<short-description>`` or ``bugfix/<ticket-id>``.
+   branch named ``feat/<short-description>`` or ``fix/<ticket-id>``.
 2. Make focused commits with descriptive messages.  Keep unrelated refactors and
    whitespace churn out of functional changes to simplify review.
 3. Run the relevant tests and document verification steps in your pull request.

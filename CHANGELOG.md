@@ -5,15 +5,18 @@ All notable user-visible changes to this project are documented here.
 ## [Unreleased]
 
 ### Changed
+- Command-line input parsing now accepts explicit `.inp` filenames (`#44`).
 
 ### Fixed
+- Fixed a crashing output case and restored missing output values (`#45`).
 
 ### Added
+- Added missing Python test dependencies to improve out-of-the-box test runs (`#41`).
 
 ## [3.0.3] - 2026-02-20
 
 ### Changed
-- Hardened PyPI publishing CI with OIDC preflight checks and manual `workflow_dispatch` target selection (`testpypi`/`pypi`); installation docs now lead with `python -m pip install cea` and mention GitHub Releases binary assets.
+- Hardened PyPI publishing CI with OIDC preflight checks and manual `workflow_dispatch` target selection (`testpypi`/`pypi`); installation docs now lead with `python -m pip install cea` and mention GitHub Releases binary assets. (`#39`, `#40`).
 
 ### Fixed
 

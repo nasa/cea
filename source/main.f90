@@ -851,7 +851,7 @@ contains
         logical :: use_mach
         character(snl), allocatable :: trace_names(:)
         logical, allocatable :: is_trace(:)
-        character(80) :: eq_fmt
+        character(:), allocatable :: eq_fmt
         character(4) :: mass_or_mole
         character(11) :: refl_type, incd_type
 
@@ -1105,11 +1105,11 @@ contains
                     if (is_trace(idx) .eqv. .false.) then
                         eq_fmt = get_shock_species_format(solutions, idx, 1, k, m, 2, prob%output%mass_fractions)
                         if (prob%output%mass_fractions) then
-                            write(ioout, eq_fmt) solver%eq_solver%products%species_names(idx), &
-                                (solutions(i, 1, k)%eq_soln(2)%mass_fractions(idx), i=1,m)
-                        else
-                            write(ioout, eq_fmt) solver%eq_solver%products%species_names(idx), &
-                                (solutions(i, 1, k)%eq_soln(2)%mole_fractions(idx), i=1,m)
+                        write(ioout, eq_fmt) trim(adjustl(solver%eq_solver%products%species_names(idx))), &
+                            (solutions(i, 1, k)%eq_soln(2)%mass_fractions(idx), i=1,m)
+                    else
+                        write(ioout, eq_fmt) trim(adjustl(solver%eq_solver%products%species_names(idx))), &
+                            (solutions(i, 1, k)%eq_soln(2)%mole_fractions(idx), i=1,m)
                         end if
                     end if
                 end do
@@ -1198,11 +1198,11 @@ contains
                     if (is_trace(idx) .eqv. .false.) then
                         eq_fmt = get_shock_species_format(solutions, idx, 1, k, m, 3, prob%output%mass_fractions)
                         if (prob%output%mass_fractions) then
-                            write(ioout, eq_fmt) solver%eq_solver%products%species_names(idx), &
-                                (solutions(i, 1, k)%eq_soln(3)%mass_fractions(idx), i=1,m)
-                        else
-                            write(ioout, eq_fmt) solver%eq_solver%products%species_names(idx), &
-                                (solutions(i, 1, k)%eq_soln(3)%mole_fractions(idx), i=1,m)
+                        write(ioout, eq_fmt) trim(adjustl(solver%eq_solver%products%species_names(idx))), &
+                            (solutions(i, 1, k)%eq_soln(3)%mass_fractions(idx), i=1,m)
+                    else
+                        write(ioout, eq_fmt) trim(adjustl(solver%eq_solver%products%species_names(idx))), &
+                            (solutions(i, 1, k)%eq_soln(3)%mole_fractions(idx), i=1,m)
                         end if
                     end if
                 end do
@@ -1245,7 +1245,7 @@ contains
         logical :: transport
         character(snl), allocatable :: trace_names(:)
         logical, allocatable :: is_trace(:)
-        character(80) :: eq_fmt
+        character(:), allocatable :: eq_fmt
         character(4) :: mass_or_mole
 
         ! Initialization
@@ -1412,10 +1412,10 @@ contains
                 if (.not. is_trace(idx)) then
                     eq_fmt = get_deton_species_format(solutions, idx, k, m, n, prob%output%mass_fractions)
                     if (prob%output%mass_fractions) then
-                        write(ioout, eq_fmt) solver%eq_solver%products%species_names(idx), &
+                        write(ioout, eq_fmt) trim(adjustl(solver%eq_solver%products%species_names(idx))), &
                             ((solutions(i, j, k)%eq_soln%mass_fractions(idx), j=1,n), i=1,m)
                     else
-                        write(ioout, eq_fmt) solver%eq_solver%products%species_names(idx), &
+                        write(ioout, eq_fmt) trim(adjustl(solver%eq_solver%products%species_names(idx))), &
                             ((solutions(i, j, k)%eq_soln%mole_fractions(idx), j=1,n), i=1,m)
                     end if
                 end if
@@ -1694,12 +1694,13 @@ contains
         ! Locals
         integer :: i, j, k, idx, m, n, num_trace, nrows, ncols, last_row_cols
         ! integer, parameter :: max_cols = 6
-        real(dp) :: of_ratio, pct_fuel, r_eq, phi_eq
+        real(dp) :: of_ratio, pct_fuel, r_eq, phi_eq, reactant_temp, reactant_energy, reactant_amount
         real(dp) :: trace
         character(snl), allocatable :: trace_names(:)
         character(4) :: mass_or_mole
         logical, allocatable :: is_trace(:)
-        character(70) :: eq_fmt
+        character(:), allocatable :: eq_fmt
+        character(65) :: section_title, section_subtitle
 
         ! TODO: Print the problem input
 
@@ -1715,17 +1716,62 @@ contains
 
         do k = 1, size(solutions, 3)  ! Loop over o/f ratio
 
-            ! TODO: Print the reactant amounts and temperatures
+            ! Legacy-style section headers to align major output structure with CEA2.
+            select case(prob%problem%type)
+                case ("hp")
+                    section_title = "THERMODYNAMIC EQUILIBRIUM COMBUSTION PROPERTIES AT ASSIGNED"
+                case default
+                    section_title = "THERMODYNAMIC EQUILIBRIUM PROPERTIES AT ASSIGNED"
+            end select
+
+            select case(prob%problem%type)
+                case ("uv")
+                    section_subtitle = "INTERNAL ENERGY AND VOLUME"
+                case ("tv")
+                    section_subtitle = "TEMPERATURE AND VOLUME"
+                case ("sv")
+                    section_subtitle = "ENTROPY AND VOLUME"
+                case ("sp")
+                    section_subtitle = "ENTROPY AND PRESSURE"
+                case ("hp")
+                    section_subtitle = "PRESSURES"
+                case default
+                    section_subtitle = "TEMPERATURE AND PRESSURE"
+            end select
+
+            write(ioout, '(A)') ""
+            write(ioout, '(A)') ""
+            write(ioout, '(15X, A)') trim(section_title)
+            write(ioout, '(A)') ""
+            write(ioout, '(27X, A)') trim(section_subtitle)
+            write(ioout, '(A)') ""
+            write(ioout, '(A, A)') " CASE = ", trim(prob%problem%name)
+
+            ! Print the reactant amounts and temperatures
             write(ioout, *) ""
             write(ioout, "(A20, A10, A10, A10)") "REACTANT", "MOLES", "ENERGY", "TEMP"
             write(ioout, "(A20, A10, A10, A10)") "", "", "KJ/MOL", "K"
             do i = 1, solver%num_reactants
-                write(ioout, "(A20, F10.3, F10.3, F10.2)") solver%reactants%species_names(i), -1.0, -1.0, -1.0
+                reactant_temp = 0.0d0
+                if (allocated(prob%reactants(i)%temperature)) then
+                    reactant_temp = convert_units_to_si(prob%reactants(i)%temperature%values(1), &
+                                                        prob%reactants(i)%temperature%units)
+                end if
+                reactant_amount = 0.0d0
+                if (allocated(prob%reactants(i)%amount)) then
+                    reactant_amount = prob%reactants(i)%amount%values(1)
+                end if
+                reactant_energy = 0.0d0
+                if (reactant_temp > 0.0d0) then
+                    reactant_energy = solver%reactants%species(i)%calc_enthalpy(reactant_temp)*R/1.0d3
+                end if
+                write(ioout, "(A20, F10.3, 1X, F11.3, F10.2)") solver%reactants%species_names(i), &
+                    reactant_amount, reactant_energy, reactant_temp
             end do
 
-            ! TODO: Print the o/f ratio and equivalent values
+            ! Print the o/f ratio and equivalent values
             call compute_fuel_ratios(prob, solver%reactants, k, of_ratio, pct_fuel, r_eq, phi_eq)
-            write(ioout, '(A, F10.5, A, F8.5, A, F8.5, A, F8.5)') 'O/F = ', &
+            write(ioout, '(A, F10.5, A, F9.5, A, F8.5, A, F8.5)') 'O/F = ', &
                 of_ratio, '    % Fuel = ', pct_fuel, '    r, Eq. Ratio = ', r_eq, '    phi, Eq. Ratio = ', phi_eq
 
             ! Print the thermodynamic properties
@@ -1842,10 +1888,10 @@ contains
                 if (is_trace(idx) .eqv. .false.) then
                     eq_fmt = get_eq_species_format(solutions, idx, k, m, n, prob%output%mass_fractions)
                     if (prob%output%mass_fractions) then
-                        write(ioout, eq_fmt) solver%products%species_names(idx), &
+                        write(ioout, eq_fmt) trim(adjustl(solver%products%species_names(idx))), &
                             ((solutions(i, j, k)%mass_fractions(idx), i=1,m), j=1,n)
                     else
-                        write(ioout, eq_fmt) solver%products%species_names(idx), &
+                        write(ioout, eq_fmt) trim(adjustl(solver%products%species_names(idx))), &
                             ((solutions(i, j, k)%mole_fractions(idx), i=1,m), j=1,n)
                     end if
                 end if
@@ -1888,10 +1934,11 @@ contains
         integer :: max_exit, exit_extra, x, y, last_row_cols, nfrz
         ! integer, parameter :: max_cols = 6
         integer, parameter :: infty_idx = 2
-        real(dp) :: of_ratio, pct_fuel, r_eq, phi_eq
+        real(dp) :: of_ratio, pct_fuel, r_eq, phi_eq, reactant_temp, reactant_energy, reactant_amount
         real(dp) :: trace
+        real(dp), allocatable :: reactant_weights(:), reactant_moles(:)
         character(12) :: fac_print, eql_print
-        character(60) :: station_fmt, thermo_fmt, aeat_fmt, cstar_fmt, cf_fmt, isp_fmt
+        character(60) :: thermo_fmt, aeat_fmt, cstar_fmt, cf_fmt, isp_fmt
         character(snl), allocatable :: trace_names(:)
         logical, allocatable :: is_trace(:)
         logical :: frozen
@@ -1905,8 +1952,10 @@ contains
         character(60) :: s_fmt
         character(60) :: rho_fmt
         character(60) :: vsonic_fmt
+        character(16) :: perf_label
+        character(30) :: perf_fmt
         character(10) :: ffmt
-        character(90) :: spec_fmt
+        character(:), allocatable :: spec_fmt
 
         ! TODO: Print the problem input again
 
@@ -1928,17 +1977,15 @@ contains
         if (prob%problem%rkt_finite_area) then
             max_exit = 5
             fac_print = "FINITE"
-            station_fmt = "(/,21X,'INJECTOR   COMB END     THROAT',5(7X,A4))"
             pinj_fmt = "(' Pinj/P           ',3(F13.4), 5(F13.3))"
             t_fmt =    "(' T, K             ',3(F13.2), 5(F13.2))"
             thermo_fmt = "(1x, A16, 1x,       3(F13.4), 5(F13.4))"
             vsonic_fmt = "(1x, A16, 1x,       3(F13.2), 5(F13.2))"
 
-            ! perf_fmt  = "(1x, A9, 19x,         F13.3,   5(F13.3))"
-            aeat_fmt  = "(1x, A9, 19x,         7(F13.4))"
-            cstar_fmt = "(1x, A9, 19x,         7(F13.2))"
-            cf_fmt    = "(1x, A9, 19x,         7(F13.4))"
-            isp_fmt   = "(1x, A9, 19x,         7(F13.2))"
+            aeat_fmt  = "(1x, A16, 1x, 7(F13.4))"
+            cstar_fmt = "(1x, A16, 1x, 7(F13.2))"
+            cf_fmt    = "(1x, A16, 1x, 7(F13.4))"
+            isp_fmt   = "(1x, A16, 1x, 7(F13.2))"
 
             ffmt = "(5(F13.3))"
             if (prob%output%siunit) then
@@ -1959,16 +2006,15 @@ contains
         else
             max_exit = 6
             fac_print = "INFINITE"
-            station_fmt = "(/,22X,'CHAMBER     THROAT',6(7X,A4))"
             pinj_fmt = "(' Pinf/P           ',2(F13.4), 6(F13.3))"
             t_fmt =    "(' T, K             ',2(F13.2), 6(F13.2))"
             thermo_fmt = "(1x, A16,  1x,      2(F13.4), 6(F13.4))"
             vsonic_fmt = "(1x, A16,  1x,      2(F13.2), 6(F13.2))"
 
-            aeat_fmt  = "(1x, A9, 19x,         F13.4,   6(F13.4))"
-            cstar_fmt = "(1x, A9, 19x,         F13.2,   6(F13.2))"
-            cf_fmt    = "(1x, A9, 19x,         F13.4,   6(F13.4))"
-            isp_fmt   = "(1x, A9, 19x,         F13.2,   6(F13.2))"
+            aeat_fmt  = "(1x, A16, 1x, 7(F13.4))"
+            cstar_fmt = "(1x, A16, 1x, 7(F13.2))"
+            cf_fmt    = "(1x, A16, 1x, 7(F13.4))"
+            isp_fmt   = "(1x, A16, 1x, 7(F13.2))"
 
             ffmt = "(6(F13.4))"
             if (prob%output%siunit) then
@@ -2060,25 +2106,75 @@ contains
                     write(ioout, "(A, F6.2, A)") "Pc = ",solutions(i,j,k)%pressure(1)," bar"
                     write(ioout,*) ""
 
-                    ! TODO: Print the area/pressure ratio values
+                    ! Print assigned pressure/area ratio schedules.
+                    if (allocated(prob%problem%pcp_schedule)) then
+                        write(ioout, '(A)', advance='no') trim(prob%problem%pcp_schedule%name)//" = "
+                        do idx = 1, size(prob%problem%pcp_schedule%values)
+                            write(ioout, '(F10.4)', advance='no') prob%problem%pcp_schedule%values(idx)
+                        end do
+                        write(ioout, *)
+                    end if
+                    if (allocated(prob%problem%subar_schedule)) then
+                        write(ioout, '(A)', advance='no') trim(prob%problem%subar_schedule%name)//" = "
+                        do idx = 1, size(prob%problem%subar_schedule%values)
+                            write(ioout, '(F10.4)', advance='no') prob%problem%subar_schedule%values(idx)
+                        end do
+                        write(ioout, *)
+                    end if
+                    if (allocated(prob%problem%supar_schedule)) then
+                        write(ioout, '(A)', advance='no') trim(prob%problem%supar_schedule%name)//" = "
+                        do idx = 1, size(prob%problem%supar_schedule%values)
+                            write(ioout, '(F10.4)', advance='no') prob%problem%supar_schedule%values(idx)
+                        end do
+                        write(ioout, *)
+                    end if
+                    write(ioout,*) ""
 
-                    ! TODO: Print the reactant amounts and temperatures
+                    ! Print reactant amounts and temperatures using the current O/F index.
+                    reactant_weights = get_problem_weights(prob, solver%eq_solver%reactants, j)
+                    reactant_moles = solver%eq_solver%reactants%moles_from_weights(reactant_weights)
+
                     write(ioout, *) ""
                     write(ioout, "(A20, A10, A10, A10)") "REACTANT", "MOLES", "ENERGY", "TEMP"
                     write(ioout, "(A20, A10, A10, A10)") "", "", "KJ/MOL", "K"
                     do idx = 1, solver%eq_solver%num_reactants
-                        write(ioout, "(A20, F10.3, F10.3, F10.2)") solver%eq_solver%reactants%species_names(idx), -1.0, -1.0, -1.0
+                        reactant_temp = 0.0d0
+                        if (allocated(prob%reactants(idx)%temperature)) then
+                            reactant_temp = convert_units_to_si(prob%reactants(idx)%temperature%values(1), &
+                                                                prob%reactants(idx)%temperature%units)
+                        end if
+                        reactant_amount = reactant_moles(idx)
+                        if (allocated(prob%reactants(idx)%amount)) then
+                            reactant_amount = prob%reactants(idx)%amount%values(1)
+                        end if
+                        reactant_energy = 0.0d0
+                        if (reactant_temp > 0.0d0) then
+                            reactant_energy = solver%eq_solver%reactants%species(idx)%calc_enthalpy(reactant_temp)*R/1.0d3
+                        end if
+                        write(ioout, "(A20, F10.3, 1X, F11.3, F10.2)") solver%eq_solver%reactants%species_names(idx), &
+                            reactant_amount, reactant_energy, reactant_temp
                     end do
                     write(ioout,*) ""
 
                     ! Print the o/f ratio and equivalent values
                     call compute_fuel_ratios(prob, solver%eq_solver%reactants, j, of_ratio, pct_fuel, r_eq, phi_eq)
-                    write(ioout, '(A, F10.5, A, F8.5, A, F8.5, A, F8.5)') &
+                    write(ioout, '(A, F10.5, A, F9.5, A, F8.5, A, F8.5)') &
                         'O/F = ', of_ratio, '    % Fuel = ', pct_fuel, '    r, Eq. Ratio = ', r_eq, '    phi, Eq. Ratio = ', phi_eq
                     write(ioout,*) ""
 
-                    ! Print the header with the station names
-                    write(ioout, station_fmt) (("EXIT"), idx=1,ne)
+                    ! Print the header with station names aligned to F13.x value columns.
+                    write(ioout, '(/,A)', advance='no') repeat(' ', 18)
+                    if (prob%problem%rkt_finite_area) then
+                        write(ioout, '(A13)', advance='no') "INJECTOR"
+                        write(ioout, '(A13)', advance='no') "COMB END"
+                    else
+                        write(ioout, '(A13)', advance='no') "CHAMBER"
+                    end if
+                    write(ioout, '(A13)', advance='no') "THROAT"
+                    do idx = 1, ne
+                        write(ioout, '(A13)', advance='no') "EXIT"
+                    end do
+                    write(ioout, *)
 
                     ! Print the rocket properties
                     write(ioout, pinj_fmt) (solutions(i,j,k)%pressure(1)/solutions(i,j,k)%pressure(idx), idx=1,np)
@@ -2166,19 +2262,41 @@ contains
                     write(ioout, '(A)') " PERFORMANCE PARAMETERS"
                     write(ioout, *) ""
 
-                    write(ioout, aeat_fmt) 'Ae/At    ', (solutions(i, j, k)%ae_at(idx), idx=2,np)
+                    perf_label = 'Ae/At           '
+                    write(perf_fmt, '("(",i0,"(F13.4))")') np-1
+                    write(ioout, '(1x,A,1x,A13)', advance='no') perf_label, ''
+                    write(ioout, trim(perf_fmt)) (solutions(i, j, k)%ae_at(idx), idx=2,np)
                     if (prob%output%siunit) then
-                        write(ioout, cstar_fmt) 'C*, m/s  ', (solutions(i, j, k)%c_star(idx), idx=2,np)
+                        perf_label = 'C*, m/s         '
+                        write(perf_fmt, '("(",i0,"(F13.2))")') np-1
+                        write(ioout, '(1x,A,1x,A13)', advance='no') perf_label, ''
+                        write(ioout, trim(perf_fmt)) (solutions(i, j, k)%c_star(idx), idx=2,np)
                     else
-                        write(ioout, cstar_fmt) 'C*, ft/s ', (solutions(i, j, k)%c_star(idx)*3.2808349d0, idx=2,np)
+                        perf_label = 'C*, ft/s        '
+                        write(perf_fmt, '("(",i0,"(F13.2))")') np-1
+                        write(ioout, '(1x,A,1x,A13)', advance='no') perf_label, ''
+                        write(ioout, trim(perf_fmt)) (solutions(i, j, k)%c_star(idx)*3.2808349d0, idx=2,np)
                     end if
-                    write(ioout, cf_fmt) 'Cf       ', (solutions(i, j, k)%cf(idx), idx=2,np)
+                    perf_label = 'Cf              '
+                    write(perf_fmt, '("(",i0,"(F13.4))")') np-1
+                    write(ioout, '(1x,A,1x,A13)', advance='no') perf_label, ''
+                    write(ioout, trim(perf_fmt)) (solutions(i, j, k)%cf(idx), idx=2,np)
                     if (prob%output%siunit) then
-                        write(ioout, isp_fmt) 'Ivac, m/s', (solutions(i, j, k)%i_vac(idx), idx=2,np)
-                        write(ioout, isp_fmt) 'Isp, m/s ', (solutions(i, j, k)%i_sp(idx), idx=2,np)
+                        perf_label = 'Ivac, m/s       '
+                        write(perf_fmt, '("(",i0,"(F13.2))")') np-1
+                        write(ioout, '(1x,A,1x,A13)', advance='no') perf_label, ''
+                        write(ioout, trim(perf_fmt)) (solutions(i, j, k)%i_vac(idx), idx=2,np)
+                        perf_label = 'Isp, m/s        '
+                        write(ioout, '(1x,A,1x,A13)', advance='no') perf_label, ''
+                        write(ioout, trim(perf_fmt)) (solutions(i, j, k)%i_sp(idx), idx=2,np)
                     else
-                        write(ioout, isp_fmt) 'Ivac, lb-s/lb', (solutions(i, j, k)%i_vac(idx)/9.80665d0, idx=2,np)
-                        write(ioout, isp_fmt) 'Isp, lb-s/lb ', (solutions(i, j, k)%i_sp(idx)/9.80665d0, idx=2,np)
+                        perf_label = 'Ivac, lb-s/lb   '
+                        write(perf_fmt, '("(",i0,"(F13.2))")') np-1
+                        write(ioout, '(1x,A,1x,A13)', advance='no') perf_label, ''
+                        write(ioout, trim(perf_fmt)) (solutions(i, j, k)%i_vac(idx)/9.80665d0, idx=2,np)
+                        perf_label = 'Isp, lb-s/lb    '
+                        write(ioout, '(1x,A,1x,A13)', advance='no') perf_label, ''
+                        write(ioout, trim(perf_fmt)) (solutions(i, j, k)%i_sp(idx)/9.80665d0, idx=2,np)
                     end if
 
                     ! Set the trace output value
@@ -2220,21 +2338,21 @@ contains
                             if (prob%output%mass_fractions) then
                                 if (frozen) then
                                     if (solutions(i, j, k)%eq_soln(nfrz)%mass_fractions(ii) > trace) then
-                                        write(ioout, spec_fmt) solver%eq_solver%products%species_names(ii), &
+                                        write(ioout, spec_fmt) trim(adjustl(solver%eq_solver%products%species_names(ii))), &
                                             solutions(i, j, k)%eq_soln(nfrz)%mass_fractions(ii)
                                     end if
                                 else
-                                    write(ioout, spec_fmt) solver%eq_solver%products%species_names(ii), &
+                                    write(ioout, spec_fmt) trim(adjustl(solver%eq_solver%products%species_names(ii))), &
                                         (solutions(i, j, k)%eq_soln(idx)%mass_fractions(ii), idx=1,np)
                                 end if
                             else
                                 if (frozen) then
                                     if (solutions(i, j, k)%eq_soln(nfrz)%mole_fractions(ii) > trace) then
-                                        write(ioout, spec_fmt) solver%eq_solver%products%species_names(ii), &
+                                        write(ioout, spec_fmt) trim(adjustl(solver%eq_solver%products%species_names(ii))), &
                                              solutions(i, j, k)%eq_soln(nfrz)%mole_fractions(ii)
                                     end if
                                 else
-                                    write(ioout, spec_fmt) solver%eq_solver%products%species_names(ii), &
+                                    write(ioout, spec_fmt) trim(adjustl(solver%eq_solver%products%species_names(ii))), &
                                         (solutions(i, j, k)%eq_soln(idx)%mole_fractions(ii), idx=1,np)
                                 end if
                             end if
@@ -2263,8 +2381,19 @@ contains
                         if (prob%problem%rkt_finite_area) np = np + 1
                         nc = np - ne
 
-                        ! Print the header with the station names
-                        write(ioout, station_fmt) (("EXIT"), idx=1,ne)
+                        ! Print the header with station names aligned to F13.x value columns.
+                        write(ioout, '(/,A)', advance='no') repeat(' ', 18)
+                        if (prob%problem%rkt_finite_area) then
+                            write(ioout, '(A13)', advance='no') "INJECTOR"
+                            write(ioout, '(A13)', advance='no') "COMB END"
+                        else
+                            write(ioout, '(A13)', advance='no') "CHAMBER"
+                        end if
+                        write(ioout, '(A13)', advance='no') "THROAT"
+                        do idx = 1, ne
+                            write(ioout, '(A13)', advance='no') "EXIT"
+                        end do
+                        write(ioout, *)
 
                         ! Print the rocket properties
                         x = nc+max_exit+1
@@ -2433,19 +2562,33 @@ contains
                         write(ioout, *) ""
                         write(ioout, '(A)') " PERFORMANCE PARAMETERS"
                         write(ioout, *) ""
-                        write(ioout, aeat_fmt, advance="no") 'Ae/At    ', (solutions(i, j, k)%ae_at(idx), idx=2,nc)
+                        perf_label = 'Ae/At           '
+                        write(perf_fmt, '("(",i0,"(F13.4))")') nc-1
+                        write(ioout, '(1x,A,1x,A13)', advance='no') perf_label, ''
+                        write(ioout, trim(perf_fmt), advance="no") (solutions(i, j, k)%ae_at(idx), idx=2,nc)
                         write(ioout, "(5(F13.4))") (solutions(i, j, k)%ae_at(idx), idx=x,y)
 
-                        write(ioout, cstar_fmt, advance="no") 'C*, m/s  ', (solutions(i, j, k)%c_star(idx), idx=2,nc)
+                        perf_label = 'C*, m/s         '
+                        write(perf_fmt, '("(",i0,"(F13.2))")') nc-1
+                        write(ioout, '(1x,A,1x,A13)', advance='no') perf_label, ''
+                        write(ioout, trim(perf_fmt), advance="no") (solutions(i, j, k)%c_star(idx), idx=2,nc)
                         write(ioout, "(5(F13.2))") (solutions(i, j, k)%c_star(idx), idx=x,y)
 
-                        write(ioout, cf_fmt, advance="no") 'Cf       ', (solutions(i, j, k)%cf(idx), idx=2,nc)
+                        perf_label = 'Cf              '
+                        write(perf_fmt, '("(",i0,"(F13.4))")') nc-1
+                        write(ioout, '(1x,A,1x,A13)', advance='no') perf_label, ''
+                        write(ioout, trim(perf_fmt), advance="no") (solutions(i, j, k)%cf(idx), idx=2,nc)
                         write(ioout, "(5(F13.4))") (solutions(i, j, k)%cf(idx), idx=x,y)
 
-                        write(ioout, isp_fmt, advance="no") 'Ivac, m/s', (solutions(i, j, k)%i_vac(idx), idx=2,nc)
+                        perf_label = 'Ivac, m/s       '
+                        write(perf_fmt, '("(",i0,"(F13.2))")') nc-1
+                        write(ioout, '(1x,A,1x,A13)', advance='no') perf_label, ''
+                        write(ioout, trim(perf_fmt), advance="no") (solutions(i, j, k)%i_vac(idx), idx=2,nc)
                         write(ioout, "(5(F13.2))") (solutions(i, j, k)%i_vac(idx), idx=x,y)
 
-                        write(ioout, isp_fmt, advance="no") 'Isp, m/s ', (solutions(i, j, k)%i_sp(idx), idx=2,nc)
+                        perf_label = 'Isp, m/s        '
+                        write(ioout, '(1x,A,1x,A13)', advance='no') perf_label, ''
+                        write(ioout, trim(perf_fmt), advance="no") (solutions(i, j, k)%i_sp(idx), idx=2,nc)
                         write(ioout, "(5(F13.2))") (solutions(i, j, k)%i_sp(idx), idx=x,y)
 
                         ! Get the list of trace species
@@ -2482,26 +2625,26 @@ contains
                                 if (prob%output%mass_fractions) then
                                     if (frozen) then
                                         if (solutions(i, j, k)%eq_soln(nfrz)%mass_fractions(ii) > trace) then
-                                            write(ioout, '(1x, A15, 2x, F13.5)') &
-                                                solver%eq_solver%products%species_names(ii), &
+                                            write(ioout, '(1x, A, T19, F13.5)') &
+                                                trim(adjustl(solver%eq_solver%products%species_names(ii))), &
                                                 solutions(i, j, k)%eq_soln(nfrz)%mass_fractions(ii)
                                         end if
                                     else
-                                        write(ioout, '(1x, A15, 2x, 3(F13.5))', advance="no") &
-                                            solver%eq_solver%products%species_names(ii), &
+                                        write(ioout, '(1x, A, T19, 3(F13.5))', advance="no") &
+                                            trim(adjustl(solver%eq_solver%products%species_names(ii))), &
                                             (solutions(i, j, k)%eq_soln(idx)%mass_fractions(ii), idx=1,nc)
                                         write(ioout, '(3(F13.5))') (solutions(i, j, k)%eq_soln(idx)%mass_fractions(ii), idx=x,y)
                                     end if
                                 else
                                     if (frozen) then
                                         if (solutions(i, j, k)%eq_soln(nfrz)%mole_fractions(ii) > trace) then
-                                            write(ioout, '(1x, A15, 2x, F13.5)') &
-                                                solver%eq_solver%products%species_names(ii), &
+                                            write(ioout, '(1x, A, T19, F13.5)') &
+                                                trim(adjustl(solver%eq_solver%products%species_names(ii))), &
                                                 solutions(i, j, k)%eq_soln(nfrz)%mole_fractions(ii)
                                         end if
                                     else
-                                        write(ioout, '(1x, A15, 2x, 3(F13.5))', advance="no") &
-                                            solver%eq_solver%products%species_names(ii), &
+                                        write(ioout, '(1x, A, T19, 3(F13.5))', advance="no") &
+                                            trim(adjustl(solver%eq_solver%products%species_names(ii))), &
                                             (solutions(i, j, k)%eq_soln(idx)%mole_fractions(ii), idx=1,nc)
                                         write(ioout, '(3(F13.5))') (solutions(i, j, k)%eq_soln(idx)%mole_fractions(ii), idx=x,y)
                                     end if
@@ -2560,12 +2703,28 @@ contains
 
         ! Set default values
         of_ratio = 0.0d0
-        pct_fuel = 100.0d0
+        pct_fuel = 0.0d0
         r_eq = 0.0d0
         phi_eq = 0.0d0
 
-        ! Ratio values are meaningless if fuel and oxidant are not specified separately
-        if (prob%reactants(1)%type == "name") then
+        ! If reactants are not split into fuel/oxidant ("na"), fill what can be
+        ! inferred directly from the scheduled ratio and leave equivalence/phi
+        ! as defaults (not derivable without fuel/oxidant partitioning).
+        if (prob%reactants(1)%type == "na") then
+            if (allocated(prob%problem%of_schedule)) then
+                ratio_val = prob%problem%of_schedule%values(idx)
+                select case(prob%problem%of_schedule%name)
+                    case ("f/o", "f/a")
+                        of_ratio = 1.0d0/ratio_val
+                        pct_fuel = 100.0d0/(1.0d0 + of_ratio)
+                    case ("%f", "%fuel")
+                        pct_fuel = ratio_val
+                        of_ratio = (100.0d0-ratio_val)/ratio_val
+                    case default
+                        of_ratio = ratio_val
+                        pct_fuel = 100.0d0/(1.0d0 + of_ratio)
+                end select
+            end if
             return
 
         ! If fuel and oxidant are specified separately, compute fuel weights and oxidant weights
@@ -2602,6 +2761,14 @@ contains
 
             end if
 
+            ! If no o/f schedule is set, compute the ratios from reactant amounts.
+            if (.not. allocated(prob%problem%of_schedule)) then
+                if (sum(fuel_weights) > 0.0d0 .and. sum(oxidant_weights) > 0.0d0) then
+                    of_ratio = sum(oxidant_weights)/sum(fuel_weights)
+                    pct_fuel = 100.0d0/(1.0d0 + of_ratio)
+                end if
+            end if
+
             ! If an o/f schedule is set, compute the fuel ratios
             if (allocated(prob%problem%of_schedule)) then
                 ratio_val = prob%problem%of_schedule%values(idx)
@@ -2610,20 +2777,14 @@ contains
                     case ("o/f")
                         of_ratio = ratio_val
                         pct_fuel = 100.0d0/(1.0d0 + ratio_val)
-                        r_eq = reactants%equivalence_from_of(oxidant_weights, fuel_weights, of_ratio)
-                        phi_eq = reactants%phi_from_of(oxidant_weights, fuel_weights, of_ratio)
 
                     case ("f/o", "f/a")
                         of_ratio = 1.0d0/ratio_val
                         pct_fuel = 100.0d0/(1.0d0 + of_ratio)
-                        r_eq = reactants%equivalence_from_of(oxidant_weights, fuel_weights, of_ratio)
-                        phi_eq = reactants%phi_from_of(oxidant_weights, fuel_weights, of_ratio)
 
-                    case ("%f")
+                    case ("%f", "%fuel")
                         pct_fuel = ratio_val
                         of_ratio = (100.0d0-ratio_val)/ratio_val
-                        r_eq = reactants%equivalence_from_of(oxidant_weights, fuel_weights, of_ratio)
-                        phi_eq = reactants%phi_from_of(oxidant_weights, fuel_weights, of_ratio)
 
                     case ("phi")
                         phi_eq = ratio_val
@@ -2657,17 +2818,14 @@ contains
         logical, intent(in) :: mass_frac  ! If true, use mass fractions; if false, use mole fractions
 
         ! Result
-        character(70) :: eq_fmt
+        character(:), allocatable :: eq_fmt
 
         ! Locals
-        integer :: i, j, idx1, idx2
+        integer :: i, j
         real(dp) :: amount
 
         ! Set the format
-        idx1 = 1
-        idx2 = 9
-        eq_fmt(1:) = " "
-        eq_fmt(idx1:idx2) = '(A16, 1x'
+        eq_fmt = '(1x, A, T18'
         do j = 1, n
             do i = 1, m
                 if (mass_frac) then
@@ -2676,21 +2834,16 @@ contains
                     amount = solutions(i, j, k)%mole_fractions(idx)
                 end if
 
-                idx1 = idx2
-
                 if (amount > 1.d-3 .or. amount < 1.d-20) then
-                    idx2 = idx1 + 6
-                    eq_fmt(idx1:idx2) = ', F9.6'
+                    eq_fmt = eq_fmt//', F14.6'
                 elseif (amount < 1.d-9) then
-                    idx2 = idx1 + 9
-                    eq_fmt(idx1:idx2) = ', ES9.2E2'
+                    eq_fmt = eq_fmt//', ES14.2E2'
                 else
-                    idx2 = idx1 + 9
-                    eq_fmt(idx1:idx2) = ', ES9.3E1'
+                    eq_fmt = eq_fmt//', ES14.3E1'
                 end if
             end do
         end do
-        eq_fmt(idx2:idx2+1) = ')'
+        eq_fmt = eq_fmt//')'
 
     end function
 
@@ -2709,10 +2862,10 @@ contains
         integer, intent(in), optional :: nfrz  ! Index of frozen solution
 
         ! Result
-        character(90) :: spec_fmt
+        character(:), allocatable :: spec_fmt
 
         ! Locals
-        integer :: idx1, idx2, ii, nfrz_
+        integer :: ii, nfrz_
         real(dp) :: amount
         logical :: frozen_
 
@@ -2728,10 +2881,7 @@ contains
         end if
 
         ! Set the format
-        idx1 = 1
-        idx2 = 13
-        spec_fmt(1:) = " "
-        spec_fmt(idx1:idx2) = '(1x, A15, 2x'
+        spec_fmt = '(1x, A, T19'
         if (frozen_) then
             if (mass_frac) then
                 amount = solutions(i, j, k)%eq_soln(nfrz_)%mass_fractions(idx)
@@ -2739,17 +2889,12 @@ contains
                 amount = solutions(i, j, k)%eq_soln(nfrz_)%mole_fractions(idx)
             end if
 
-            idx1 = idx2
-
             if (amount > 1.d-3 .or. amount < 1.d-20) then
-                idx2 = idx1 + 6
-                spec_fmt(idx1:idx2) = ', F9.6'
+                spec_fmt = spec_fmt//', F13.6'
             else if (amount < 1.d-9) then
-                idx2 = idx1 + 9
-                spec_fmt(idx1:idx2) = ', ES9.2E2'
+                spec_fmt = spec_fmt//', ES13.2E2'
             else
-                idx2 = idx1 + 9
-                spec_fmt(idx1:idx2) = ', ES9.3E1'
+                spec_fmt = spec_fmt//', ES13.3E1'
             end if
         else
             do ii = 1, np
@@ -2759,21 +2904,16 @@ contains
                     amount = solutions(i, j, k)%eq_soln(ii)%mole_fractions(idx)
                 end if
 
-                idx1 = idx2
-
                 if (amount > 1.d-3 .or. amount < 1.d-20) then
-                    idx2 = idx1 + 6
-                    spec_fmt(idx1:idx2) = ', F9.6'
+                    spec_fmt = spec_fmt//', F13.6'
                 elseif (amount < 1.d-9) then
-                    idx2 = idx1 + 9
-                    spec_fmt(idx1:idx2) = ', ES9.2E2'
+                    spec_fmt = spec_fmt//', ES13.2E2'
                 else
-                    idx2 = idx1 + 9
-                    spec_fmt(idx1:idx2) = ', ES9.3E1'
+                    spec_fmt = spec_fmt//', ES13.3E1'
                 end if
             end do
         end if
-        spec_fmt(idx2:idx2+1) = ')'
+        spec_fmt = spec_fmt//')'
 
     end function
 
@@ -2790,17 +2930,14 @@ contains
         logical, intent(in) :: mass_frac  ! If true, use mass fractions; if false, use mole fractions
 
         ! Result
-        character(80) :: spec_fmt
+        character(:), allocatable :: spec_fmt
 
         ! Locals
-        integer :: i, idx1, idx2
+        integer :: i
         real(dp) :: amount
 
         ! Set the format
-        idx1 = 1
-        idx2 = 13
-        spec_fmt(1:) = " "
-        spec_fmt(idx1:idx2) = '(1x, A15, 2x'
+        spec_fmt = '(1x, A, T18'
         do i = 1, m
             if (mass_frac) then
                 amount = solutions(i, j, k)%eq_soln(n)%mass_fractions(idx)
@@ -2808,20 +2945,15 @@ contains
                 amount = solutions(i, j, k)%eq_soln(n)%mole_fractions(idx)
             end if
 
-            idx1 = idx2
-
             if (amount > 1.d-3 .or. amount < 1.d-20) then
-                idx2 = idx1 + 6
-                spec_fmt(idx1:idx2) = ', F9.6'
+                spec_fmt = spec_fmt//', F9.6'
             elseif (amount < 1.d-9) then
-                idx2 = idx1 + 9
-                spec_fmt(idx1:idx2) = ', ES9.2E2'
+                spec_fmt = spec_fmt//', ES9.2E2'
             else
-                idx2 = idx1 + 9
-                spec_fmt(idx1:idx2) = ', ES9.3E1'
+                spec_fmt = spec_fmt//', ES9.3E1'
             end if
         end do
-        spec_fmt(idx2:idx2+1) = ')'
+        spec_fmt = spec_fmt//')'
 
     end function
 
@@ -2837,17 +2969,14 @@ contains
         logical, intent(in) :: mass_frac  ! If true, use mass fractions; if false, use mole fractions
 
         ! Result
-        character(70) :: eq_fmt
+        character(:), allocatable :: eq_fmt
 
         ! Locals
-        integer :: i, j, idx1, idx2
+        integer :: i, j
         real(dp) :: amount
 
         ! Set the format
-        idx1 = 1
-        idx2 = 9
-        eq_fmt(1:) = " "
-        eq_fmt(idx1:idx2) = '(A16, 1x'
+        eq_fmt = '(1x, A, T18'
         do j = 1, n
             do i = 1, m
                 if (mass_frac) then
@@ -2856,21 +2985,16 @@ contains
                     amount = solutions(i, j, k)%eq_soln%mole_fractions(idx)
                 end if
 
-                idx1 = idx2
-
                 if (amount > 1.d-3 .or. amount < 1.d-20) then
-                    idx2 = idx1 + 6
-                    eq_fmt(idx1:idx2) = ', F9.6'
+                    eq_fmt = eq_fmt//', F9.6'
                 elseif (amount < 1.d-9) then
-                    idx2 = idx1 + 9
-                    eq_fmt(idx1:idx2) = ', ES9.2E2'
+                    eq_fmt = eq_fmt//', ES9.2E2'
                 else
-                    idx2 = idx1 + 9
-                    eq_fmt(idx1:idx2) = ', ES9.3E1'
+                    eq_fmt = eq_fmt//', ES9.3E1'
                 end if
             end do
         end do
-        eq_fmt(idx2:idx2+1) = ')'
+        eq_fmt = eq_fmt//')'
 
     end function
 

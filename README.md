@@ -133,7 +133,7 @@ Note that specifying the `.inp` extension for input files is optional.
 
 Python example (runs the H2/O2 case after installing the Python bindings):
 
-    python source/bind/python/cea/samples/h2_02.py
+    python source/bind/python/cea/samples/h2_o2.py
 
 
 ## Database Generation

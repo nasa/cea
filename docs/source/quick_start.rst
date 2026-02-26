@@ -37,7 +37,7 @@ Installation
    the libraries, and the Python binding on Linux/macOS)::
 
        cmake --preset dev
-       cmake --build --preset dev
+       cmake --build build-dev
 
    On Windows, prefer an explicit generator instead of the GNU-based preset::
 
