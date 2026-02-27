@@ -6,12 +6,15 @@ All notable user-visible changes to this project are documented here.
 
 ### Changed
 - Command-line input parsing now accepts explicit `.inp` filenames (`#44`).
+- Python RP-1311 sample scripts were moved into `source/bind/python/cea/samples/rp1311/` for clearer organization (`#47`).
 
 ### Fixed
 - Fixed a crashing output case and restored missing output values (`#45`).
+- Reusing `EqSolution` across solve calls now resets transient iteration state and recovers from prior non-converged attempts using the last stable warm-start seed, preventing reuse-related non-convergence regressions (`#47`).
 
 ### Added
 - Added missing Python test dependencies to improve out-of-the-box test runs (`#41`).
+- Added Fortran and Python regression tests covering `EqSolution` reuse and detonation/equilibrium convergence behavior (`#47`).
 
 ## [3.0.3] - 2026-02-20
 
