@@ -7,14 +7,20 @@ All notable user-visible changes to this project are documented here.
 ### Changed
 - Command-line input parsing now accepts explicit `.inp` filenames (`#44`).
 - Python RP-1311 sample scripts were moved into `source/bind/python/cea/samples/rp1311/` for clearer organization (`#47`).
+- Expanded `reac` input compatibility with CEA2-style forms, including case-insensitive keywords, exploded formulas with implicit coefficients, `den` density aliases, molecular-weight aliases, and stricter mixed mole/weight basis validation.
+- Named `reac name=...` reactants can now omit explicit amounts and default to equal basis at runtime with a warning.
+- User-specified reactant enthalpy input is now applied as a runtime override for reactant thermo initialization (including database species).
 
 ### Fixed
 - Fixed a crashing output case and restored missing output values (`#45`).
 - Reusing `EqSolution` across solve calls now resets transient iteration state and recovers from prior non-converged attempts using the last stable warm-start seed, preventing reuse-related non-convergence regressions (`#47`).
+- Fixed a `read_input` segfault in core tests by hardening EOF handling and internal problem-buffer resizing.
+- Fixed per-reactant temperature indexing in reactant enthalpy initialization so each reactant uses its own input temperature.
 
 ### Added
 - Added missing Python test dependencies to improve out-of-the-box test runs (`#41`).
 - Added Fortran and Python regression tests covering `EqSolution` reuse and detonation/equilibrium convergence behavior (`#47`).
+- Added `reac` parser regression tests for custom species inputs, molecular-weight aliases, density aliases/default units, case-insensitive tokens, and implicit formula coefficients.
 
 ## [3.0.3] - 2026-02-20
 
