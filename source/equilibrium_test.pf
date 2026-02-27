@@ -2193,4 +2193,136 @@ contains
         @assertTrue(solution%T > 0.0d0)
     end subroutine
 
+    @test
+    subroutine test_issue42_reuse_solution_hp_then_tp
+        type(Mixture) :: reactants
+        type(Mixture) :: products
+        type(EqSolver) :: solver
+        type(EqSolution) :: reuse_soln, fresh_soln
+        character(:), allocatable :: product_names(:)
+        real(dp) :: weights(2), of_ratio
+        real(dp) :: h1, p1, p2, t2
+        real(dp) :: max_nj_diff
+        real(dp), parameter :: tol = 1.0d-6
+
+        reactants = Mixture(all_thermo, ['O2  ', 'C2H4'])
+        product_names = reactants%get_products(all_thermo)
+        products = Mixture(all_thermo, product_names)
+
+        solver = EqSolver(products, reactants)
+        reuse_soln = EqSolution(solver)
+        fresh_soln = EqSolution(solver)
+
+        of_ratio = reactants%of_from_equivalence([1.0d0, 0.0d0], [0.0d0, 1.0d0], 0.4d0)
+        weights = reactants%weights_from_of([1.0d0, 0.0d0], [0.0d0, 1.0d0], of_ratio)
+
+        h1 = 129.92208593485029d0
+        p1 = 60.0d0
+        p2 = 95.242559745142628d0
+        t2 = 3585.9524742656135d0
+
+        call solver%solve(reuse_soln, 'hp', h1, p1, weights)
+        @assertTrue(reuse_soln%converged)
+        call solver%solve(reuse_soln, 'tp', t2, p2, weights)
+        @assertTrue(reuse_soln%converged)
+
+        call solver%solve(fresh_soln, 'tp', t2, p2, weights)
+        @assertTrue(fresh_soln%converged)
+
+        max_nj_diff = maxval(abs(reuse_soln%nj - fresh_soln%nj))
+        @assertRelativelyEqual(fresh_soln%T, reuse_soln%T, tol)
+        @assertRelativelyEqual(fresh_soln%n, reuse_soln%n, tol)
+        @assertTrue(max_nj_diff < 1.0d-8)
+    end subroutine
+
+    @test
+    subroutine test_issue42_reuse_solution_condensed_tp_grid
+        type(Mixture) :: reactants
+        type(Mixture) :: products
+        type(EqSolver) :: solver
+        type(EqSolution) :: reuse_soln, fresh_soln
+        character(:), allocatable :: product_names(:)
+        integer :: i
+        real(dp) :: af_values(6), t_values(6), p_values(6)
+        real(dp) :: weights(3), max_nj_diff
+        logical :: found_condensed
+        real(dp), parameter :: tol = 1.0d-6
+
+        reactants = Mixture(all_thermo, ['Air ', 'C2H4', 'AL  '])
+        product_names = reactants%get_products(all_thermo)
+        products = Mixture(all_thermo, product_names)
+
+        solver = EqSolver(products, reactants)
+        reuse_soln = EqSolution(solver)
+
+        ! Representative condensed-phase history sequence from Issue #42 reports.
+        af_values = [5.0d0, 5.0d0, 15.0d0, 15.0d0, 25.0d0, 25.0d0]
+        t_values = [3000.0d0, 3750.0d0, 3000.0d0, 3250.0d0, 3000.0d0, 3750.0d0]
+        p_values = [0.1d0, 8.1d0, 0.1d0, 2.1d0, 4.1d0, 8.1d0]
+        found_condensed = .false.
+
+        do i = 1, size(af_values)
+            weights = reactants%weights_from_of([1.0d0, 0.0d0, 0.0d0], [0.0d0, 0.5d0, 0.5d0], af_values(i))
+
+            call solver%solve(reuse_soln, 'tp', t_values(i), p_values(i), weights)
+            @assertTrue(reuse_soln%converged)
+            if (any(reuse_soln%is_active)) found_condensed = .true.
+
+            fresh_soln = EqSolution(solver)
+            call solver%solve(fresh_soln, 'tp', t_values(i), p_values(i), weights)
+            @assertTrue(fresh_soln%converged)
+
+            max_nj_diff = maxval(abs(reuse_soln%nj - fresh_soln%nj))
+            @assertRelativelyEqual(fresh_soln%T, reuse_soln%T, tol)
+            @assertRelativelyEqual(fresh_soln%n, reuse_soln%n, tol)
+            @assertTrue(max_nj_diff < 1.0d-6)
+        end do
+
+        @assertTrue(found_condensed)
+    end subroutine
+
+    @test
+    subroutine test_reuse_solution_recovers_after_nonconverged_point
+        type(Mixture) :: reactants
+        type(Mixture) :: products
+        type(EqSolver) :: solver
+        type(EqSolution) :: reuse_soln, fresh_soln
+        character(:), allocatable :: product_names(:)
+        real(dp) :: weights(3), h_fail
+        real(dp) :: max_nj_diff
+        integer :: max_iterations_saved
+        real(dp), parameter :: tol = 1.0d-6
+
+        reactants = Mixture(all_thermo, ['Air ', 'C2H4', 'AL  '])
+        product_names = reactants%get_products(all_thermo)
+        products = Mixture(all_thermo, product_names)
+
+        solver = EqSolver(products, reactants)
+        reuse_soln = EqSolution(solver)
+        fresh_soln = EqSolution(solver)
+
+        weights = reactants%weights_from_of([1.0d0, 0.0d0, 0.0d0], [0.0d0, 0.5d0, 0.5d0], 20.0d0)
+
+        call solver%solve(reuse_soln, 'tp', 3000.0d0, 1.0d0, weights)
+        @assertTrue(reuse_soln%converged)
+
+        max_iterations_saved = solver%max_iterations
+        solver%max_iterations = 1
+        h_fail = reactants%calc_enthalpy(weights, 1200.0d0) / R
+        call solver%solve(reuse_soln, 'hp', h_fail, 0.1d0, weights)
+        @assertFalse(reuse_soln%converged)
+        solver%max_iterations = max_iterations_saved
+
+        call solver%solve(reuse_soln, 'tp', 3750.0d0, 8.1d0, weights)
+        @assertTrue(reuse_soln%converged)
+
+        call solver%solve(fresh_soln, 'tp', 3750.0d0, 8.1d0, weights)
+        @assertTrue(fresh_soln%converged)
+
+        max_nj_diff = maxval(abs(reuse_soln%nj - fresh_soln%nj))
+        @assertRelativelyEqual(fresh_soln%T, reuse_soln%T, tol)
+        @assertRelativelyEqual(fresh_soln%n, reuse_soln%n, tol)
+        @assertTrue(max_nj_diff < 1.0d-6)
+    end subroutine
+
 end module
