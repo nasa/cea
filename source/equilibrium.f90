@@ -170,6 +170,26 @@ module cea_equilibrium
             !! Index of the condensed species that was last removed from the active set
         integer :: last_cond_idx = 0
             !! Index of the condensed species that was added most recently
+        real(dp) :: T_seed = 0.0d0
+            !! Last stable warm-start temperature seed
+        real(dp) :: n_seed = 0.0d0
+            !! Last stable warm-start total-moles seed
+        real(dp), allocatable :: nj_seed(:)
+            !! Last stable warm-start species concentrations
+        real(dp), allocatable :: ln_nj_seed(:)
+            !! Last stable warm-start log gas concentrations
+        logical, allocatable :: is_active_seed(:)
+            !! Last stable warm-start active condensed flags
+        integer, allocatable :: active_rank_seed(:)
+            !! Last stable warm-start condensed ordering
+        integer :: j_liq_seed = 0
+            !! Last stable warm-start liquid index
+        integer :: j_sol_seed = 0
+            !! Last stable warm-start solid index
+        integer :: j_switch_seed = 0
+            !! Last stable warm-start removed condensed index
+        integer :: last_cond_idx_seed = 0
+            !! Last stable warm-start added condensed index
 
         ! Convenience variables
         logical :: gas_converged         = .false.
@@ -1922,6 +1942,38 @@ contains
         soln%converged = .false.
     end subroutine
 
+    subroutine EqSolution_save_seed(soln)
+        type(EqSolution), intent(inout) :: soln
+
+        if (allocated(soln%nj_seed)) soln%nj_seed = soln%nj
+        if (allocated(soln%ln_nj_seed)) soln%ln_nj_seed = soln%ln_nj
+        if (allocated(soln%is_active_seed)) soln%is_active_seed = soln%is_active
+        if (allocated(soln%active_rank_seed)) soln%active_rank_seed = soln%active_rank
+
+        soln%T_seed = soln%T
+        soln%n_seed = soln%n
+        soln%j_liq_seed = soln%j_liq
+        soln%j_sol_seed = soln%j_sol
+        soln%j_switch_seed = soln%j_switch
+        soln%last_cond_idx_seed = soln%last_cond_idx
+    end subroutine
+
+    subroutine EqSolution_restore_seed(soln)
+        type(EqSolution), intent(inout) :: soln
+
+        if (allocated(soln%nj_seed)) soln%nj = soln%nj_seed
+        if (allocated(soln%ln_nj_seed)) soln%ln_nj = soln%ln_nj_seed
+        if (allocated(soln%is_active_seed)) soln%is_active = soln%is_active_seed
+        if (allocated(soln%active_rank_seed)) soln%active_rank = soln%active_rank_seed
+
+        soln%T = soln%T_seed
+        soln%n = soln%n_seed
+        soln%j_liq = soln%j_liq_seed
+        soln%j_sol = soln%j_sol_seed
+        soln%j_switch = soln%j_switch_seed
+        soln%last_cond_idx = soln%last_cond_idx_seed
+    end subroutine
+
     subroutine EqSolver_solve(self, soln, type, state1, state2, reactant_weights, partials)
 
         ! Arguments
@@ -1944,9 +1996,17 @@ contains
         real(dp) :: gas_moles, xi, xln
         real(dp), pointer :: G(:, :)
         type(EqPartials) :: partials_
-        logical :: made_change, max_iter_fallback_used
+        logical :: made_change, max_iter_fallback_used, was_converged
 
         call log_debug("Starting Eq. Solve.")
+
+        ! If the prior solve did not converge, restore the last stable iterate
+        ! seed before applying new constraints for this solve call.
+        was_converged = soln%converged
+        if (.not. was_converged) then
+            call log_debug("Restoring last stable warm-start seed after non-converged solve.")
+            call EqSolution_restore_seed(soln)
+        end if
 
         ! Set problem type, fixed-state values, and element amounts
         call soln%constraints%set( &
@@ -2018,8 +2078,10 @@ contains
 
                 times_singular = times_singular + 1
                 if (times_singular > 8) then
+                    soln%converged = .false.
                     call EqSolver_restore_reduced_elements(self, soln, num_reduced, reduced_from, reduced_to)
-                    call abort('EqSolver_solve: Too many singular matrices encountered.')
+                    call log_warning('EqSolver_solve: Too many singular matrices encountered.')
+                    return
                 end if
 
                 ! Try to correct the singular matrix
@@ -2042,7 +2104,8 @@ contains
             if (soln%times_converged > 3*self%num_active_elements()) then
                 soln%converged = .false.
                 call EqSolver_restore_reduced_elements(self, soln, num_reduced, reduced_from, reduced_to)
-                call abort("Convergence failed to establish set of condensed species.")
+                call log_warning("Convergence failed to establish set of condensed species.")
+                return
             end if
 
             ! Initial convergence; check on adding or removing condensed species
@@ -2091,7 +2154,8 @@ contains
 
                     call self%post_process(soln, .false.)
                     call EqSolver_restore_reduced_elements(self, soln, num_reduced, reduced_from, reduced_to)
-                    call abort('EqSolver_solve: Maximum iterations reached without convergence')
+                    call log_warning('EqSolver_solve: Maximum iterations reached without convergence')
+                    return
                 end if
 
                 ! Compute the partial derivatives
@@ -2122,6 +2186,8 @@ contains
                     soln%converged = .false.
                 end if
 
+                if (soln%converged) call EqSolution_save_seed(soln)
+
                 call EqSolver_restore_reduced_elements(self, soln, num_reduced, reduced_from, reduced_to)
                 return
             end if
@@ -2129,6 +2195,7 @@ contains
         end do
 
         call EqSolver_restore_reduced_elements(self, soln, num_reduced, reduced_from, reduced_to)
+        soln%converged = .false.
 
     end subroutine
 
@@ -2242,9 +2309,13 @@ contains
         ! Allocate data structures
         allocate(self%nj(solver%num_products), source=0.0d0)
         allocate(self%ln_nj(solver%num_gas), source=0.0d0)
+        allocate(self%nj_seed(solver%num_products), source=0.0d0)
+        allocate(self%ln_nj_seed(solver%num_gas), source=0.0d0)
         allocate(self%G(solver%max_equations, solver%max_equations+1), source=empty_dp)
         allocate(self%is_active(solver%num_condensed), source=.false.)
         allocate(self%active_rank(solver%num_condensed), source=0)
+        allocate(self%is_active_seed(solver%num_condensed), source=.false.)
+        allocate(self%active_rank_seed(solver%num_condensed), source=0)
         allocate(self%transport_component_idx(solver%num_elements), source=0)
         allocate(self%transport_basis_matrix(solver%num_elements, solver%num_gas), source=0.0d0)
         self%constraints = EqConstraints(solver%num_elements)
@@ -2300,6 +2371,8 @@ contains
         ! Allocate solution variables
         allocate(self%mole_fractions(solver%num_products), source=0.0d0)
         allocate(self%mass_fractions(solver%num_products), source=0.0d0)
+
+        call EqSolution_save_seed(self)
 
     end function
 

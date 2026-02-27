@@ -829,4 +829,48 @@ contains
         @assertTrue(found_condensed)
     end subroutine
 
+    @test
+    subroutine test_reuse_solution_recovers_after_nonconverged_point
+        type(Mixture) :: reactants
+        type(Mixture) :: products
+        type(EqSolver) :: solver
+        type(EqSolution) :: reuse_soln, fresh_soln
+        character(:), allocatable :: product_names(:)
+        real(dp) :: weights(3), h_fail
+        real(dp) :: max_nj_diff
+        integer :: max_iterations_saved
+        real(dp), parameter :: tol = 1.0d-6
+
+        reactants = Mixture(all_thermo, ['Air ', 'C2H4', 'AL  '])
+        product_names = reactants%get_products(all_thermo)
+        products = Mixture(all_thermo, product_names)
+
+        solver = EqSolver(products, reactants)
+        reuse_soln = EqSolution(solver)
+        fresh_soln = EqSolution(solver)
+
+        weights = reactants%weights_from_of([1.0d0, 0.0d0, 0.0d0], [0.0d0, 0.5d0, 0.5d0], 20.0d0)
+
+        call solver%solve(reuse_soln, 'tp', 3000.0d0, 1.0d0, weights)
+        @assertTrue(reuse_soln%converged)
+
+        max_iterations_saved = solver%max_iterations
+        solver%max_iterations = 1
+        h_fail = reactants%calc_enthalpy(weights, 1200.0d0) / R
+        call solver%solve(reuse_soln, 'hp', h_fail, 0.1d0, weights)
+        @assertFalse(reuse_soln%converged)
+        solver%max_iterations = max_iterations_saved
+
+        call solver%solve(reuse_soln, 'tp', 3750.0d0, 8.1d0, weights)
+        @assertTrue(reuse_soln%converged)
+
+        call solver%solve(fresh_soln, 'tp', 3750.0d0, 8.1d0, weights)
+        @assertTrue(fresh_soln%converged)
+
+        max_nj_diff = maxval(abs(reuse_soln%nj - fresh_soln%nj))
+        @assertRelativelyEqual(fresh_soln%T, reuse_soln%T, tol)
+        @assertRelativelyEqual(fresh_soln%n, reuse_soln%n, tol)
+        @assertTrue(max_nj_diff < 1.0d-6)
+    end subroutine
+
 end module
