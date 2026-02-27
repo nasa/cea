@@ -252,6 +252,7 @@ contains
 
         ! Get the reactants Mixture object
         reactants = Mixture(thermo, input_reactants=prob%reactants, ions=prob%problem%include_ions)
+        call apply_reactant_thermo_overrides(prob, reactants)
         allocate(weights(reactants%num_species))
 
         ! Get the products Mixture object
@@ -377,6 +378,7 @@ contains
 
         ! Get the reactants Mixture object
         reactants = Mixture(thermo, input_reactants=prob%reactants, ions=prob%problem%include_ions)
+        call apply_reactant_thermo_overrides(prob, reactants)
         allocate(weights(reactants%num_species))
 
         ! Get the products Mixture object
@@ -519,6 +521,7 @@ contains
 
         ! Get the reactants Mixture object
         reactants = Mixture(thermo, input_reactants=prob%reactants, ions=prob%problem%include_ions)
+        call apply_reactant_thermo_overrides(prob, reactants)
         allocate(weights(reactants%num_species))
 
         ! Get the products Mixture object
@@ -750,6 +753,7 @@ contains
 
         ! Get the reactants Mixture object
         reactants = Mixture(thermo, input_reactants=prob%reactants, ions=prob%problem%include_ions)
+        call apply_reactant_thermo_overrides(prob, reactants)
         allocate(weights(reactants%num_species))
 
         ! Get the products Mixture object
@@ -831,6 +835,24 @@ contains
             end do
         end do
 
+    end subroutine
+
+    subroutine apply_reactant_thermo_overrides(prob, reactants)
+        type(ProblemDB), intent(in) :: prob
+        type(Mixture), intent(inout) :: reactants
+
+        integer :: i
+        real(dp) :: h_val
+
+        do i = 1, min(size(prob%reactants), reactants%num_species)
+            if (.not. allocated(prob%reactants(i)%enthalpy)) cycle
+
+            h_val = convert_units_to_si(prob%reactants(i)%enthalpy%values(1), prob%reactants(i)%enthalpy%units)
+            reactants%species(i)%enthalpy_ref = h_val
+            reactants%species(i)%num_intervals = 0
+            if (allocated(reactants%species(i)%T_fit)) deallocate(reactants%species(i)%T_fit)
+            if (allocated(reactants%species(i)%fits)) deallocate(reactants%species(i)%fits)
+        end do
     end subroutine
 
     subroutine shock_output(ioout, prob, solver, solutions)
@@ -1548,7 +1570,7 @@ contains
             ! Get the reactant temperatures
             do i = 1, reactants%num_species
                 reac_temps(i) = 0.0d0
-                if (allocated(prob%reactants(1)%temperature)) then
+                if (allocated(prob%reactants(i)%temperature)) then
                     reac_temps(i) = convert_units_to_si(prob%reactants(i)%temperature%values(1), &
                                                         prob%reactants(i)%temperature%units)
                 end if
@@ -1576,6 +1598,7 @@ contains
         real(dp), allocatable :: moles(:)
         real(dp), allocatable :: fuel_moles(:), oxidant_moles(:)
         real(dp), allocatable :: fuel_weights(:), oxidant_weights(:)
+        character(:), allocatable :: amount_basis
 
         allocate(moles(reactants%num_species), weights(reactants%num_species), &
                  fuel_moles(reactants%num_species), oxidant_moles(reactants%num_species), &
@@ -1594,19 +1617,41 @@ contains
         ! or convert moles to weights
         if (prob%reactants(1)%type == "na") then
 
+            amount_basis = ''
+            do i = 1, size(prob%reactants)
+                if (allocated(prob%reactants(i)%amount)) then
+                    amount_basis = prob%reactants(i)%amount%name
+                    exit
+                end if
+            end do
+
+            if (.not. allocated(amount_basis) .or. len_trim(amount_basis) == 0) then
+                call log_warning("Reactant amounts not specified; assuming equal amounts for named reactants.")
+                weights = 1.0d0
+
             ! If weights are given, return those
-            if (prob%reactants(1)%amount%name == "weight_frac") then
+            else if (amount_basis == "weight_frac") then
                 do i = 1, size(prob%reactants)
-                    weights(i) = prob%reactants(i)%amount%values(1)
+                    if (allocated(prob%reactants(i)%amount)) then
+                        weights(i) = prob%reactants(i)%amount%values(1)
+                    else
+                        weights(i) = 1.0d0
+                    end if
                 end do
-            end if
 
             ! If moles are given, convert to weights
-            if (prob%reactants(1)%amount%name == "mole_frac") then
+            else if (amount_basis == "mole_frac") then
                 do i = 1, size(prob%reactants)
-                    moles(i) = prob%reactants(i)%amount%values(1)
+                    if (allocated(prob%reactants(i)%amount)) then
+                        moles(i) = prob%reactants(i)%amount%values(1)
+                    else
+                        moles(i) = 1.0d0
+                    end if
                 end do
                 weights = reactants%weights_from_moles(moles)
+
+            else
+                call abort("Reactant amount type not recognized for named reactants: "//trim(amount_basis))
             end if
 
         ! If fuel and oxidant are specified separately, compute fuel weights and oxidant weights

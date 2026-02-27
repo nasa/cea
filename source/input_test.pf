@@ -118,4 +118,78 @@ contains
         return
     end subroutine
 
+    @test
+    subroutine test_parse_reac_custom_species
+        type(ReactantInput), allocatable :: reac(:)
+
+        reac = parse_reac('reac name=HTPB wt%=100 t,k=298.15 h,kj/mole=-100 C=10 H=15 wt/mol=135.0')
+
+        @assertEqual(1, size(reac))
+        @assertEqual('na', reac(1)%type)
+        @assertEqual('HTPB', reac(1)%name)
+        @assertEqual('weight_frac', reac(1)%amount%name)
+        @assertEqual(100.0d0, reac(1)%amount%values(1))
+        @assertEqual('kj/mole', reac(1)%enthalpy%units)
+        @assertEqual(-100.0d0, reac(1)%enthalpy%values(1))
+        @assertEqual('C', reac(1)%formula%elements(1))
+        @assertEqual(10.0d0, reac(1)%formula%coefficients(1))
+        @assertEqual('H', reac(1)%formula%elements(2))
+        @assertEqual(15.0d0, reac(1)%formula%coefficients(2))
+        @assertEqual(135.0d0, reac(1)%molecular_weight)
+    end subroutine
+
+    @test
+    subroutine test_parse_reac_molecular_weight_alias
+        type(ReactantInput), allocatable :: reac(:)
+
+        reac = parse_reac('reac fuel=CH4 molwt=16 oxid=O2 wt%=100')
+        @assertEqual(16.0d0, reac(1)%molecular_weight)
+        @assertEqual('weight_frac', reac(2)%amount%name)
+    end subroutine
+
+    @test
+    subroutine test_parse_reac_missing_named_amount
+        type(ReactantInput), allocatable :: reac(:)
+
+        reac = parse_reac('reac name=HTPB C=10 H=15 h,kj/mole=-100')
+        @assertEqual(1, size(reac))
+        @assertEqual('na', reac(1)%type)
+        @assertFalse(allocated(reac(1)%amount))
+    end subroutine
+
+    @test
+    subroutine test_parse_reac_density_alias
+        type(ReactantInput), allocatable :: reac(:)
+
+        reac = parse_reac('reac fuel=CH4 wt%=100 den,g/cc=0.42')
+        @assertEqual('g/cc', reac(1)%density%units)
+        @assertEqual(0.42d0, reac(1)%density%values(1))
+
+        reac = parse_reac('reac fuel=CH4 wt%=100 den=0.50')
+        @assertEqual('g/cc', reac(1)%density%units)
+        @assertEqual(0.50d0, reac(1)%density%values(1))
+    end subroutine
+
+    @test
+    subroutine test_parse_reac_formula_default_coeffs
+        type(ReactantInput), allocatable :: reac(:)
+
+        reac = parse_reac('reac name=HTPB wt%=100 C H O')
+        @assertEqual(3, size(reac(1)%formula%elements))
+        @assertEqual(1.0d0, reac(1)%formula%coefficients(1))
+        @assertEqual(1.0d0, reac(1)%formula%coefficients(2))
+        @assertEqual(1.0d0, reac(1)%formula%coefficients(3))
+    end subroutine
+
+    @test
+    subroutine test_parse_reac_case_insensitive_keywords
+        type(ReactantInput), allocatable :: reac(:)
+
+        reac = parse_reac('reac FUEL=CH4 WT%=100 OXID=O2 WT%=100')
+        @assertEqual('fu', reac(1)%type)
+        @assertEqual('ox', reac(2)%type)
+        @assertEqual('weight_frac', reac(1)%amount%name)
+        @assertEqual('weight_frac', reac(2)%amount%name)
+    end subroutine
+
 end module

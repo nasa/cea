@@ -158,6 +158,8 @@ contains
         ! Locals
         integer, parameter :: max_problems = 100
         integer :: fin, n, ierr
+        type(ProblemDB), allocatable :: parsed_problems(:)
+        character(512) :: line
 
         call log_info('Parsing input file: '//trim(filename))
         open(newunit=fin, file=filename, &
@@ -166,14 +168,27 @@ contains
 
         n = 1
         do
+            do
+                read(fin, '(a)', iostat=ierr) line
+                if (ierr /= 0) exit
+                line = adjustl(line)
+                if (.not. is_empty(line)) then
+                    backspace(fin)
+                    exit
+                end if
+            end do
+            if (ierr /= 0) exit
+
             call log_info('Parsing problem specification '//to_str(n))
             call assert(n <= max_problems, "Maximum problem count exceeded.")
-            problems(n) = read_problem(fin, ierr)
+            call read_problem(fin, problems(n), ierr)
             if (ierr /= 0) exit
             n = n+1
         end do
 
-        problems = problems(1:n-1)
+        allocate(parsed_problems(n-1))
+        parsed_problems = problems(1:n-1)
+        call move_alloc(parsed_problems, problems)
         call log_info('Parsed '//to_str(n-1)//' problems from '//trim(filename))
 
         close(fin)
@@ -181,14 +196,14 @@ contains
         return
     end function
 
-    function read_problem(fin, ierr) result(problem)
+    subroutine read_problem(fin, problem, ierr)
         ! Reads a complete ProblemDB from the input stream.
         ! Aborts program if malformed input is discovered.
         ! Returns ierr < 0 if no further problems in the stream.
 
         integer, intent(in) :: fin
+        type(ProblemDB), intent(out) :: problem
         integer, intent(out) :: ierr
-        type(ProblemDB) :: problem
 
         character(512) :: line
         character(:), allocatable :: buffer, dsname
@@ -264,7 +279,7 @@ contains
             end select
 
         end do
-    end function
+    end subroutine
 
     function parse_prob(buffer) result(prob)
         ! Parse the prob dataset for a given problem specification
@@ -423,8 +438,11 @@ contains
 
         type(string_scanner) :: scanner
         character(15) :: token
-        integer :: ierr, n, capacity, i
-        logical :: has_na, has_fuel_oxid
+        character(2) :: token2
+        character(:), allocatable :: token_lower
+        integer :: ierr, n, capacity, i, len_tok
+        logical :: has_na, has_fuel_oxid, has_mole_amount, has_weight_amount
+        type(Schedule) :: amount_sched
 
         scanner = string_scanner(replace_delimiters(buffer, replace_commas=.false.))
         token = scanner%read_word()  ! Skip 'reac' keyword
@@ -432,19 +450,30 @@ contains
         n = 0
         capacity = 32
         allocate(reac(capacity))
+        has_mole_amount = .false.
+        has_weight_amount = .false.
         do
             token = scanner%read_word(ierr)
             if (ierr < 0) exit  ! Buffer exhausted
+            token_lower = to_lower(trim(token))
+            len_tok = len_trim(token_lower)
+            if (len_tok == 0) cycle
+            token2 = '  '
+            if (len_tok >= 2) then
+                token2 = token_lower(:2)
+            else
+                token2(1:1) = token_lower(1:1)
+            end if
 
             ! Start new reactant definition
-            select case(token(:2))
+            select case(token2)
                 case ('fu','ox','na')
                     n = n+1
                     if (n > capacity) then
                         reac = [reac, reac]
                         capacity = size(reac)
                     end if
-                    reac(n)%type = token(:2)
+                    reac(n)%type = token_lower(:2)
                     reac(n)%name = scanner%read_word()
                     call log_debug('Parsing parameters for reactant '//reac(n)%name)
                     cycle
@@ -454,12 +483,32 @@ contains
             if (n == 0) then
                 call abort('reac dataset missing reactant definition before token: '//token)
             end if
-            select case(token(:1))
-                case ('m','w');  reac(n)%amount = parse_schedule(scanner, token)
+            if (is_molecular_weight_token(token_lower)) then
+                reac(n)%molecular_weight = parse_molecular_weight(scanner, token)
+                cycle
+            end if
+            if (is_formula_element_token(token)) then
+                reac(n)%formula = parse_formula(scanner, token)
+                cycle
+            end if
+            select case(token_lower(1:1))
+                case ('m','w')
+                    amount_sched = parse_schedule(scanner, token_lower)
+                    reac(n)%amount = amount_sched
+                    if (amount_sched%name == 'mole_frac') has_mole_amount = .true.
+                    if (amount_sched%name == 'weight_frac') has_weight_amount = .true.
                 case ('t');      reac(n)%temperature = parse_schedule(scanner, token)
                 case ('h','u');  reac(n)%enthalpy = parse_schedule(scanner, token)
-                case ('r');      reac(n)%density = parse_schedule(scanner, token)
-                case ('A':'Z');  reac(n)%formula = parse_formula(scanner, token)
+                case ('r')
+                    reac(n)%density = parse_schedule(scanner, token)
+                    if (len_trim(reac(n)%density%units) == 0) reac(n)%density%units = 'g/cc'
+                case ('d')
+                    if (is_density_token(token)) then
+                        reac(n)%density = parse_schedule(scanner, token)
+                        if (len_trim(reac(n)%density%units) == 0) reac(n)%density%units = 'g/cc'
+                    else
+                        call abort('reac dataset contains unrecognized token: '//token)
+                    end if
                 case default
                     call abort('reac dataset contains unrecognized token: '//token)
             end select
@@ -480,10 +529,6 @@ contains
 
             if (reac(i)%type == 'na') has_na = .true.
             if (reac(i)%type == 'fu' .or. reac(i)%type == 'ox') has_fuel_oxid = .true.
-
-            if (reac(i)%type == 'na') then
-                call assert(allocated(reac(i)%amount), 'reac dataset missing amount for reactant #'//to_str(i))
-            end if
 
             if (allocated(reac(i)%amount)) then
                 call assert(size(reac(i)%amount%values) > 0, &
@@ -507,7 +552,88 @@ contains
             call abort("reac dataset cannot mix 'name' reactants with 'fuel'/'oxid' reactants. " // &
                        "Use only name=... for all reactants, or only fuel=/oxid= for all reactants.")
         end if
+        if (has_mole_amount .and. has_weight_amount) then
+            call abort("reac dataset cannot mix mole-based and weight-based reactant amounts.")
+        end if
 
+    end function
+
+    logical function is_density_token(token) result(tf)
+        character(*), intent(in) :: token
+        character(:), allocatable :: tok
+        integer :: l
+
+        tok = to_lower(trim(token))
+        l = len_trim(tok)
+        if (l == 0) then
+            tf = .false.
+        else
+            tf = (tok(:min(3, l)) == 'den')
+        end if
+    end function
+
+    logical function is_molecular_weight_token(token) result(tf)
+        character(*), intent(in) :: token
+        character(:), allocatable :: tok
+
+        tok = to_lower(trim(token))
+        tf = (tok == 'wt/mol') .or. (tok == 'wt/mole') .or. (tok == 'molwt') .or. &
+             (tok == 'mwt') .or. (tok == 'mw')
+    end function
+
+    logical function is_formula_element_token(token) result(tf)
+        character(*), intent(in) :: token
+        character(:), allocatable :: tok
+        integer :: l
+
+        tok = trim(token)
+        l = len_trim(tok)
+        if (l < 1 .or. l > 2) then
+            tf = .false.
+            return
+        end if
+        if (.not. (tok(1:1) >= 'A' .and. tok(1:1) <= 'Z')) then
+            tf = .false.
+            return
+        end if
+        if (l == 2) then
+            tf = (tok(2:2) >= 'a' .and. tok(2:2) <= 'z')
+        else
+            tf = .true.
+        end if
+    end function
+
+    function parse_molecular_weight(scanner, token) result(mw)
+        type(string_scanner), intent(inout) :: scanner
+        character(*), intent(in) :: token
+        real(dp) :: mw
+        character(:), allocatable :: units
+        integer :: ierr
+
+        mw = scanner%peek_real(ierr)
+        if (ierr == 0) then
+            mw = scanner%read_real(ierr)
+            return
+        end if
+
+        units = to_lower(scanner%read_word(ierr))
+        if (ierr /= 0) then
+            call abort('reac dataset missing molecular weight value after token: '//trim(token))
+        end if
+
+        mw = scanner%read_real(ierr)
+        if (ierr /= 0) then
+            call abort('reac dataset missing molecular weight value after units token: '//trim(units))
+        end if
+
+        select case(trim(units))
+            case ('g/mol', 'g/mole', 'kg/kmol')
+                continue
+            case ('kg/mol', 'kg/mole')
+                mw = mw*1.0d3
+            case default
+                call abort('reac dataset has unrecognized molecular weight units: '//trim(units))
+        end select
     end function
 
     function parse_species(buffer) result(species)
@@ -637,6 +763,7 @@ contains
         type(Formula) :: f
         integer, parameter :: max_values = 16
         integer :: i, n, ierr
+        real(dp) :: val
         character(:), allocatable :: word
 
         allocate(f%elements(max_values))
@@ -647,7 +774,9 @@ contains
             call abort('parse_formula: element symbol too long: '//trim(token))
         end if
         f%elements(n) = token
-        f%coefficients(n) = scanner%read_real()
+        f%coefficients(n) = 1.0d0
+        val = scanner%peek_real(ierr)
+        if (ierr == 0) f%coefficients(n) = scanner%read_real(ierr)
 
         do i = 2,size(f%elements)
             word = scanner%peek_word(ierr)
@@ -659,7 +788,9 @@ contains
                         call abort('parse_formula: element symbol too long: '//trim(word))
                     end if
                     f%elements(i) = word
-                    f%coefficients(i) = scanner%read_real()
+                    f%coefficients(i) = 1.0d0
+                    val = scanner%peek_real(ierr)
+                    if (ierr == 0) f%coefficients(i) = scanner%read_real(ierr)
                     n = i
                 case default
                     exit  ! Start of new keyword
@@ -790,6 +921,20 @@ contains
         tf = len_trim(line) == 0 .or. &
              startswith(line,'#') .or. &
              startswith(line,'!')
+    end function
+
+    function to_lower(txt) result(out)
+        character(*), intent(in) :: txt
+        character(:), allocatable :: out
+        integer :: i, code
+
+        out = txt
+        do i = 1, len(out)
+            code = iachar(out(i:i))
+            if (code >= iachar('A') .and. code <= iachar('Z')) then
+                out(i:i) = achar(code + 32)
+            end if
+        end do
     end function
 
     function is_keyword(line) result(tf)
