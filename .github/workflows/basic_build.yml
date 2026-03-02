@@ -379,7 +379,7 @@ jobs:
               fcompiler: intel-classic
               fversion: "2021.9"
           - os: windows-latest
-            toolchain: 
+            toolchain:
               ccompiler: msvc
               cversion: latest
               fcompiler: intel
@@ -405,7 +405,7 @@ jobs:
           path: extern/gfe
           submodules: true
 
-      - name: Set up Fortran compiler 
+      - name: Set up Fortran compiler
         if: ${{ runner.os != 'Windows' || matrix.toolchain.fcompiler != 'gcc' }}
         uses: fortran-lang/setup-fortran@v1
         with:
@@ -464,7 +464,7 @@ jobs:
           cmake --build build/extern/gfe --target install
 
       - name: Configure (linux)
-        if: ${{runner.os != 'Windows' || matrix.toolchain.ccompiler != 'msvc'}} 
+        if: ${{runner.os != 'Windows' || matrix.toolchain.ccompiler != 'msvc'}}
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_PREFIX_PATH=build/install \
@@ -504,6 +504,6 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           ./build/source/cea.exe -h
-      
+
       - name: Run ctest
         run: ctest --test-dir build --output-on-failure
