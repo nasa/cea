@@ -335,16 +335,27 @@ jobs:
           path: release-dist
           merge-multiple: false
 
+      - name: Prepare release assets (unique names)
+        run: |
+          mkdir -p release-assets
+          while IFS= read -r -d '' file; do
+            rel="${file#release-dist/}"
+            artifact="${rel%%/*}"
+            subpath="${rel#*/}"
+            asset_name="${artifact}__${subpath//\//__}"
+            cp "${file}" "release-assets/${asset_name}"
+          done < <(find release-dist -type f -print0)
+
       - name: Generate SHA256 checksums
         run: |
-          cd release-dist
-          find . -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
+          cd release-assets
+          find . -maxdepth 1 -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       - name: Publish GitHub release assets
         uses: softprops/action-gh-release@v2
         with:
-          files: release-dist/**
+          files: release-assets/*
           generate_release_notes: true
 
   bindc:
