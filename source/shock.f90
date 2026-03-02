@@ -464,6 +464,7 @@ contains
         real(dp), parameter :: T_gas_max = 20000.d0  ! Max gas temperature in the thermo database [K]
 
         ! Initialize
+        if (.false.) print *, P0
         idx = 3
         G = 0.0d0  ! Reset the matrix
         soln%converged = .false.

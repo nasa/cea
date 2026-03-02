@@ -943,6 +943,8 @@ contains
         real(dp) :: lambda                    ! Damped update factor
         real(dp) :: ln_threshold              ! Truncation threshold in log-space
 
+        allocate(active_idx(0))
+
         ! Get the solution update variables (pi, dnj_c, dln_n, dln_T, dln_nj)
         call self%get_solution_vars(soln)
 
@@ -1276,7 +1278,7 @@ contains
         real(dp) :: hsu_delta                   ! Residual for enthalpy / entropy constraint
         real(dp) :: n                           ! Total moles of mixture
         real(dp) :: P                           ! Pressure of mixture (bar)
-        real(dp), pointer :: nj(:), nj_c(:)      ! Total/condensed species concentrations [kmol-per-kg]
+        real(dp), pointer :: nj(:)             ! Total species concentrations [kmol-per-kg]
         real(dp), pointer :: ln_nj(:)           ! Log of gas species concentrations [kmol-per-kg]
         real(dp) :: ln_nj_eff(self%num_gas)     ! Effective log-species concentrations
         real(dp) :: nj_eff_g(self%num_gas)      ! Smooth-mapped gas species concentrations
@@ -1298,6 +1300,8 @@ contains
         logical :: ion_species                  ! True if gas species is charged and ions are active
         logical :: const_p, const_t, const_s, const_h, const_u  ! Flags enabling/disabling matrix equations
         type(EqConstraints), pointer :: cons    ! Abbreviation for soln%constraints
+
+        allocate(active_idx(0))
 
         ! Define shorthand
         ng = self%num_gas
@@ -1567,6 +1571,7 @@ contains
         na = count(soln%is_active)
 
         made_change = .false.
+        allocate(active_idx(0))
 
         ! Legacy CEA applies condensed-phase validity checks during TP solves too.
         if (na == 0) return
@@ -1734,6 +1739,8 @@ contains
         real(dp), parameter :: T_min = 200.0d0    ! Minimum gas temperature defined in thermo data [K]
         real(dp), parameter :: tol = 1d-12
 
+        allocate(active_idx(0))
+
         ! Shorthand
         ng = self%num_gas
         ne = self%num_active_elements()
@@ -1864,6 +1871,8 @@ contains
         real(dp), parameter :: smalno = 1.0d-6
         real(dp), parameter :: smnol = -13.815511d0
         logical :: made_change
+
+        allocate(active_idx(0))
 
 
         ! Shorthand
@@ -2606,7 +2615,7 @@ contains
         real(dp) :: ds_c_dT(solver%num_condensed)  ! d/dT of condensed entropies [unitless]
         real(dp), pointer :: A_g(:,:), A_c(:,:) ! Gas/condensed stoichiometric matrices
         integer :: r, c                         ! Iteration matrix row/column indices
-        integer :: i, j                         ! Loop counters
+        integer :: i                            ! Loop counters
         logical :: const_p, const_t, const_s, const_h, const_u  ! Flags enabling/disabling matrix equations
         type(EqConstraints), pointer :: cons    ! Abbreviation for soln%constraints
 
@@ -2872,17 +2881,24 @@ contains
 
     end subroutine
 
-    subroutine EqDerivatives_check_closure_defect(self)
+    subroutine EqDerivatives_check_closure_defect(self, verbose)
         ! Arguments
         class(EqDerivatives), intent(inout) :: self
+        logical, intent(in), optional :: verbose
 
         ! Locals
         integer :: i
+        logical :: lverbose
+
+        lverbose = .false.
+        if (present(verbose)) lverbose = verbose
 
         do i = 1, self%n
             self%delta_check(:, i) = matmul(self%J, self%dudx(:, i)) + self%Rx(:, i)
-            write(*,*) "max|delta| row=", maxloc(abs(self%delta_check(:, i))), " val=", maxval(abs(self%delta_check(:, i)))
-            write(*,*) "delta_check(:, ", i, ") = ", self%delta_check(:, i)
+            if (lverbose) then
+                write(*,*) "max|delta| row=", maxloc(abs(self%delta_check(:, i))), " val=", maxval(abs(self%delta_check(:, i)))
+                write(*,*) "delta_check(:, ", i, ") = ", self%delta_check(:, i)
+            end if
         end do
 
     end subroutine
@@ -2957,7 +2973,6 @@ contains
         real(dp) :: sum_h_dnj
         real(dp) :: sum_cp_dnj
         real(dp) :: sum_dcp_dT_term
-        real(dp) :: sum_cp
         real(dp) :: dS_sum_state1
         real(dp) :: dS_sum_state2
         real(dp) :: entropy_sum
@@ -2966,7 +2981,6 @@ contains
         real(dp) :: threshold_value
         real(dp) :: threshold_margin
         real(dp) :: fac
-        character(256) :: msg
         logical :: ion_species
         logical :: const_p, const_t, const_s, const_h, const_u  ! Flags enabling/disabling matrix equations
         type(EqConstraints), pointer :: cons    ! Abbreviation for soln%constraints
@@ -3532,18 +3546,10 @@ contains
         real(dp) :: dlogP_over_n_state1_fd, dlogP_over_n_state2_fd
         real(dp) :: dlogP_over_n_dw0_fd, dlogP_over_n_dw0_fd_max
         real(dp) :: dlogP_over_n_state1_an, dlogP_over_n_state2_an
-        real(dp) :: dlogP_over_n_dw0_an
-        real(dp) :: term_pi, term_T, term_log, dln_nj_an, dln_nj_fd, dnj_from_ln
-        real(dp) :: w_sum, inv_w_sum
         real(dp) :: dh_g_dT(solver%num_gas), ds_g_dT(solver%num_gas)
-        real(dp) :: db0_dw0(solver%num_elements, solver%num_reactants)
         real(dp), allocatable :: dln_nj_state1_fd(:)
         real(dp), allocatable :: dln_nj_state2_fd(:)
         real(dp), allocatable :: dln_nj_dw0_fd_max(:)
-        real(dp), allocatable :: dT_db0(:)
-        real(dp), allocatable :: dn_db0(:)
-        real(dp), allocatable :: dlogP_over_n_db0(:)
-        real(dp), allocatable :: dln_nj_db0(:)
         real(dp), pointer :: A_g(:,:)
         logical :: const_p, const_t
         type(EqConstraints), pointer :: cons
@@ -4036,7 +4042,8 @@ contains
         self%type   = '  '
         self%state1 = empty_dp
         self%state2 = empty_dp
-        self%b0     = empty_dp * ones(num_elements)
+        allocate(self%b0(num_elements))
+        self%b0 = empty_dp
     end function
 
     subroutine EqConstraints_set(self, type, state1, state2, element_moles)
@@ -4492,6 +4499,8 @@ contains
         integer :: i, k, ic                     ! Loop counters
         integer, allocatable :: active_idx(:)   ! Active condensed indices in legacy order
 
+        allocate(active_idx(0))
+
         ! Define shorthand
         ng = solver%num_gas
         nc = solver%num_condensed
@@ -4591,6 +4600,8 @@ contains
         integer :: i, k, ic                     ! Loop counters
         integer, allocatable :: active_idx(:)   ! Active condensed indices in legacy order
 
+        allocate(active_idx(0))
+
         ! Define shorthand
         ng = solver%num_gas
         nc = solver%num_condensed
@@ -4675,6 +4686,8 @@ contains
         real(dp), pointer :: cp(:)              ! Species heat capacity [unitless]
         real(dp), pointer :: h_g(:), h_c(:)     ! Gas/condensed enthalpies [unitless]
         real(dp), pointer :: A_g(:,:), A_c(:,:) ! Gas/condensed stoichiometric matrices
+
+        allocate(active_idx(0))
 
         ! Shorthand
         ng = solver%num_gas
@@ -5033,6 +5046,7 @@ contains
         real(dp) :: coeff                     ! Temporary coefficient value
         integer, allocatable :: tmp(:)        ! Temporrary indexing array
         real(dp), allocatable :: stx(:), stxij(:, :)  !
+
         real(dp), pointer :: x(:)             ! Solution vector
         real(dp) :: cpreac, cp_eq             ! Reaction, equilibrium heat capacity
         real(dp) :: reacon                    ! Reaction conductivity
@@ -5040,6 +5054,10 @@ contains
         real(dp) :: wtmol                     ! Total molecular weight
         integer, parameter :: max_tr = 40     ! Maximum allowable transport species
         logical, allocatable :: selected_species(:)
+
+        if (present(frozen_shock)) then
+            continue  ! Placeholder for future frozen-shock transport handling.
+        end if
 
         ! Define shorthand
         np = eq_solver%transport_db%num_pure

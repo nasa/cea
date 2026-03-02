@@ -300,6 +300,11 @@ contains
         integer :: check_idx(1)  ! Index of the species in the transport database
         integer :: idx           ! Iterator to build the index array
 
+        transport_db%num_pure = 0
+        transport_db%num_binary = 0
+        allocate(transport_db%pure_species(0), transport_db%pure_transport(0), &
+                 transport_db%binary_species(0, 2), transport_db%binary_transport(0))
+
         ! Oversize the index array intially
         allocate(pure_indices(all_transport%num_pure), &
                  binary_indices(all_transport%num_binary))

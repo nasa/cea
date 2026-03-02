@@ -271,10 +271,11 @@ contains
         type(Mixture) :: reactants
         type(RocketSolver) :: solver
         type(RocketSolution) :: soln
-        character(:), allocatable :: product_names(:)
+        character(snl), allocatable :: product_names(:)
         real(dp) :: hc, pc, weights(2)
         real(dp), parameter :: tol = 1.0d-6
 
+        allocate(product_names(0))
         product_names = ['CO    ', 'CO2   ', 'H     ', 'HNO   ', 'HNO2  ', 'HO2   ', 'H2    ', &
                          'H2O   ', 'H2O2  ', 'N     ', 'NO    ', 'NO2   ', 'N2    ', 'N2O   ', &
                          'O     ', 'OH    ', 'O2    ', 'HCO   ', 'NH    ', 'CH4   ', 'NH2   ', &

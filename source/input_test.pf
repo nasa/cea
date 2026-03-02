@@ -8,6 +8,7 @@ contains
     @test
     subroutine test_read_input
         type(ProblemDB), allocatable :: problems(:)
+        allocate(problems(0))
         write(*,*) 'Testing read_input'
         !call set_log_level(log_levels%debug)
         problems = read_input('samples/rp1311_examples.inp')
@@ -97,7 +98,8 @@ contains
 
     @test
     subroutine test_parse_species
-        character(:), allocatable :: species(:)
+        character(32), allocatable :: species(:)
+        allocate(species(0))
 
         species = parse_species('only  Ar    C   CO  CO2  H   H2   H2O  HNO   HO2')
         @assertEqual(9, size(species))
@@ -121,6 +123,7 @@ contains
     @test
     subroutine test_parse_reac_custom_species
         type(ReactantInput), allocatable :: reac(:)
+        allocate(reac(0))
 
         reac = parse_reac('reac name=HTPB wt%=100 t,k=298.15 h,kj/mole=-100 C=10 H=15 wt/mol=135.0')
 
@@ -141,6 +144,7 @@ contains
     @test
     subroutine test_parse_reac_molecular_weight_alias
         type(ReactantInput), allocatable :: reac(:)
+        allocate(reac(0))
 
         reac = parse_reac('reac fuel=CH4 molwt=16 oxid=O2 wt%=100')
         @assertEqual(16.0d0, reac(1)%molecular_weight)
@@ -150,6 +154,7 @@ contains
     @test
     subroutine test_parse_reac_missing_named_amount
         type(ReactantInput), allocatable :: reac(:)
+        allocate(reac(0))
 
         reac = parse_reac('reac name=HTPB C=10 H=15 h,kj/mole=-100')
         @assertEqual(1, size(reac))
@@ -160,6 +165,7 @@ contains
     @test
     subroutine test_parse_reac_density_alias
         type(ReactantInput), allocatable :: reac(:)
+        allocate(reac(0))
 
         reac = parse_reac('reac fuel=CH4 wt%=100 den,g/cc=0.42')
         @assertEqual('g/cc', reac(1)%density%units)
@@ -173,6 +179,7 @@ contains
     @test
     subroutine test_parse_reac_formula_default_coeffs
         type(ReactantInput), allocatable :: reac(:)
+        allocate(reac(0))
 
         reac = parse_reac('reac name=HTPB wt%=100 C H O')
         @assertEqual(3, size(reac(1)%formula%elements))
@@ -184,6 +191,7 @@ contains
     @test
     subroutine test_parse_reac_case_insensitive_keywords
         type(ReactantInput), allocatable :: reac(:)
+        allocate(reac(0))
 
         reac = parse_reac('reac FUEL=CH4 WT%=100 OXID=O2 WT%=100')
         @assertEqual('fu', reac(1)%type)

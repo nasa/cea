@@ -516,7 +516,6 @@ contains
         end do
 
         reac = reac(:n)
-
         ! Validate input data
         call assert(n > 0, 'reac dataset missing reactant definitions.')
         has_na = .false.

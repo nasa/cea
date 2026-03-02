@@ -19,10 +19,9 @@ add_installed_library(cea_core
     detonation.f90
     thermo.f90
     transport.f90
-    # derivatives.f90
     units.f90
 )
-# Call function to correctly process compiler flags to check Fortran 
+# Call function to correctly process compiler flags to check Fortran
 # standard compliance based on compiler / OS
 set(CMAKE_Fortran_STANDARD 2008)
 set(CMAKE_Fortran_STANDARD_REQUIRED ON)
@@ -43,7 +42,6 @@ if(CEA_BUILD_TESTING AND PFUNIT_FOUND)
             rocket_test.pf
             shock_test.pf
             detonation_test.pf
-            # derivatives_test.pf
         LINK_LIBRARIES cea::core fbasics::core
     )
     set_tests_properties(cea_core_test PROPERTIES

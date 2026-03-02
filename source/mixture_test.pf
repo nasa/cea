@@ -20,7 +20,10 @@ contains
     subroutine test_mixture_init
 
         type(Mixture) :: mix
-        character(:), allocatable :: species(:), elements(:)
+        character(snl), allocatable :: species(:)
+        character(enl), allocatable :: elements(:)
+
+        allocate(species(0), elements(0))
 
         species  = ['H  ', 'H2 ', 'H2O', 'O  ', 'O2 ', 'OH ']
         elements = ['H', 'O']
@@ -143,6 +146,7 @@ contains
     subroutine test_get_products
         type(Mixture) :: mix
         character(snl), allocatable :: product_names(:)
+        allocate(product_names(0))
         mix = Mixture(all_thermo, ['N2', 'O2'])
         product_names = mix%get_products(all_thermo)
         @assertEqual(13, size(product_names))
@@ -165,6 +169,7 @@ contains
     subroutine test_get_products_omit
         type(Mixture) :: mix
         character(snl), allocatable :: product_names(:)
+        allocate(product_names(0))
         mix = Mixture(all_thermo, ['N2', 'O2'])
         product_names = mix%get_products(all_thermo, omit=['N2O3','N2O4','N2O5','N3  ','NO2 ','NO3 ','O3  '])
         @assertEqual(6, size(product_names))

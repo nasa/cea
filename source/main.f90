@@ -36,6 +36,8 @@ program cea
     integer :: n
     logical :: ok
 
+    allocate(problems(0))
+
     call parse_arguments(input_file_stem, thermo_file, trans_file, compile_thermo_input, compile_trans_input)
     call log_info('CEA Version: '//version_string)
 
@@ -1262,9 +1264,7 @@ contains
 
         ! Locals
         integer :: i, j, k, m, n, idx, last_row_cols, nrows, ncols, num_trace
-        integer, parameter :: max_cols = 6
         real(dp) :: trace
-        logical :: transport
         character(snl), allocatable :: trace_names(:)
         logical, allocatable :: is_trace(:)
         character(:), allocatable :: eq_fmt

@@ -147,7 +147,8 @@ contains
         logical, allocatable :: found_db(:)
         integer :: i, j, k, ns
         character(enl), allocatable :: enames(:,:)
-        character(:), allocatable :: slist(:), elist(:)
+        character(snl), allocatable :: slist(:)
+        character(:), allocatable :: elist(:)
         real(dp) :: h_val, T_val
         type(Mixture) :: reactants
 
@@ -155,6 +156,7 @@ contains
         sort_condensed_ = .false.
         if (present(sort_condensed)) sort_condensed_ = sort_condensed
         if (present(ions)) self%ions = ions
+        allocate(slist(0))
 
         ! Build the species list
         if (present(species_names)) then

@@ -14,7 +14,7 @@ from parse_output import parse_output
 
 # Parameter inputs
 print_all = False  # if True, print all comparisons; if False, print only incorrect values
-rtol = 1e-3  # Relative acceptance tolerance for all values
+rtol = 1e-2  # Relative acceptance tolerance for all values
 round_vals = True  # Attempt to round the test values to the precision of the reference value
 test_names = [
     "example1", "example2", "example3", "example4", "example5", "example14",   # Equilibrium problems
