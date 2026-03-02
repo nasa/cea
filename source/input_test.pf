@@ -121,6 +121,19 @@ contains
     end subroutine
 
     @test
+    subroutine test_parse_outp_repeated_dataset_keywords
+        type(OutputDataset) :: outp
+
+        outp = parse_outp('outp short outp massf outp siunits outp trace=1e-8 outp transport')
+
+        @assertEqual(.true., outp%mass_fractions)
+        @assertEqual(.true., outp%transport)
+        @assertTrue(allocated(outp%trace))
+        @assertEqual(1.0d-8, outp%trace)
+        @assertEqual(.true., outp%siunit)
+    end subroutine
+
+    @test
     subroutine test_parse_reac_custom_species
         type(ReactantInput), allocatable :: reac(:)
         allocate(reac(0))

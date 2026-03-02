@@ -250,6 +250,11 @@ contains
                 line = adjustl(line)
                 if (is_empty(line)) cycle
                 if (is_keyword(line)) then
+                    if (dsname == 'outp' .and. line(1:4) == 'outp') then
+                        ! Legacy behavior allows repeated output datasets; merge them.
+                        buffer = buffer // ' ' // trim(line)
+                        cycle
+                    end if
                     backspace(fin)
                     exit
                 else

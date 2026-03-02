@@ -266,7 +266,7 @@ contains
         else
             product_names = reactants%get_products(thermo)
         end if
-        products = Mixture(thermo, product_names)
+        products = Mixture(thermo, product_names, ions=prob%problem%include_ions)
 
         ! Get the loop sizes
         num_state1 = 1
@@ -535,7 +535,7 @@ contains
         else
             product_names = reactants%get_products(thermo)
         end if
-        products = Mixture(thermo, product_names)
+        products = Mixture(thermo, product_names, ions=prob%problem%include_ions)
 
         ! Get the problem flags
         if (prob%problem%shk_incident) then
@@ -767,7 +767,7 @@ contains
         else
             product_names = reactants%get_products(thermo)
         end if
-        products = Mixture(thermo, product_names)
+        products = Mixture(thermo, product_names, ions=prob%problem%include_ions)
 
         ! Get the problem flags
         if (prob%problem%frozen) then
