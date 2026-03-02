@@ -21,8 +21,8 @@ import cea
 project = 'CEA'
 copyright = ''
 author = 'Mark Leader'
-version = '3.0'
-release = '3.0.4'
+version = '3.1'
+release = '3.1.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

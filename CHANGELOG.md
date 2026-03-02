@@ -10,6 +10,20 @@ All notable user-visible changes to this project are documented here.
 
 ### Added
 
+## [3.1.0] - 2026-03-02
+
+### Changed
+- Added equilibrium total-derivative capabilities across core solver paths (TP/HP/TV/UV/SP/SV), including chain-rule state/property derivatives and related thermo/property plumbing updates (`#50`).
+- Exposed derivative workflows in the C and Python interfaces, including derivative object lifecycle, analytic-vs-finite-difference result accessors, and central finite-difference verification options (`#50`).
+- Introduced optional smooth species truncation controls (with configurable width) through solver options in Fortran/C/Python interfaces to improve derivative behavior near composition cutoffs (`#50`).
+- C binding headers and the RP-1311 C sample were updated to resolve compiler warnings (`#49`).
+
+### Fixed
+
+### Added
+- Added extensive regression coverage for derivative correctness and stability, including new pfunit derivative suites and Python tests for smooth-truncation behavior and sample execution (`#50`).
+- Added derivative-focused Python examples and documentation (including SP and multi-state derivative sample scripts and run helpers) (`#50`).
+
 ## [3.0.4] - 2026-02-27
 
 ### Changed
