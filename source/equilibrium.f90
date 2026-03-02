@@ -739,6 +739,7 @@ contains
         type(EqConstraints), pointer :: cons          ! Abbreviation for soln%constraints
         real(dp) :: dln_n                             ! 𝛥ln(n)
         real(dp) :: dln_T                             ! 𝛥ln(T)
+        real(dp) :: log_n                             ! Log of total moles
         real(dp) :: lambda1, lambda2                  ! Candidate damped update factors
         real(dp) :: l1_denom, l2_denom, temp_l2       ! Temporary variables
         real(dp), parameter :: FACTOR = -9.2103404d0  ! log(1.d-4)
@@ -753,6 +754,7 @@ contains
         const_t = cons%is_constant_temperature()
         dln_n = soln%dln_n
         dln_T = soln%dln_T
+        log_n = log(n)
 
         ! Associate subarray pointers
         nj_g => soln%nj(:ng)
@@ -765,10 +767,10 @@ contains
         lambda2 = 1.0d0
         do i = 1, ng
             if (dln_nj(i) > 0.0d0) then !.and. (nj_g(i) > 0.0d0)) then
-                if (ln_nj(i) - log(n) + self%size <= 0.0d0) then
+                if (ln_nj(i) - log_n + self%size <= 0.0d0) then
                     l2_denom = abs(dln_nj(i) - dln_n)
                     if (l2_denom >= (self%size + FACTOR)) then
-                        temp_l2 = abs(FACTOR - ln_nj(i) + log(n))/l2_denom
+                        temp_l2 = abs(FACTOR - ln_nj(i) + log_n)/l2_denom
                         lambda2 = min(lambda2, temp_l2)
                     end if
                 else if (dln_nj(i) > l1_denom) then
@@ -778,7 +780,7 @@ contains
         end do
         if (l1_denom > 2.0d0) lambda1 = 2.0d0/l1_denom
 
-        ! Compute lamba (Eq. 3.3)
+        ! Compute lambda (Eq. 3.3)
         lambda = min(1.0d0, lambda1, lambda2)
 
     end function
