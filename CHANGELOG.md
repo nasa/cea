@@ -5,18 +5,20 @@ All notable user-visible changes to this project are documented here.
 ## [Unreleased]
 
 ### Changed
-- Python `Mixture` input validation now accepts `str` and `cea.Reactant` entries (including mixed lists) and no longer accepts raw `bytes` species names (#51).
-- Added SI-focused custom-reactant handling at the Python API layer: `Reactant.temperature` is specified in K and `Reactant.enthalpy` in J/kg (converted internally for core input) (#51).
+- Python `Mixture` input validation now accepts `str` and `cea.Reactant` entries (including mixed lists) and no longer accepts raw `bytes` species names (`#53`).
+- Added SI-focused custom-reactant handling at the Python API layer: `Reactant.temperature` is specified in K and `Reactant.enthalpy` in J/kg (converted internally for core input) (`#53`).
+- Legacy input parsing now supports repeated `outp` dataset keywords (including multiline forms) by merging successive `outp` entries during dataset assembly (`#52`).
 
 ### Fixed
+- Legacy CLI equilibrium/rocket/shock workflows now propagate `include_ions` into generated product mixtures so ionized products are retained when requested (`#52`).
 
 ### Added
-- Added C and Python support for custom reactant data (including species not present in `thermo.lib`) in parity with the main interface workflow used by RP-1311 Example 5 (#51).
+- Added C and Python support for custom reactant data (including species not present in `thermo.lib`) in parity with the main interface workflow used by RP-1311 Example 5 (`#53`).
 - Added new C-API constructors for generating product mixtures from input-reactant payloads:
-  - `cea_mixture_create_products_from_input_reactants` (#51).
-  - `cea_mixture_create_products_from_input_reactants_w_ions` (#51).
-- Added a shared bindc parser path for `cea_reactant_input -> ReactantInput` conversion to reduce duplicated C-binding logic (#51).
-- Added Python `cea.Reactant` and mixed-input `Mixture(...)` support in the Cython binding (#51).
+  - `cea_mixture_create_products_from_input_reactants` (`#53`).
+  - `cea_mixture_create_products_from_input_reactants_w_ions` (`#53`).
+- Added a shared bindc parser path for `cea_reactant_input -> ReactantInput` conversion to reduce duplicated C-binding logic (`#53`).
+- Added Python `cea.Reactant` and mixed-input `Mixture(...)` support in the Cython binding (`#53`).
 
 ## [3.1.0] - 2026-03-02
 
