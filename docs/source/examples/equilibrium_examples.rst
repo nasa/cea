@@ -10,4 +10,5 @@ This section describes how to solve equilibrium problems using the Python interf
    equilibrium/example2
    equilibrium/example3
    equilibrium/example4
+   equilibrium/example5
    equilibrium/example14
