@@ -574,106 +574,10 @@ contains
         type(cea_reactant_input), intent(in) :: creac(*)
         type(Mixture), pointer :: mix
         type(ReactantInput), allocatable :: input_reactants(:)
-        type(c_ptr), pointer :: c_elements(:)
-        real(c_double), pointer :: c_coeffs(:)
-        character(:), allocatable :: name, units, elem
-        integer :: i, j, ne
 
         ierr = CEA_SUCCESS
-        if (nreac <= 0) then
-            ierr = CEA_INVALID_SIZE
-            return
-        end if
-
-        allocate(input_reactants(nreac))
-
-        do i = 1, nreac
-            if (.not. c_associated(creac(i)%name)) then
-                ierr = CEA_INVALID_SIZE
-                return
-            end if
-            call c_copy(creac(i)%name, name)
-            if (len_trim(name) == 0 .or. len(name) > snl) then
-                ierr = CEA_INVALID_SIZE
-                return
-            end if
-            input_reactants(i)%name = name
-
-            ne = creac(i)%num_elements
-            if (ne < 0) then
-                ierr = CEA_INVALID_SIZE
-                return
-            end if
-
-            if (ne > 0) then
-                if (.not. c_associated(creac(i)%elements) .or. .not. c_associated(creac(i)%coefficients)) then
-                    ierr = CEA_INVALID_SIZE
-                    return
-                end if
-                allocate(input_reactants(i)%formula)
-                allocate(input_reactants(i)%formula%elements(ne))
-                allocate(input_reactants(i)%formula%coefficients(ne))
-                call c_f_pointer(creac(i)%elements, c_elements, [ne])
-                call c_f_pointer(creac(i)%coefficients, c_coeffs, [ne])
-                do j = 1, ne
-                    if (.not. c_associated(c_elements(j))) then
-                        ierr = CEA_INVALID_SIZE
-                        return
-                    end if
-                    call c_copy(c_elements(j), elem)
-                    if (len_trim(elem) == 0 .or. len(elem) > enl) then
-                        ierr = CEA_INVALID_SIZE
-                        return
-                    end if
-                    input_reactants(i)%formula%elements(j) = elem
-                    input_reactants(i)%formula%coefficients(j) = c_coeffs(j)
-                end do
-            else
-                if (.not. thermodb_has_species(name)) then
-                    ierr = CEA_INVALID_SIZE
-                    return
-                end if
-            end if
-
-            if (creac(i)%has_molecular_weight) then
-                allocate(input_reactants(i)%molecular_weight)
-                input_reactants(i)%molecular_weight = creac(i)%molecular_weight
-            end if
-
-            if (creac(i)%has_enthalpy) then
-                if (.not. c_associated(creac(i)%enthalpy_units)) then
-                    ierr = CEA_INVALID_SIZE
-                    return
-                end if
-                call c_copy(creac(i)%enthalpy_units, units)
-                if (len_trim(units) == 0) then
-                    ierr = CEA_INVALID_SIZE
-                    return
-                end if
-                allocate(input_reactants(i)%enthalpy)
-                input_reactants(i)%enthalpy%name = 'h'
-                input_reactants(i)%enthalpy%units = units
-                allocate(input_reactants(i)%enthalpy%values(1))
-                input_reactants(i)%enthalpy%values(1) = creac(i)%enthalpy
-            end if
-
-            if (creac(i)%has_temperature) then
-                if (.not. c_associated(creac(i)%temperature_units)) then
-                    ierr = CEA_INVALID_SIZE
-                    return
-                end if
-                call c_copy(creac(i)%temperature_units, units)
-                if (len_trim(units) == 0) then
-                    ierr = CEA_INVALID_SIZE
-                    return
-                end if
-                allocate(input_reactants(i)%temperature)
-                input_reactants(i)%temperature%name = 't'
-                input_reactants(i)%temperature%units = units
-                allocate(input_reactants(i)%temperature%values(1))
-                input_reactants(i)%temperature%values(1) = creac(i)%temperature
-            end if
-        end do
+        call parse_c_reactant_inputs(nreac, creac, input_reactants, ierr)
+        if (ierr /= CEA_SUCCESS) return
 
         allocate(mix)
         mix = Mixture(global_thermodb, input_reactants=input_reactants)
@@ -689,112 +593,100 @@ contains
         type(cea_reactant_input), intent(in) :: creac(*)
         type(Mixture), pointer :: mix
         type(ReactantInput), allocatable :: input_reactants(:)
-        type(c_ptr), pointer :: c_elements(:)
-        real(c_double), pointer :: c_coeffs(:)
-        character(:), allocatable :: name, units, elem
-        integer :: i, j, ne
 
         ierr = CEA_SUCCESS
-        if (nreac <= 0) then
-            ierr = CEA_INVALID_SIZE
-            return
-        end if
-
-        allocate(input_reactants(nreac))
-
-        do i = 1, nreac
-            if (.not. c_associated(creac(i)%name)) then
-                ierr = CEA_INVALID_SIZE
-                return
-            end if
-            call c_copy(creac(i)%name, name)
-            if (len_trim(name) == 0 .or. len(name) > snl) then
-                ierr = CEA_INVALID_SIZE
-                return
-            end if
-            input_reactants(i)%name = name
-
-            ne = creac(i)%num_elements
-            if (ne < 0) then
-                ierr = CEA_INVALID_SIZE
-                return
-            end if
-
-            if (ne > 0) then
-                if (.not. c_associated(creac(i)%elements) .or. .not. c_associated(creac(i)%coefficients)) then
-                    ierr = CEA_INVALID_SIZE
-                    return
-                end if
-                allocate(input_reactants(i)%formula)
-                allocate(input_reactants(i)%formula%elements(ne))
-                allocate(input_reactants(i)%formula%coefficients(ne))
-                call c_f_pointer(creac(i)%elements, c_elements, [ne])
-                call c_f_pointer(creac(i)%coefficients, c_coeffs, [ne])
-                do j = 1, ne
-                    if (.not. c_associated(c_elements(j))) then
-                        ierr = CEA_INVALID_SIZE
-                        return
-                    end if
-                    call c_copy(c_elements(j), elem)
-                    if (len_trim(elem) == 0 .or. len(elem) > enl) then
-                        ierr = CEA_INVALID_SIZE
-                        return
-                    end if
-                    input_reactants(i)%formula%elements(j) = elem
-                    input_reactants(i)%formula%coefficients(j) = c_coeffs(j)
-                end do
-            else
-                if (.not. thermodb_has_species(name)) then
-                    ierr = CEA_INVALID_SIZE
-                    return
-                end if
-            end if
-
-            if (creac(i)%has_molecular_weight) then
-                allocate(input_reactants(i)%molecular_weight)
-                input_reactants(i)%molecular_weight = creac(i)%molecular_weight
-            end if
-
-            if (creac(i)%has_enthalpy) then
-                if (.not. c_associated(creac(i)%enthalpy_units)) then
-                    ierr = CEA_INVALID_SIZE
-                    return
-                end if
-                call c_copy(creac(i)%enthalpy_units, units)
-                if (len_trim(units) == 0) then
-                    ierr = CEA_INVALID_SIZE
-                    return
-                end if
-                allocate(input_reactants(i)%enthalpy)
-                input_reactants(i)%enthalpy%name = 'h'
-                input_reactants(i)%enthalpy%units = units
-                allocate(input_reactants(i)%enthalpy%values(1))
-                input_reactants(i)%enthalpy%values(1) = creac(i)%enthalpy
-            end if
-
-            if (creac(i)%has_temperature) then
-                if (.not. c_associated(creac(i)%temperature_units)) then
-                    ierr = CEA_INVALID_SIZE
-                    return
-                end if
-                call c_copy(creac(i)%temperature_units, units)
-                if (len_trim(units) == 0) then
-                    ierr = CEA_INVALID_SIZE
-                    return
-                end if
-                allocate(input_reactants(i)%temperature)
-                input_reactants(i)%temperature%name = 't'
-                input_reactants(i)%temperature%units = units
-                allocate(input_reactants(i)%temperature%values(1))
-                input_reactants(i)%temperature%values(1) = creac(i)%temperature
-            end if
-        end do
+        call parse_c_reactant_inputs(nreac, creac, input_reactants, ierr)
+        if (ierr /= CEA_SUCCESS) return
 
         allocate(mix)
         mix = Mixture(global_thermodb, input_reactants=input_reactants, ions=.true.)
         mptr = c_loc(mix)
         call log_info('BINDC: Created Mixture object at '//to_str(mptr))
 
+    end function
+
+    function cea_mixture_create_products_from_input_reactants(mptr, nreac, creac, nomit, comit) result(ierr) bind(c)
+        integer(c_int) :: ierr
+        type(c_ptr), intent(out) :: mptr
+        integer(c_int), value :: nreac
+        type(cea_reactant_input), intent(in) :: creac(*)
+        integer(c_int), value    :: nomit
+        type(c_ptr), intent(in)  :: comit(*)
+        type(Mixture), pointer :: mix
+        type(Mixture) :: reactants
+        type(ReactantInput), allocatable :: input_reactants(:)
+        character(snl), allocatable :: product_names(:)
+        character(snl), allocatable :: omit(:)
+        character(:), allocatable :: name
+        integer :: n
+
+        ierr = CEA_SUCCESS
+        if (nomit < 0) then
+            ierr = CEA_INVALID_SIZE
+            return
+        end if
+        call parse_c_reactant_inputs(nreac, creac, input_reactants, ierr)
+        if (ierr /= CEA_SUCCESS) return
+
+        allocate(omit(nomit))
+        do n = 1,nomit
+            call c_copy(comit(n), name)
+            if (len(name) > snl) then
+                ierr = CEA_INVALID_SIZE
+                return
+            end if
+            omit(n) = name
+        end do
+
+        reactants = Mixture(global_thermodb, input_reactants=input_reactants)
+        product_names = reactants%get_products(global_thermodb, omit)
+
+        allocate(mix)
+        mix = Mixture(global_thermodb, product_names)
+        mptr = c_loc(mix)
+        call log_info('BINDC: Created product Mixture object at '//to_str(mptr))
+    end function
+
+    function cea_mixture_create_products_from_input_reactants_w_ions(mptr, nreac, creac, nomit, comit) result(ierr) bind(c)
+        integer(c_int) :: ierr
+        type(c_ptr), intent(out) :: mptr
+        integer(c_int), value :: nreac
+        type(cea_reactant_input), intent(in) :: creac(*)
+        integer(c_int), value    :: nomit
+        type(c_ptr), intent(in)  :: comit(*)
+        type(Mixture), pointer :: mix
+        type(Mixture) :: reactants
+        type(ReactantInput), allocatable :: input_reactants(:)
+        character(snl), allocatable :: product_names(:)
+        character(snl), allocatable :: omit(:)
+        character(:), allocatable :: name
+        integer :: n
+
+        ierr = CEA_SUCCESS
+        if (nomit < 0) then
+            ierr = CEA_INVALID_SIZE
+            return
+        end if
+        call parse_c_reactant_inputs(nreac, creac, input_reactants, ierr)
+        if (ierr /= CEA_SUCCESS) return
+
+        allocate(omit(nomit))
+        do n = 1,nomit
+            call c_copy(comit(n), name)
+            if (len(name) > snl) then
+                ierr = CEA_INVALID_SIZE
+                return
+            end if
+            omit(n) = name
+        end do
+
+        reactants = Mixture(global_thermodb, input_reactants=input_reactants, ions=.true.)
+        product_names = reactants%get_products(global_thermodb, omit)
+
+        allocate(mix)
+        mix = Mixture(global_thermodb, product_names, ions=.true.)
+        mptr = c_loc(mix)
+        call log_info('BINDC: Created product Mixture object at '//to_str(mptr))
     end function
 
     function cea_mixture_destroy(mptr) result(ierr) bind(c)
@@ -4041,6 +3933,114 @@ contains
     !-----------------------------------------------------------------
     ! Helper Functions
     !-----------------------------------------------------------------
+    subroutine parse_c_reactant_inputs(nreac, creac, input_reactants, ierr)
+        integer(c_int), intent(in), value :: nreac
+        type(cea_reactant_input), intent(in) :: creac(*)
+        type(ReactantInput), allocatable, intent(out) :: input_reactants(:)
+        integer(c_int), intent(out) :: ierr
+
+        type(c_ptr), pointer :: c_elements(:)
+        real(c_double), pointer :: c_coeffs(:)
+        character(:), allocatable :: name, units, elem
+        integer :: i, j, ne
+
+        ierr = CEA_SUCCESS
+        if (nreac <= 0) then
+            ierr = CEA_INVALID_SIZE
+            return
+        end if
+
+        allocate(input_reactants(nreac))
+
+        do i = 1, nreac
+            if (.not. c_associated(creac(i)%name)) then
+                ierr = CEA_INVALID_SIZE
+                return
+            end if
+            call c_copy(creac(i)%name, name)
+            if (len_trim(name) == 0 .or. len(name) > snl) then
+                ierr = CEA_INVALID_SIZE
+                return
+            end if
+            input_reactants(i)%name = name
+
+            ne = creac(i)%num_elements
+            if (ne < 0) then
+                ierr = CEA_INVALID_SIZE
+                return
+            end if
+
+            if (ne > 0) then
+                if (.not. c_associated(creac(i)%elements) .or. .not. c_associated(creac(i)%coefficients)) then
+                    ierr = CEA_INVALID_SIZE
+                    return
+                end if
+                allocate(input_reactants(i)%formula)
+                allocate(input_reactants(i)%formula%elements(ne))
+                allocate(input_reactants(i)%formula%coefficients(ne))
+                call c_f_pointer(creac(i)%elements, c_elements, [ne])
+                call c_f_pointer(creac(i)%coefficients, c_coeffs, [ne])
+                do j = 1, ne
+                    if (.not. c_associated(c_elements(j))) then
+                        ierr = CEA_INVALID_SIZE
+                        return
+                    end if
+                    call c_copy(c_elements(j), elem)
+                    if (len_trim(elem) == 0 .or. len(elem) > enl) then
+                        ierr = CEA_INVALID_SIZE
+                        return
+                    end if
+                    input_reactants(i)%formula%elements(j) = elem
+                    input_reactants(i)%formula%coefficients(j) = c_coeffs(j)
+                end do
+            else
+                if (.not. thermodb_has_species(name)) then
+                    ierr = CEA_INVALID_SIZE
+                    return
+                end if
+            end if
+
+            if (creac(i)%has_molecular_weight) then
+                allocate(input_reactants(i)%molecular_weight)
+                input_reactants(i)%molecular_weight = creac(i)%molecular_weight
+            end if
+
+            if (creac(i)%has_enthalpy) then
+                if (.not. c_associated(creac(i)%enthalpy_units)) then
+                    ierr = CEA_INVALID_SIZE
+                    return
+                end if
+                call c_copy(creac(i)%enthalpy_units, units)
+                if (len_trim(units) == 0) then
+                    ierr = CEA_INVALID_SIZE
+                    return
+                end if
+                allocate(input_reactants(i)%enthalpy)
+                input_reactants(i)%enthalpy%name = 'h'
+                input_reactants(i)%enthalpy%units = units
+                allocate(input_reactants(i)%enthalpy%values(1))
+                input_reactants(i)%enthalpy%values(1) = creac(i)%enthalpy
+            end if
+
+            if (creac(i)%has_temperature) then
+                if (.not. c_associated(creac(i)%temperature_units)) then
+                    ierr = CEA_INVALID_SIZE
+                    return
+                end if
+                call c_copy(creac(i)%temperature_units, units)
+                if (len_trim(units) == 0) then
+                    ierr = CEA_INVALID_SIZE
+                    return
+                end if
+                allocate(input_reactants(i)%temperature)
+                input_reactants(i)%temperature%name = 't'
+                input_reactants(i)%temperature%units = units
+                allocate(input_reactants(i)%temperature%values(1))
+                input_reactants(i)%temperature%values(1) = creac(i)%temperature
+            end if
+        end do
+    end subroutine
+
     logical function thermodb_has_species(name) result(found)
         character(*), intent(in) :: name
         integer :: i

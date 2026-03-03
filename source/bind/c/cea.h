@@ -170,6 +170,20 @@ extern "C"
       const cea_int nreactants,
       const cea_reactant_input reactants[]);
 
+  cea_err cea_mixture_create_products_from_input_reactants(
+      cea_mixture *mix,
+      const cea_int nreactants,
+      const cea_reactant_input reactants[],
+      const cea_int nomit,
+      const cea_string omit[]);
+
+  cea_err cea_mixture_create_products_from_input_reactants_w_ions(
+      cea_mixture *mix,
+      const cea_int nreactants,
+      const cea_reactant_input reactants[],
+      const cea_int nomit,
+      const cea_string omit[]);
+
   cea_err cea_mixture_destroy(
       cea_mixture *mix);
 

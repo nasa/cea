@@ -56,6 +56,15 @@ if (CEA_BUILD_TESTING)
         COMMAND cea_bindc_rp1311_ex3
         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
     )
+
+    add_executable(cea_bindc_rp1311_ex5 samples/rp1311_example5.c)
+    target_link_libraries(cea_bindc_rp1311_ex5 PRIVATE cea::bindc)
+    add_test(
+        NAME cea_bindc_rp1311_ex5
+        COMMAND cea_bindc_rp1311_ex5
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+    )
+
     add_executable(cea_bindc_rp1311_ex6 samples/rp1311_example6.c)
     target_link_libraries(cea_bindc_rp1311_ex6 PRIVATE cea::bindc)
     add_test(
@@ -89,4 +98,3 @@ if (CEA_BUILD_TESTING)
     )
 
 endif()
-

@@ -9,6 +9,11 @@ Mixture
 -------
 The :class:`~cea.Mixture` class is used to define a mixture of product or reactant species. It allows the user to specify the composition of the mixture and provides methods to compute thermodynamic curve fit properties.
 The instances of this class are then passed as inputs to the available solver classes (e.g., :class:`~cea.EqSolver`, :class:`~cea.RocketSolver`, :class:`~cea.ShockSolver`, or :class:`~cea.DetonationSolver`).
+Custom reactants can be provided through :class:`~cea.Reactant` objects (including mixed lists of strings and Reactant objects).
+For :class:`~cea.Reactant`, ``enthalpy`` and ``temperature`` are SI-only in the Python API (J/kg and K, respectively); use :mod:`cea.units` helpers for pre-conversion.
+
+.. autoclass:: cea.Reactant
+   :members:
 
 .. autoclass:: cea.Mixture
    :members:

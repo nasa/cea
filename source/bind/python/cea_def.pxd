@@ -229,6 +229,20 @@ cdef extern from "cea.h":
     ctypedef struct cea_detonation_solution_t
     ctypedef cea_detonation_solution_t* cea_detonation_solution
 
+    ctypedef struct cea_reactant_input:
+        cea_string name
+        cea_int num_elements
+        const cea_string* elements
+        const cea_real* coefficients
+        cea_bool has_molecular_weight
+        cea_real molecular_weight
+        cea_bool has_enthalpy
+        cea_real enthalpy
+        cea_string enthalpy_units
+        cea_bool has_temperature
+        cea_real temperature
+        cea_string temperature_units
+
     ctypedef struct cea_solver_opts:
         cea_real trace
         cea_bool ions
@@ -261,6 +275,16 @@ cdef extern from "cea.h":
                                                     const cea_int nomit, const cea_string omit[])
     cpdef cea_err cea_mixture_create_from_reactants_w_ions(cea_mixture *mix, const cea_int nreac, const cea_string reactants[],
                                                            const cea_int nomit, const cea_string omit[])
+    cpdef cea_err cea_mixture_create_from_input_reactants(cea_mixture *mix, const cea_int nreactants,
+                                                          const cea_reactant_input reactants[])
+    cpdef cea_err cea_mixture_create_from_input_reactants_w_ions(cea_mixture *mix, const cea_int nreactants,
+                                                                 const cea_reactant_input reactants[])
+    cpdef cea_err cea_mixture_create_products_from_input_reactants(cea_mixture *mix, const cea_int nreactants,
+                                                                   const cea_reactant_input reactants[],
+                                                                   const cea_int nomit, const cea_string omit[])
+    cpdef cea_err cea_mixture_create_products_from_input_reactants_w_ions(cea_mixture *mix, const cea_int nreactants,
+                                                                          const cea_reactant_input reactants[],
+                                                                          const cea_int nomit, const cea_string omit[])
     cpdef cea_err cea_mixture_destroy(cea_mixture *mix)
     cpdef cea_err cea_mixture_get_num_species(const cea_mixture mix, cea_int *num_species)
     cpdef cea_err cea_mixture_get_species_name(const cea_mixture *mix, const cea_int i_species, cea_string *species)

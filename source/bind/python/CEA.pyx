@@ -1,5 +1,6 @@
 # Import the necessary Cython modules
 from libc.stdlib cimport malloc, free
+from libc.stddef cimport size_t
 from cpython.bytes cimport PyBytes_AsString
 import cython
 import ctypes
@@ -516,6 +517,74 @@ def is_initialized():
     return bool(initialized)
 
 
+cdef class Reactant:
+    """
+    Reactant specification for custom or overridden reactant thermo data.
+
+    Parameters
+    ----------
+    name : str
+        Reactant name.
+    formula : dict[str, float], optional
+        Exploded formula mapping element symbols to coefficients.
+    molecular_weight : float, optional
+        Molecular weight in kg/kmol (numerically equivalent to g/mol).
+    enthalpy : float, optional
+        Reference enthalpy in SI units (J/kg).
+    temperature : float, optional
+        Reference temperature in SI units (K).
+
+    Notes
+    -----
+    Python Reactant inputs are SI-only. Use :mod:`cea.units` helpers to pre-convert
+    non-SI values before constructing a Reactant.
+    """
+    cdef public object name
+    cdef public object formula
+    cdef public object molecular_weight
+    cdef public object enthalpy
+    cdef public object temperature
+
+    def __init__(self, name, formula=None, molecular_weight=None, enthalpy=None, temperature=None):
+        if not isinstance(name, str) or len(name.strip()) == 0:
+            raise TypeError("Reactant name must be a non-empty str")
+
+        if formula is not None:
+            if not isinstance(formula, dict):
+                raise TypeError("Reactant formula must be a dict[str, float] when provided")
+            if len(formula) == 0:
+                raise ValueError("Reactant formula cannot be empty when provided")
+            for key, value in formula.items():
+                if not isinstance(key, str) or len(key.strip()) == 0:
+                    raise TypeError("Reactant formula element names must be non-empty str")
+                try:
+                    fval = float(value)
+                except (TypeError, ValueError):
+                    raise TypeError("Reactant formula coefficients must be numeric")
+                if not np.isfinite(fval):
+                    raise ValueError("Reactant formula coefficients must be finite")
+
+        for field_name, field_val in (("molecular_weight", molecular_weight),
+                                      ("enthalpy", enthalpy),
+                                      ("temperature", temperature)):
+            if field_val is None:
+                continue
+            try:
+                fval = float(field_val)
+            except (TypeError, ValueError):
+                raise TypeError(f"Reactant {field_name} must be numeric")
+            if not np.isfinite(fval):
+                raise ValueError(f"Reactant {field_name} must be finite")
+        if enthalpy is not None and molecular_weight is None:
+            raise ValueError("Reactant molecular_weight is required when enthalpy is specified")
+
+        self.name = name
+        self.formula = formula
+        self.molecular_weight = molecular_weight
+        self.enthalpy = enthalpy
+        self.temperature = temperature
+
+
 cdef class Mixture:
     """
     Mixture base class for managing chemical species compositions.
@@ -526,8 +595,8 @@ cdef class Mixture:
 
     Parameters
     ----------
-    species : list of str
-        List of chemical species names
+    species : list of str | list of Reactant | mixed list
+        List of chemical species names and/or Reactant objects
     products_from_reactants : bool, default False
         If True, treat species as reactants and generate corresponding products
     omit : list of str, default []
@@ -539,6 +608,7 @@ cdef class Mixture:
     cdef public int num_species
     cdef object _keepalive_species
     cdef object _keepalive_omit
+    cdef object _keepalive_reactants
     def __init__(self, list species=None, bint products_from_reactants=False, list omit=[], bint ions=False):
         """
         Create the Mixture object
@@ -546,15 +616,49 @@ cdef class Mixture:
         returned object is the corresponding product Mixture
         """
 
-        cdef cea_err ierr
+        cdef cea_err ierr = SUCCESS
         cdef cea_int num_products
-        self.num_species = <int>len(species)
+        cdef int i, j
+        cdef int ne
+        cdef int nomit
+        cdef bint has_custom = False
+        cdef object entry
+        cdef object formula_dict
+        cdef object fkey
+        cdef object fval
+        cdef Reactant reactant
+        cdef _CString _encoded
         cdef cea_string* cea_species = NULL
-        cdef int nomit = <int>len(omit)
         cdef cea_string* cea_omit = NULL
+        cdef cea_reactant_input* cea_reactants = NULL
+        cdef cea_string* elem_ptrs = NULL
+        cdef cea_real* coeff_ptrs = NULL
         cdef list _species_keepalive = []
         cdef list _omit_keepalive = []
-        cdef _CString _encoded
+        cdef list _reactant_keepalive = []
+        cdef list _element_ptr_buffers = []
+        cdef list _coeff_ptr_buffers = []
+        cdef _CString _enthalpy_units
+        cdef _CString _temperature_units
+
+        if species is None:
+            raise TypeError("Mixture species must be provided")
+        if omit is None:
+            omit = []
+        if type(species) is not list:
+            raise TypeError("Mixture species must be a list")
+        if type(omit) is not list:
+            raise TypeError("Mixture omit must be a list")
+        _enthalpy_units = _CString("j/mole", "Reactant enthalpy units")
+        _temperature_units = _CString("k", "Reactant temperature units")
+
+        self.num_species = <int>len(species)
+        nomit = <int>len(omit)
+        for entry in species:
+            if isinstance(entry, Reactant):
+                has_custom = True
+            elif not isinstance(entry, str):
+                raise TypeError("Mixture species entries must be str or Reactant")
 
         cea_species = <cea_string*>malloc(sizeof(cea_string)*len(species))
         if cea_species == NULL:
@@ -565,8 +669,11 @@ cdef class Mixture:
             raise MemoryError("Failed to allocate omit pointer buffer")
 
         try:
-            for i, val in enumerate(species):
-                _encoded = _CString(val, "Mixture species entries")
+            for i, entry in enumerate(species):
+                if isinstance(entry, Reactant):
+                    _encoded = _CString(entry.name, "Mixture species entries")
+                else:
+                    _encoded = _CString(entry, "Mixture species entries")
                 _species_keepalive.append(_encoded)
                 cea_species[i] = _encoded.ptr
             for i, val in enumerate(omit):
@@ -575,28 +682,120 @@ cdef class Mixture:
                 cea_omit[i] = _encoded.ptr
             self._keepalive_species = _species_keepalive
             self._keepalive_omit = _omit_keepalive
+            self._keepalive_reactants = _reactant_keepalive
 
-            if ions:
-                if products_from_reactants:
-                    # Create the products mixture from the provided reactants
-                    ierr = cea_mixture_create_from_reactants_w_ions(&self.ptr, <cea_int>self.num_species, cea_species, <cea_int>nomit, cea_omit)
-                    ierr = cea_mixture_get_num_species(self.ptr, &num_products)
-                    self.num_species = num_products
+            if has_custom:
+                cea_reactants = <cea_reactant_input*>malloc(sizeof(cea_reactant_input) * self.num_species)
+                if cea_reactants == NULL:
+                    raise MemoryError("Failed to allocate reactant input buffer")
+
+                for i, entry in enumerate(species):
+                    cea_reactants[i].name = cea_species[i]
+                    cea_reactants[i].num_elements = 0
+                    cea_reactants[i].elements = NULL
+                    cea_reactants[i].coefficients = NULL
+                    cea_reactants[i].has_molecular_weight = 0
+                    cea_reactants[i].molecular_weight = 0.0
+                    cea_reactants[i].has_enthalpy = 0
+                    cea_reactants[i].enthalpy = 0.0
+                    cea_reactants[i].enthalpy_units = NULL
+                    cea_reactants[i].has_temperature = 0
+                    cea_reactants[i].temperature = 0.0
+                    cea_reactants[i].temperature_units = NULL
+
+                    if isinstance(entry, Reactant):
+                        reactant = <Reactant>entry
+                    else:
+                        reactant = Reactant(entry)
+
+                    formula_dict = reactant.formula
+                    if formula_dict is not None:
+                        ne = <int>len(formula_dict)
+                        elem_ptrs = <cea_string*>malloc(sizeof(cea_string) * ne)
+                        if elem_ptrs == NULL:
+                            raise MemoryError("Failed to allocate reactant formula element buffer")
+                        coeff_ptrs = <cea_real*>malloc(sizeof(cea_real) * ne)
+                        if coeff_ptrs == NULL:
+                            free(elem_ptrs)
+                            raise MemoryError("Failed to allocate reactant formula coefficient buffer")
+                        _element_ptr_buffers.append(<size_t>elem_ptrs)
+                        _coeff_ptr_buffers.append(<size_t>coeff_ptrs)
+                        cea_reactants[i].num_elements = ne
+                        cea_reactants[i].elements = elem_ptrs
+                        cea_reactants[i].coefficients = coeff_ptrs
+
+                        j = 0
+                        for fkey, fval in formula_dict.items():
+                            _encoded = _CString(fkey, "Reactant formula elements")
+                            _reactant_keepalive.append(_encoded)
+                            elem_ptrs[j] = _encoded.ptr
+                            coeff_ptrs[j] = float(fval)
+                            j += 1
+
+                    if reactant.molecular_weight is not None:
+                        cea_reactants[i].has_molecular_weight = 1
+                        cea_reactants[i].molecular_weight = float(reactant.molecular_weight)
+
+                    if reactant.enthalpy is not None:
+                        cea_reactants[i].has_enthalpy = 1
+                        cea_reactants[i].enthalpy = float(reactant.enthalpy) * float(reactant.molecular_weight) / 1000.0
+                        cea_reactants[i].enthalpy_units = _enthalpy_units.ptr
+
+                    if reactant.temperature is not None:
+                        cea_reactants[i].has_temperature = 1
+                        cea_reactants[i].temperature = float(reactant.temperature)
+                        cea_reactants[i].temperature_units = _temperature_units.ptr
+
+                if ions:
+                    if products_from_reactants:
+                        ierr = cea_mixture_create_products_from_input_reactants_w_ions(&self.ptr, <cea_int>self.num_species, cea_reactants, <cea_int>nomit, cea_omit)
+                        _check_ierr(ierr, "Mixture.__init__")
+                        ierr = cea_mixture_get_num_species(self.ptr, &num_products)
+                        _check_ierr(ierr, "Mixture.__init__")
+                        self.num_species = num_products
+                    else:
+                        ierr = cea_mixture_create_from_input_reactants_w_ions(&self.ptr, <cea_int>self.num_species, cea_reactants)
+                        _check_ierr(ierr, "Mixture.__init__")
                 else:
-                    # Create the mixture directly from the provided species (products or reactants)
-                    ierr = cea_mixture_create_w_ions(&self.ptr, <cea_int>self.num_species, cea_species)
+                    if products_from_reactants:
+                        ierr = cea_mixture_create_products_from_input_reactants(&self.ptr, <cea_int>self.num_species, cea_reactants, <cea_int>nomit, cea_omit)
+                        _check_ierr(ierr, "Mixture.__init__")
+                        ierr = cea_mixture_get_num_species(self.ptr, &num_products)
+                        _check_ierr(ierr, "Mixture.__init__")
+                        self.num_species = num_products
+                    else:
+                        ierr = cea_mixture_create_from_input_reactants(&self.ptr, <cea_int>self.num_species, cea_reactants)
+                        _check_ierr(ierr, "Mixture.__init__")
             else:
-                if products_from_reactants:
-                    # Create the products mixture from the provided reactants
-                    ierr = cea_mixture_create_from_reactants(&self.ptr, <cea_int>self.num_species, cea_species, <cea_int>nomit, cea_omit)
-                    ierr = cea_mixture_get_num_species(self.ptr, &num_products)
-                    self.num_species = num_products
+                if ions:
+                    if products_from_reactants:
+                        ierr = cea_mixture_create_from_reactants_w_ions(&self.ptr, <cea_int>self.num_species, cea_species, <cea_int>nomit, cea_omit)
+                        _check_ierr(ierr, "Mixture.__init__")
+                        ierr = cea_mixture_get_num_species(self.ptr, &num_products)
+                        _check_ierr(ierr, "Mixture.__init__")
+                        self.num_species = num_products
+                    else:
+                        ierr = cea_mixture_create_w_ions(&self.ptr, <cea_int>self.num_species, cea_species)
+                        _check_ierr(ierr, "Mixture.__init__")
                 else:
-                    # Create the mixture directly from the provided species (products or reactants)
-                    ierr = cea_mixture_create(&self.ptr, <cea_int>self.num_species, cea_species)
+                    if products_from_reactants:
+                        ierr = cea_mixture_create_from_reactants(&self.ptr, <cea_int>self.num_species, cea_species, <cea_int>nomit, cea_omit)
+                        _check_ierr(ierr, "Mixture.__init__")
+                        ierr = cea_mixture_get_num_species(self.ptr, &num_products)
+                        _check_ierr(ierr, "Mixture.__init__")
+                        self.num_species = num_products
+                    else:
+                        ierr = cea_mixture_create(&self.ptr, <cea_int>self.num_species, cea_species)
+                        _check_ierr(ierr, "Mixture.__init__")
         finally:
             free(cea_species)
             free(cea_omit)
+            if cea_reactants != NULL:
+                free(cea_reactants)
+            for i in range(len(_element_ptr_buffers)):
+                free(<void*><size_t>_element_ptr_buffers[i])
+            for i in range(len(_coeff_ptr_buffers)):
+                free(<void*><size_t>_coeff_ptr_buffers[i])
 
         return
 
