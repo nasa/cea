@@ -8,7 +8,7 @@ Example 5 from RP-1311
 """
 
 pressures = np.array([34.473652, 17.236826, 8.618413, 3.447365, 0.344737])
-weights = np.array([0.7206, 0.1858, 0.09, 0.002, 0.0016], dtype=np.float64)
+weights = np.array([0.7206, 0.1858, 0.09, 0.002, 0.0016], dtype=np.float64)  # wt fractions
 T_reac = np.array([298.15, 298.15, 298.15, 298.15, 298.15], dtype=np.float64)
 
 omit_names = [
@@ -58,9 +58,185 @@ solver = cea.EqSolver(prod, reactants=reac)
 solution = cea.EqSolution(solver)
 
 h0 = reac.calc_property(cea.ENTHALPY, weights, T_reac)
+n = len(pressures)
+of_ratio_out = np.zeros(n)
+P_out = np.zeros(n)
+T_out = np.zeros(n)
+rho = np.zeros(n)
+volume = np.zeros(n)
+enthalpy = np.zeros(n)
+energy = np.zeros(n)
+gibbs = np.zeros(n)
+entropy = np.zeros(n)
+molecular_weight_M = np.zeros(n)
+molecular_weight_MW = np.zeros(n)
+gamma_s = np.zeros(n)
+cp_eq = np.zeros(n)
+cp_fr = np.zeros(n)
+cv_eq = np.zeros(n)
+cv_fr = np.zeros(n)
+mole_fractions = {}
+i = 0
 
-print(f"{'P (bar)':>10s} {'T (K)':>10s} {'Gamma_s':>10s} {'Cp (cal/g-K)':>14s}")
 for p in pressures:
     solver.solve(solution, cea.HP, h0 / cea.R, p, weights)
-    cp_cal_per_gk = cea.units.joule_to_cal(solution.cp_eq)
-    print(f"{p:10.6f} {solution.T:10.2f} {solution.gamma_s:10.4f} {cp_cal_per_gk:14.4f}")
+
+    of_ratio_out[i] = 0.0
+    P_out[i] = cea.units.bar_to_atm(p)
+    if solution.converged:
+        T_out[i] = solution.T
+        rho[i] = solution.density * 1.0e-3
+        volume[i] = solution.volume * 1.0e3
+        enthalpy[i] = cea.units.joule_to_cal(solution.enthalpy)
+        energy[i] = cea.units.joule_to_cal(solution.energy)
+        gibbs[i] = cea.units.joule_to_cal(solution.gibbs_energy)
+        entropy[i] = cea.units.joule_to_cal(solution.entropy)
+        molecular_weight_M[i] = solution.M
+        molecular_weight_MW[i] = solution.MW
+        gamma_s[i] = solution.gamma_s
+        cp_eq[i] = cea.units.joule_to_cal(solution.cp_eq)
+        cp_fr[i] = cea.units.joule_to_cal(solution.cp_fr)
+        cv_eq[i] = cea.units.joule_to_cal(solution.cv_eq)
+        cv_fr[i] = cea.units.joule_to_cal(solution.cv_fr)
+
+    if i == 0:
+        for species in solution.mole_fractions:
+            mole_fractions[species] = np.array([solution.mole_fractions[species]])
+    else:
+        for species in mole_fractions:
+            mole_fractions[species] = np.append(mole_fractions[species], solution.mole_fractions[species])
+    i += 1
+
+print("o/f             ", end="")
+for i in range(n):
+    if i < n - 1:
+        print("{0:10.3f}".format(of_ratio_out[i]), end=" ")
+    else:
+        print("{0:10.3f}".format(of_ratio_out[i]))
+
+print("P, atm          ", end="")
+for i in range(n):
+    if i < n - 1:
+        print("{0:10.3f}".format(P_out[i]), end=" ")
+    else:
+        print("{0:10.3f}".format(P_out[i]))
+
+print("T, K            ", end="")
+for i in range(n):
+    if i < n - 1:
+        print("{0:10.3f}".format(T_out[i]), end=" ")
+    else:
+        print("{0:10.3f}".format(T_out[i]))
+
+print("Density, g/cc   ", end="")
+for i in range(n):
+    if i < n - 1:
+        print("{0:10.3e}".format(rho[i]), end=" ")
+    else:
+        print("{0:10.3e}".format(rho[i]))
+
+print("Volume, cc/g    ", end="")
+for i in range(n):
+    if i < n - 1:
+        print("{0:10.3e}".format(volume[i]), end=" ")
+    else:
+        print("{0:10.3e}".format(volume[i]))
+
+print("H, cal/g        ", end="")
+for i in range(n):
+    if i < n - 1:
+        print("{0:10.3f}".format(enthalpy[i]), end=" ")
+    else:
+        print("{0:10.3f}".format(enthalpy[i]))
+
+print("U, cal/g        ", end="")
+for i in range(n):
+    if i < n - 1:
+        print("{0:10.3f}".format(energy[i]), end=" ")
+    else:
+        print("{0:10.3f}".format(energy[i]))
+
+print("G, cal/g        ", end="")
+for i in range(n):
+    if i < n - 1:
+        print("{0:10.1f}".format(gibbs[i]), end=" ")
+    else:
+        print("{0:10.1f}".format(gibbs[i]))
+
+print("S, cal/g-K      ", end="")
+for i in range(n):
+    if i < n - 1:
+        print("{0:10.3f}".format(entropy[i]), end=" ")
+    else:
+        print("{0:10.3f}".format(entropy[i]))
+
+print("M, (1/n)        ", end="")
+for i in range(n):
+    if i < n - 1:
+        print("{0:10.3f}".format(molecular_weight_M[i]), end=" ")
+    else:
+        print("{0:10.3f}".format(molecular_weight_M[i]))
+
+print("MW              ", end="")
+for i in range(n):
+    if i < n - 1:
+        print("{0:10.3f}".format(molecular_weight_MW[i]), end=" ")
+    else:
+        print("{0:10.3f}".format(molecular_weight_MW[i]))
+
+print("Gamma_s         ", end="")
+for i in range(n):
+    if i < n - 1:
+        print("{0:10.4f}".format(gamma_s[i]), end=" ")
+    else:
+        print("{0:10.4f}".format(gamma_s[i]))
+
+print("Cp_eq, cal/g-K  ", end="")
+for i in range(n):
+    if i < n - 1:
+        print("{0:10.4f}".format(cp_eq[i]), end=" ")
+    else:
+        print("{0:10.4f}".format(cp_eq[i]))
+
+print("Cp_fr, cal/g-K  ", end="")
+for i in range(n):
+    if i < n - 1:
+        print("{0:10.4f}".format(cp_fr[i]), end=" ")
+    else:
+        print("{0:10.4f}".format(cp_fr[i]))
+
+print("Cv_eq, cal/g-K  ", end="")
+for i in range(n):
+    if i < n - 1:
+        print("{0:10.4f}".format(cv_eq[i]), end=" ")
+    else:
+        print("{0:10.4f}".format(cv_eq[i]))
+
+print("Cv_fr, cal/g-K  ", end="")
+for i in range(n):
+    if i < n - 1:
+        print("{0:10.4f}".format(cv_fr[i]), end=" ")
+    else:
+        print("{0:10.4f}".format(cv_fr[i]))
+
+print()
+print("MOLE FRACTIONS")
+print("")
+trace_species = []
+for species in mole_fractions:
+    if np.any(mole_fractions[species] > 5e-6):
+        print("{0:15s}".format(species), end=" ")
+        for j in range(n):
+            if j < n - 1:
+                print("{0:10.5g}".format(mole_fractions[species][j]), end=" ")
+            else:
+                print("{0:10.5g}".format(mole_fractions[species][j]))
+    else:
+        trace_species.append(species)
+
+print()
+print("TRACE SPECIES:")
+max_cols = 10
+nrows = (len(trace_species) + max_cols - 1) // max_cols
+for i in range(nrows):
+    print(" ".join("{0:10s}".format(trace_species[j]) for j in range(i * max_cols, min((i + 1) * max_cols, len(trace_species)))))
