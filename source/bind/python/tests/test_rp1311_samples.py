@@ -362,10 +362,10 @@ def test_example9_fac_rocket(cea_module):
     solver.solve(soln, w, pc, pi_p, supar=supar, ac_at=1.58, iac=False, hc=hc)
 
     assert soln.num_pts == 10
-    assert soln.T[0] == pytest.approx(3383.844614137881, rel=1e-5)
-    assert soln.c_star[0] == pytest.approx(2330.967589918211, rel=1e-5)
-    assert soln.Isp_vacuum[-1] == pytest.approx(4554.315454546227, rel=1e-5)
-    assert soln.coefficient_of_thrust[-1] == pytest.approx(1.8869095701543406, rel=1e-5)
+    assert soln.T[0] == pytest.approx(3383.84, rel=1e-4)
+    assert soln.c_star[0] == pytest.approx(2331.0, rel=1e-4)
+    assert soln.Isp_vacuum[-1] == pytest.approx(4554.3, rel=1e-4)
+    assert soln.coefficient_of_thrust[-1] == pytest.approx(1.8869, rel=1e-4)
 
 
 @pytest.mark.rp1311

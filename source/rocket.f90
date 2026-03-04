@@ -975,6 +975,7 @@ contains
         integer :: n_frz_                    ! Temporary variable for frozen index
         integer :: num_pts                   ! Total number of evaluation points
         integer, parameter :: max_iter_area = 10  ! Maximum number of iterations for exit condition using area ratio
+        integer, parameter :: max_iter_chamber = 100  ! Safety guard for FAC chamber-closure iterations
         real(dp), parameter :: area_tol = 4.0d-5  ! Area-ratio convergence tolerance
         character(len=2) :: prob_type        ! Equilibrium problem type
         real(dp) :: state1                   ! Chamber temperature or enthalpy, or entropy at other stations
@@ -994,6 +995,7 @@ contains
         real(dp) :: volume                   ! Volume temporary variable
         logical :: use_acat                  ! Flag to use the contraction ratio for chamber solution (if false, use mdot)
         logical :: frozen                    ! Flag to determine if frozen is used
+        integer :: chamber_iter              ! FAC chamber-closure iteration counter
         real(dp) :: acatsv, pratsv, mat, prat, pjrat, pr, pracat
 
         ! Index of solution:
@@ -1093,8 +1095,10 @@ contains
         ! P_c initial guess
         soln%pressure(3) = p_inf
 
-        ! Iterate until combustor conditions converge
-        do i = 1, 4 ! Max outer iterations
+        ! Iterate until combustor conditions converge (legacy CEA2-style stopping test).
+        chamber_iter = 0
+        do
+            chamber_iter = chamber_iter + 1
 
             soln%pressure(2) = p_inf
 
@@ -1119,21 +1123,17 @@ contains
             ! -----------------------------------------------
             idx = 3
 
-            ! Update initial guess of Pc
-            if (i == 1) then
-                ! Set equilibrium initial guess
-                soln%eq_soln(idx) = EqSolution(self%eq_solver, T_init=soln%eq_soln(1)%T, nj_init=soln%eq_soln(1)%nj)
-
-                ln_pinf_pt = log(soln%pressure(2)/soln%pressure(4))
-                ln_pinf_pc = ln_pinf_pt/(ac_at_ + 10.587d0*(log(ac_at_)**3.0d0) + 9.454d0*log(ac_at_))
-                if (ac_at_ < 1.09d0) then
-                    ln_pinf_pc = 0.9d0*ln_pinf_pc
-                else if (ac_at_ > 10.0d0) then
-                    ln_pinf_pc = ln_pinf_pc/ac_at_
-                end if
-                ! Update the pressure
-                soln%pressure(idx) = p_inf/exp(ln_pinf_pc)
+            ! Re-seed combustor-end iterate from the current infinity state
+            soln%eq_soln(idx) = EqSolution(self%eq_solver, T_init=soln%eq_soln(2)%T, nj_init=soln%eq_soln(2)%nj)
+            ln_pinf_pt = log(soln%pressure(2)/soln%pressure(4))
+            ln_pinf_pc = ln_pinf_pt/(ac_at_ + 10.587d0*(log(ac_at_)**3.0d0) + 9.454d0*log(ac_at_))
+            if (ac_at_ < 1.09d0) then
+                ln_pinf_pc = 0.9d0*ln_pinf_pc
+            else if (ac_at_ > 10.0d0) then
+                ln_pinf_pc = ln_pinf_pc/ac_at_
             end if
+            ! Update the pressure
+            soln%pressure(idx) = p_inf/exp(ln_pinf_pc)
 
             ! -----------------------------------------------
             ! Iterate at the combustor end until convergence for assigned area ratio
@@ -1175,10 +1175,12 @@ contains
 
             if (use_acat) then
 
-                prat = (p_inj_check/pc)
+                prat = pc/p_inj_check
 
                 ! Check combustor convergence (Eq. 6.29)
-                if (abs(pc - p_inj_check)/p_inj_check <= c_tol) exit
+                if (abs(pc - p_inj_check)/pc <= c_tol) then
+                    exit
+                end if
 
                 ! Update estimate
                 p_inf = p_inf*prat
@@ -1191,7 +1193,9 @@ contains
                 prat = (1.0257d0 - 1.2318d0*ac_at_)/(1.0d0 - 1.26505d0*ac_at_)
 
                 ! Check combustor convergence (Eq. 6.29)
-                if (abs(pc - p_inj_check)/p_inj_check <= c_tol) exit
+                if (abs(pc - p_inj_check)/p_inj_check <= c_tol) then
+                    exit
+                end if
 
                 pjrat = p_inj_check/pc
                 do k = 1, 2
@@ -1204,6 +1208,12 @@ contains
                     pjrat = 1.0d0
                     prat = (1.0257d0 - 1.2318d0*ac_at_)/(1.0d0 - 1.26505d0*ac_at_)
                 end do
+            end if
+
+            if (chamber_iter >= max_iter_chamber) then
+                call log_warning('RocketSolver FAC: chamber conditions did not converge within '// &
+                    to_str(max_iter_chamber)//' iterations; continuing with last iterate')
+                exit
             end if
 
         end do
