@@ -8,6 +8,7 @@ All notable user-visible changes to this project are documented here.
 - Python `Mixture` input validation now accepts `str` and `cea.Reactant` entries (including mixed lists) and no longer accepts raw `bytes` species names (`#53`).
 - Added SI-focused custom-reactant handling at the Python API layer: `Reactant.temperature` is specified in K and `Reactant.enthalpy` in J/kg (converted internally for core input) (`#53`).
 - Legacy input parsing now supports repeated `outp` dataset keywords (including multiline forms) by merging successive `outp` entries during dataset assembly (`#52`).
+- FAC rocket chamber-closure iteration logic in `RocketSolver_solve_fac` was updated toward CEA2 parity: Option-1 pressure correction direction now follows legacy semantics, the Option-1 convergence check is normalized to assigned injector pressure, the fixed 4-pass outer loop was replaced with tolerance-driven iteration plus a bounded safety guard, and FAC combustor-end reseeding now refreshes from the current infinity state each chamber iteration (`#54`).
 
 ### Fixed
 - Legacy CLI equilibrium/rocket/shock workflows now propagate `include_ions` into generated product mixtures so ionized products are retained when requested (`#52`).

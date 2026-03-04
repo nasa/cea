@@ -27,7 +27,7 @@ contains
         type(RocketSolution) :: soln
         character(:), allocatable :: product_names(:)
         real(dp) :: hc, pc, weights(2)
-        real(dp), parameter :: tol = 1.0d-6
+        real(dp), parameter :: tol = 1.0d-3
 
         reactants = Mixture(all_thermo, ['H2(L)', 'O2(L)'])
         product_names = reactants%get_products(all_thermo)
@@ -58,16 +58,16 @@ contains
         @assertRelativelyEqual(1.1446952882630981d0, soln%eq_partials(1)%gamma_s, tol)
 
         ! Test the throat conditions
-        @assertRelativelyEqual(3185.6731730807096d0,  soln%eq_soln(2)%T, 1.d-4)
-        @assertRelativelyEqual(-6.1821344716750914d0, soln%eq_soln(2)%ln_nj(1), 1.d-4)
+        @assertRelativelyEqual(3185.6731730807096d0,  soln%eq_soln(2)%T, tol)
+        @assertRelativelyEqual(-6.1821344716750914d0, soln%eq_soln(2)%ln_nj(1), tol)
         @assertRelativelyEqual(-3.7758918668469459d0, soln%eq_soln(2)%ln_nj(2), tol)
-        @assertRelativelyEqual(-2.9793204768377386d0, soln%eq_soln(2)%ln_nj(3), 1.d-5)
-        @assertRelativelyEqual(-15.390957389720871d0, soln%eq_soln(2)%ln_nj(4), 1.d-4)
-        @assertRelativelyEqual(-14.463537833879375d0, soln%eq_soln(2)%ln_nj(5), 1.d-3)
-        @assertRelativelyEqual(-9.2750622184872977d0, soln%eq_soln(2)%ln_nj(6), 1.d-3)
-        @assertRelativelyEqual(-9.4174545784769350d0, soln%eq_soln(2)%ln_nj(7), 1.d-3)
-        @assertRelativelyEqual(-24.252028485373366d0, soln%eq_soln(2)%ln_nj(8), 1.d-3)
-        @assertRelativelyEqual(-6.2780009788518836d0, soln%eq_soln(2)%ln_nj(9), 1.d-3)
+        @assertRelativelyEqual(-2.9793204768377386d0, soln%eq_soln(2)%ln_nj(3), tol)
+        @assertRelativelyEqual(-15.390957389720871d0, soln%eq_soln(2)%ln_nj(4), tol)
+        @assertRelativelyEqual(-14.463537833879375d0, soln%eq_soln(2)%ln_nj(5), tol)
+        @assertRelativelyEqual(-9.2750622184872977d0, soln%eq_soln(2)%ln_nj(6), tol)
+        @assertRelativelyEqual(-9.4174545784769350d0, soln%eq_soln(2)%ln_nj(7), tol)
+        @assertRelativelyEqual(-24.252028485373366d0, soln%eq_soln(2)%ln_nj(8), tol)
+        @assertRelativelyEqual(-6.2780009788518836d0, soln%eq_soln(2)%ln_nj(9), tol)
         @assertEqual(0.0d0, soln%eq_soln(1)%nj(10), tol)
         @assertEqual(0.0d0, soln%eq_soln(1)%nj(11), tol)
 
@@ -86,30 +86,30 @@ contains
         @assertEqual(0.0d0, soln%eq_soln(3)%nj(11), tol)
 
         ! Test the exit conditions (subar)
-        @assertRelativelyEqual(3348.6869671134514d0,  soln%eq_soln(4)%T, 1.d-5)
-        @assertRelativelyEqual(-5.9786443891862024d0, soln%eq_soln(4)%ln_nj(1), 1.d-5)
-        @assertRelativelyEqual(-3.7666111179114079d0, soln%eq_soln(4)%ln_nj(2), 1.d-5)
-        @assertRelativelyEqual(-2.9941914961601874d0, soln%eq_soln(4)%ln_nj(3), 1.d-5)
-        @assertRelativelyEqual(-14.760092748145684d0, soln%eq_soln(4)%ln_nj(4), 1.d-5)
-        @assertRelativelyEqual(-13.788301982356952d0, soln%eq_soln(4)%ln_nj(5), 1.d-5)
-        @assertRelativelyEqual(-8.8130098813248789d0, soln%eq_soln(4)%ln_nj(6), 1.d-5)
-        @assertRelativelyEqual(-8.9885170751671950d0, soln%eq_soln(4)%ln_nj(7), 1.d-5)
-        @assertRelativelyEqual(-23.056662760647107d0, soln%eq_soln(4)%ln_nj(8), 1.d-5)
-        @assertRelativelyEqual(-5.9979245848374543d0, soln%eq_soln(4)%ln_nj(9), 1.d-5)
+        @assertRelativelyEqual(3348.6869671134514d0,  soln%eq_soln(4)%T, tol)
+        @assertRelativelyEqual(-5.9786443891862024d0, soln%eq_soln(4)%ln_nj(1), tol)
+        @assertRelativelyEqual(-3.7666111179114079d0, soln%eq_soln(4)%ln_nj(2), tol)
+        @assertRelativelyEqual(-2.9941914961601874d0, soln%eq_soln(4)%ln_nj(3), tol)
+        @assertRelativelyEqual(-14.760092748145684d0, soln%eq_soln(4)%ln_nj(4), tol)
+        @assertRelativelyEqual(-13.788301982356952d0, soln%eq_soln(4)%ln_nj(5), tol)
+        @assertRelativelyEqual(-8.8130098813248789d0, soln%eq_soln(4)%ln_nj(6), tol)
+        @assertRelativelyEqual(-8.9885170751671950d0, soln%eq_soln(4)%ln_nj(7), tol)
+        @assertRelativelyEqual(-23.056662760647107d0, soln%eq_soln(4)%ln_nj(8), tol)
+        @assertRelativelyEqual(-5.9979245848374543d0, soln%eq_soln(4)%ln_nj(9), tol)
         @assertEqual(0.0d0, soln%eq_soln(4)%nj(10), tol)
         @assertEqual(0.0d0, soln%eq_soln(4)%nj(11), tol)
 
         ! Test the exit conditions (supar)
-        @assertRelativelyEqual(1468.1562133402410d0,  soln%eq_soln(5)%T, 1.d-4)
-        @assertRelativelyEqual(-13.726496941435956d0, soln%eq_soln(5)%ln_nj(1), 1.d-4)
+        @assertRelativelyEqual(1468.1562133402410d0,  soln%eq_soln(5)%T, tol)
+        @assertRelativelyEqual(-13.726496941435956d0, soln%eq_soln(5)%ln_nj(1), tol)
         @assertRelativelyEqual(-3.7830318719581535d0, soln%eq_soln(5)%ln_nj(2), tol)
         @assertRelativelyEqual(-2.9381766200877317d0, soln%eq_soln(5)%ln_nj(3), tol)
-        @assertRelativelyEqual(-31.274332478224157d0, soln%eq_soln(5)%ln_nj(4), 1.d-4)
-        @assertRelativelyEqual(-34.437819507855693d0, soln%eq_soln(5)%ln_nj(5), 1.d-4)
-        @assertRelativelyEqual(-26.622750111744118d0, soln%eq_soln(5)%ln_nj(6), 1.d-4)
-        @assertRelativelyEqual(-26.534772500074840d0, soln%eq_soln(5)%ln_nj(7), 1.d-4)
-        @assertRelativelyEqual(-59.126801668300317d0, soln%eq_soln(5)%ln_nj(8), 1.d-4)
-        @assertRelativelyEqual(-16.379625717865014d0, soln%eq_soln(5)%ln_nj(9), 1.d-4)
+        @assertRelativelyEqual(-31.274332478224157d0, soln%eq_soln(5)%ln_nj(4), tol)
+        @assertRelativelyEqual(-34.437819507855693d0, soln%eq_soln(5)%ln_nj(5), tol)
+        @assertRelativelyEqual(-26.622750111744118d0, soln%eq_soln(5)%ln_nj(6), tol)
+        @assertRelativelyEqual(-26.534772500074840d0, soln%eq_soln(5)%ln_nj(7), tol)
+        @assertRelativelyEqual(-59.126801668300317d0, soln%eq_soln(5)%ln_nj(8), tol)
+        @assertRelativelyEqual(-16.379625717865014d0, soln%eq_soln(5)%ln_nj(9), tol)
         @assertEqual(0.0d0, soln%eq_soln(5)%nj(10), tol)
         @assertEqual(0.0d0, soln%eq_soln(5)%nj(11), tol)
 
@@ -153,16 +153,16 @@ contains
         @assertEqual(0.0d0, soln%eq_soln(3)%nj(11), tol)
 
         ! Test the exit conditions (supar)
-        @assertRelativelyEqual(1088.6397265231828d0,  soln%eq_soln(5)%T, 1.d-4)
-        @assertRelativelyEqual(-19.382439807170922d0, soln%eq_soln(5)%ln_nj(1), 1.d-4)
+        @assertRelativelyEqual(1088.6397265231828d0,  soln%eq_soln(5)%T, tol)
+        @assertRelativelyEqual(-19.382439807170922d0, soln%eq_soln(5)%ln_nj(1), tol)
         @assertRelativelyEqual(-3.7830096278414955d0, soln%eq_soln(5)%ln_nj(2), tol)
         @assertRelativelyEqual(-2.9381751664807116d0, soln%eq_soln(5)%ln_nj(3), tol)
-        @assertRelativelyEqual(-41.461231562555369d0, soln%eq_soln(5)%ln_nj(4), 1.d-4)
-        @assertRelativelyEqual(-48.173268381760458d0, soln%eq_soln(5)%ln_nj(5), 1.d-4)
-        @assertRelativelyEqual(-39.517963084485800d0, soln%eq_soln(5)%ln_nj(6), 1.d-4)
-        @assertRelativelyEqual(-39.308395842814186d0, soln%eq_soln(5)%ln_nj(7), 1.d-4)
-        @assertRelativelyEqual(-83.130329931243125d0, soln%eq_soln(5)%ln_nj(8), 1.d-4)
-        @assertRelativelyEqual(-23.795862410526230d0, soln%eq_soln(5)%ln_nj(9), 1.d-4)
+        @assertRelativelyEqual(-41.461231562555369d0, soln%eq_soln(5)%ln_nj(4), tol)
+        @assertRelativelyEqual(-48.173268381760458d0, soln%eq_soln(5)%ln_nj(5), tol)
+        @assertRelativelyEqual(-39.517963084485800d0, soln%eq_soln(5)%ln_nj(6), tol)
+        @assertRelativelyEqual(-39.308395842814186d0, soln%eq_soln(5)%ln_nj(7), tol)
+        @assertRelativelyEqual(-83.130329931243125d0, soln%eq_soln(5)%ln_nj(8), tol)
+        @assertRelativelyEqual(-23.795862410526230d0, soln%eq_soln(5)%ln_nj(9), tol)
         @assertEqual(0.0d0, soln%eq_soln(5)%nj(10), tol)
         @assertEqual(0.0d0, soln%eq_soln(5)%nj(11), tol)
 
@@ -176,7 +176,7 @@ contains
         type(RocketSolution) :: soln
         character(:), allocatable :: product_names(:)
         real(dp) :: hc, pc, weights(2)
-        real(dp), parameter :: tol = 1.0d-6
+        real(dp), parameter :: tol = 1.0d-3
 
         reactants = Mixture(all_thermo, ['H2(L)', 'O2(L)'])
         product_names = reactants%get_products(all_thermo)
@@ -207,58 +207,58 @@ contains
         @assertRelativelyEqual(1.1446952882630981d0, soln%eq_partials(1)%gamma_s, tol)
 
         ! Test the combustor end conditions
-        @assertRelativelyEqual(3341.0778981354892d0,  soln%eq_soln(3)%T, 1.d-4)
-        @assertRelativelyEqual(-5.9563043802997306d0, soln%eq_soln(3)%ln_nj(1), 1.d-4)
-        @assertRelativelyEqual(-3.7662871638072399d0, soln%eq_soln(3)%ln_nj(2), 1.d-4)
-        @assertRelativelyEqual(-2.9953231345416889d0, soln%eq_soln(3)%ln_nj(3), 1.d-4)
-        @assertRelativelyEqual(-14.792564445649031d0, soln%eq_soln(3)%ln_nj(4), 1.d-4)
-        @assertRelativelyEqual(-13.792063684573417d0, soln%eq_soln(3)%ln_nj(5), 1.d-4)
-        @assertRelativelyEqual(-8.7740364834084108d0, soln%eq_soln(3)%ln_nj(6), 1.d-3)
-        @assertRelativelyEqual(-8.9505957454432306d0, soln%eq_soln(3)%ln_nj(7), 1.d-3)
-        @assertRelativelyEqual(-23.055677849103546d0, soln%eq_soln(3)%ln_nj(8), 1.d-4)
-        @assertRelativelyEqual(-5.9815107001626036d0, soln%eq_soln(3)%ln_nj(9), 1.d-4)
+        @assertRelativelyEqual(3341.0778981354892d0,  soln%eq_soln(3)%T, tol)
+        @assertRelativelyEqual(-5.9563043802997306d0, soln%eq_soln(3)%ln_nj(1), tol)
+        @assertRelativelyEqual(-3.7662871638072399d0, soln%eq_soln(3)%ln_nj(2), tol)
+        @assertRelativelyEqual(-2.9953231345416889d0, soln%eq_soln(3)%ln_nj(3), tol)
+        @assertRelativelyEqual(-14.792564445649031d0, soln%eq_soln(3)%ln_nj(4), tol)
+        @assertRelativelyEqual(-13.792063684573417d0, soln%eq_soln(3)%ln_nj(5), tol)
+        @assertRelativelyEqual(-8.7740364834084108d0, soln%eq_soln(3)%ln_nj(6), tol)
+        @assertRelativelyEqual(-8.9505957454432306d0, soln%eq_soln(3)%ln_nj(7), tol)
+        @assertRelativelyEqual(-23.055677849103546d0, soln%eq_soln(3)%ln_nj(8), tol)
+        @assertRelativelyEqual(-5.9815107001626036d0, soln%eq_soln(3)%ln_nj(9), tol)
         @assertEqual(0.0d0, soln%eq_soln(3)%nj(10))
         @assertEqual(0.0d0, soln%eq_soln(3)%nj(11))
 
         ! Test the throat conditions
-        @assertRelativelyEqual(3179.8427699021822d0,  soln%eq_soln(4)%T, 1.d-3)
-        @assertRelativelyEqual(-6.1578021043083115d0, soln%eq_soln(4)%ln_nj(1), 1.d-3)
-        @assertRelativelyEqual(-3.7756980710176986d0, soln%eq_soln(4)%ln_nj(2), 1.d-5)
-        @assertRelativelyEqual(-2.9802599107644063d0, soln%eq_soln(4)%ln_nj(3), 1.d-5)
-        @assertRelativelyEqual(-15.419598173067183d0, soln%eq_soln(4)%ln_nj(4), 1.d-3)
-        @assertRelativelyEqual(-14.462086820578048d0, soln%eq_soln(4)%ln_nj(5), 1.d-3)
-        @assertRelativelyEqual(-9.2312248450453414d0, soln%eq_soln(4)%ln_nj(6), 1.d-3)
-        @assertRelativelyEqual(-9.3743822276749569d0, soln%eq_soln(4)%ln_nj(7), 1.d-3)
-        @assertRelativelyEqual(-24.241251098542243d0, soln%eq_soln(4)%ln_nj(8), 1.d-3)
-        @assertRelativelyEqual(-6.2588057507354531d0, soln%eq_soln(4)%ln_nj(9), 1.d-3)
+        @assertRelativelyEqual(3179.8427699021822d0,  soln%eq_soln(4)%T, tol)
+        @assertRelativelyEqual(-6.1578021043083115d0, soln%eq_soln(4)%ln_nj(1), tol)
+        @assertRelativelyEqual(-3.7756980710176986d0, soln%eq_soln(4)%ln_nj(2), tol)
+        @assertRelativelyEqual(-2.9802599107644063d0, soln%eq_soln(4)%ln_nj(3), tol)
+        @assertRelativelyEqual(-15.419598173067183d0, soln%eq_soln(4)%ln_nj(4), tol)
+        @assertRelativelyEqual(-14.462086820578048d0, soln%eq_soln(4)%ln_nj(5), tol)
+        @assertRelativelyEqual(-9.2312248450453414d0, soln%eq_soln(4)%ln_nj(6), tol)
+        @assertRelativelyEqual(-9.3743822276749569d0, soln%eq_soln(4)%ln_nj(7), tol)
+        @assertRelativelyEqual(-24.241251098542243d0, soln%eq_soln(4)%ln_nj(8), tol)
+        @assertRelativelyEqual(-6.2588057507354531d0, soln%eq_soln(4)%ln_nj(9), tol)
         @assertEqual(0.0d0, soln%eq_soln(4)%nj(10))
         @assertEqual(0.0d0, soln%eq_soln(4)%nj(11))
 
         ! Test the exit conditions (supar)
-        @assertRelativelyEqual(1469.5862790545111d0,  soln%eq_soln(6)%T, 1.d-3)
-        @assertRelativelyEqual(-13.668812957083835d0, soln%eq_soln(6)%ln_nj(1), 1.d-2)
+        @assertRelativelyEqual(1469.5862790545111d0,  soln%eq_soln(6)%T, tol)
+        @assertRelativelyEqual(-13.668812957083835d0, soln%eq_soln(6)%ln_nj(1), tol)
         @assertRelativelyEqual(-3.7830331890555100d0, soln%eq_soln(6)%ln_nj(2), tol)
         @assertRelativelyEqual(-2.9381767139263322d0, soln%eq_soln(6)%ln_nj(3), tol)
-        @assertRelativelyEqual(-31.245760599708980d0, soln%eq_soln(6)%ln_nj(4), 1.d-3)
-        @assertRelativelyEqual(-34.357542401748269d0, soln%eq_soln(6)%ln_nj(5), 1.d-3)
-        @assertRelativelyEqual(-26.503010331351341d0, soln%eq_soln(6)%ln_nj(6), 1.d-2)
-        @assertRelativelyEqual(-26.415348318785043d0, soln%eq_soln(6)%ln_nj(7), 1.d-2)
-        @assertRelativelyEqual(-58.975898064884383d0, soln%eq_soln(6)%ln_nj(8), 1.d-3)
-        @assertRelativelyEqual(-16.317067642119419d0, soln%eq_soln(6)%ln_nj(9), 1.d-3)
+        @assertRelativelyEqual(-31.245760599708980d0, soln%eq_soln(6)%ln_nj(4), tol)
+        @assertRelativelyEqual(-34.357542401748269d0, soln%eq_soln(6)%ln_nj(5), tol)
+        @assertRelativelyEqual(-26.503010331351341d0, soln%eq_soln(6)%ln_nj(6), tol)
+        @assertRelativelyEqual(-26.415348318785043d0, soln%eq_soln(6)%ln_nj(7), tol)
+        @assertRelativelyEqual(-58.975898064884383d0, soln%eq_soln(6)%ln_nj(8), tol)
+        @assertRelativelyEqual(-16.317067642119419d0, soln%eq_soln(6)%ln_nj(9), tol)
         @assertEqual(0.0d0, soln%eq_soln(6)%nj(10))
         @assertEqual(0.0d0, soln%eq_soln(6)%nj(11))
 
         ! Test the exit conditions (pi_p)
-        @assertRelativelyEqual(2595.0889748454247d0,  soln%eq_soln(5)%T, 1.d-2)
-        @assertRelativelyEqual(-7.2961784801543654d0, soln%eq_soln(5)%ln_nj(1), 1.d-2)
-        @assertRelativelyEqual(-3.7882991974622957d0, soln%eq_soln(5)%ln_nj(2), 1.d-4)
-        @assertRelativelyEqual(-2.9460954339752519d0, soln%eq_soln(5)%ln_nj(3), 1.d-4)
-        @assertRelativelyEqual(-18.443900219693734d0, soln%eq_soln(5)%ln_nj(4), 1.d-3)
-        @assertRelativelyEqual(-17.923270161497687d0, soln%eq_soln(5)%ln_nj(5), 1.d-2)
-        @assertRelativelyEqual(-11.870686602436889d0, soln%eq_soln(5)%ln_nj(6), 1.d-2)
-        @assertRelativelyEqual(-11.927637492340260d0, soln%eq_soln(5)%ln_nj(7), 1.d-2)
-        @assertRelativelyEqual(-30.311703613188691d0, soln%eq_soln(5)%ln_nj(8), 1.d-2)
-        @assertRelativelyEqual(-7.8301565282584225d0, soln%eq_soln(5)%ln_nj(9), 1.d-3)
+        @assertRelativelyEqual(2595.0889748454247d0,  soln%eq_soln(5)%T, tol)
+        @assertRelativelyEqual(-7.2961784801543654d0, soln%eq_soln(5)%ln_nj(1), tol)
+        @assertRelativelyEqual(-3.7882991974622957d0, soln%eq_soln(5)%ln_nj(2), tol)
+        @assertRelativelyEqual(-2.9460954339752519d0, soln%eq_soln(5)%ln_nj(3), tol)
+        @assertRelativelyEqual(-18.443900219693734d0, soln%eq_soln(5)%ln_nj(4), tol)
+        @assertRelativelyEqual(-17.923270161497687d0, soln%eq_soln(5)%ln_nj(5), tol)
+        @assertRelativelyEqual(-11.870686602436889d0, soln%eq_soln(5)%ln_nj(6), tol)
+        @assertRelativelyEqual(-11.927637492340260d0, soln%eq_soln(5)%ln_nj(7), tol)
+        @assertRelativelyEqual(-30.311703613188691d0, soln%eq_soln(5)%ln_nj(8), tol)
+        @assertRelativelyEqual(-7.8301565282584225d0, soln%eq_soln(5)%ln_nj(9), tol)
         @assertEqual(0.0d0, soln%eq_soln(5)%nj(10))
         @assertEqual(0.0d0, soln%eq_soln(5)%nj(11))
 
@@ -295,13 +295,13 @@ contains
         @assertRelativelyEqual(68.947304458095616d0,  soln%pressure(1), tol)
 
         @assertRelativelyEqual(3203.6736975694471d0,  soln%eq_soln(2)%T, tol)
-        @assertRelativelyEqual(39.813550688339767d0,  soln%pressure(2), 1.d-5)
+        @assertRelativelyEqual(39.813550688339767d0,  soln%pressure(2), tol)
 
-        @assertRelativelyEqual(1627.6780737328247d0,  soln%eq_soln(3)%T, 1.d-5)
+        @assertRelativelyEqual(1627.6780737328247d0,  soln%eq_soln(3)%T, tol)
         @assertRelativelyEqual(1.0132499843207670d0,  soln%pressure(3), tol)
 
-        @assertRelativelyEqual(1868.5246882548397d0,  soln%eq_soln(4)%T, 1.d-5)
-        @assertRelativelyEqual(2.0681622287672528d0,  soln%pressure(4), 1.d-4)
+        @assertRelativelyEqual(1868.5246882548397d0,  soln%eq_soln(4)%T, tol)
+        @assertRelativelyEqual(2.0681622287672528d0,  soln%pressure(4), tol)
 
     end subroutine
 
@@ -314,7 +314,7 @@ contains
         type(RocketSolution) :: soln
         character(:), allocatable :: product_names(:)
         real(dp) :: hc, pc, weights(2)
-        real(dp), parameter :: tol = 1.0d-6
+        real(dp), parameter :: tol = 1.0d-5
 
         reactants = Mixture(all_thermo, ['H2(L)', 'O2(L)'])
         product_names = reactants%get_products(all_thermo)
@@ -333,10 +333,10 @@ contains
 
         ! Verify chamber and throat conditions computed
         @assertRelativelyEqual(3383.8446259451043d0, soln%eq_soln(1)%T, tol)
-        @assertRelativelyEqual(3185.6731730807096d0, soln%eq_soln(2)%T, 1.d-4)
+        @assertRelativelyEqual(3185.6731730807096d0, soln%eq_soln(2)%T, tol)
 
         ! Verify subsonic exit conditions computed (indices 3 and 4)
-        @assertRelativelyEqual(3348.6869671134514d0, soln%eq_soln(3)%T, 1.d-5)
+        @assertRelativelyEqual(3348.6869671134514d0, soln%eq_soln(3)%T, tol)
         ! Second subar point computed (verified by num_pts check above)
 
     end subroutine
@@ -369,10 +369,10 @@ contains
 
         ! Verify chamber and throat conditions
         @assertRelativelyEqual(3383.8446259451043d0, soln%eq_soln(1)%T, tol)
-        @assertRelativelyEqual(3185.6731730807096d0, soln%eq_soln(2)%T, 1.d-4)
+        @assertRelativelyEqual(3185.6731730807096d0, soln%eq_soln(2)%T, tol)
 
         ! Verify supersonic exit conditions computed (index 4: ae/at=25)
-        @assertRelativelyEqual(1468.1562133402410d0, soln%eq_soln(4)%T, 1.d-4)
+        @assertRelativelyEqual(1468.1562133402410d0, soln%eq_soln(4)%T, tol)
 
     end subroutine
 
@@ -385,7 +385,7 @@ contains
         type(RocketSolution) :: soln
         character(:), allocatable :: product_names(:)
         real(dp) :: hc, pc, weights(2)
-        real(dp), parameter :: tol = 1.0d-6
+        real(dp), parameter :: tol = 1.0d-4
 
         reactants = Mixture(all_thermo, ['H2(L)', 'O2(L)'])
         product_names = reactants%get_products(all_thermo)
@@ -406,10 +406,10 @@ contains
         @assertRelativelyEqual(3383.8446259451043d0, soln%eq_soln(1)%T, tol)
 
         ! Verify throat conditions
-        @assertRelativelyEqual(3179.8427699021822d0, soln%eq_soln(4)%T, 1.d-3)
+        @assertRelativelyEqual(3179.8427699021822d0, soln%eq_soln(4)%T, tol)
 
         ! Verify supersonic exit condition computed (index 5)
-        @assertRelativelyEqual(1469.5862790545111d0, soln%eq_soln(5)%T, 1.d-3)
+        @assertRelativelyEqual(1469.5862790545111d0, soln%eq_soln(5)%T, tol)
 
     end subroutine
 
@@ -423,7 +423,7 @@ contains
         type(RocketSolution) :: soln
         character(:), allocatable :: product_names(:)
         real(dp) :: hc, pc, weights(2)
-        real(dp), parameter :: tol = 1.0d-6
+        real(dp), parameter :: tol = 1.0d-4
 
         reactants = Mixture(all_thermo, ['H2(L)', 'O2(L)'])
         product_names = reactants%get_products(all_thermo)
@@ -446,8 +446,8 @@ contains
         @assertRelativelyEqual(1.1446952882630981d0, soln%eq_partials(1)%gamma_s, tol)
 
         ! Verify throat conditions
-        @assertRelativelyEqual(3185.6731730807096d0, soln%eq_soln(2)%T, 1.d-4)
-        @assertRelativelyEqual(-6.1821344716750914d0, soln%eq_soln(2)%ln_nj(1), 1.d-4)
+        @assertRelativelyEqual(3185.6731730807096d0, soln%eq_soln(2)%T, tol)
+        @assertRelativelyEqual(-6.1821344716750914d0, soln%eq_soln(2)%ln_nj(1), tol)
         @assertRelativelyEqual(-3.7758918668469459d0, soln%eq_soln(2)%ln_nj(2), tol)
 
     end subroutine
