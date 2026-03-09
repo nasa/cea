@@ -102,7 +102,6 @@ contains
                                       insert=insert, smooth_truncation=smooth_truncation, &
                                       truncation_width=truncation_width)
         end if
-
     end function
 
     subroutine ShockSolver_update_solution(self, soln, X1, X2, p21, t21, iter)
@@ -182,6 +181,7 @@ contains
         soln%eq_soln(idx)%entropy = 0.0d0
         soln%eq_soln(idx)%cp_fr = 0.0d0
         soln%eq_soln(idx)%cp_eq = 0.0d0
+        soln%eq_soln(idx)%cp_eq_transport = 0.0d0
         soln%eq_soln(idx)%cv_eq = 0.0d0
         soln%eq_soln(idx)%gamma_s = 0.0d0
         soln%eq_soln(idx)%viscosity = 0.0d0
@@ -215,6 +215,7 @@ contains
                     soln%eq_soln(3)%entropy = 0.0d0
                     soln%eq_soln(3)%cp_fr = 0.0d0
                     soln%eq_soln(3)%cp_eq = 0.0d0
+                    soln%eq_soln(3)%cp_eq_transport = 0.0d0
                     soln%eq_soln(3)%cv_eq = 0.0d0
                     soln%eq_soln(3)%gamma_s = 0.0d0
                     soln%eq_soln(3)%viscosity = 0.0d0
@@ -240,17 +241,28 @@ contains
         end select
     end subroutine
 
-    subroutine ShockSolver_update_transport(self, eq_soln, frozen_shock)
+    subroutine ShockSolver_update_transport(self, eq_soln, frozen_shock, update_basis)
         class(ShockSolver), intent(in) :: self
         type(EqSolution), intent(inout) :: eq_soln
         logical, intent(in), optional :: frozen_shock
+        logical, intent(in), optional :: update_basis
+        logical :: do_update_basis
+        logical :: frozen_shock_
 
         if (.not. self%eq_solver%transport) return
 
-        call self%eq_solver%update_transport_basis(eq_soln)
-        if (present(frozen_shock)) then
-            call compute_transport_properties(self%eq_solver, eq_soln, frozen_shock=frozen_shock)
+        do_update_basis = .true.
+        if (present(update_basis)) do_update_basis = update_basis
+
+        frozen_shock_ = .false.
+        if (present(frozen_shock)) frozen_shock_ = frozen_shock
+
+        if (frozen_shock_) then
+            call compute_transport_properties(self%eq_solver, eq_soln, frozen_shock=.true.)
         else
+            if (do_update_basis) then
+                call self%eq_solver%update_transport_basis(eq_soln)
+            end if
             call compute_transport_properties(self%eq_solver, eq_soln)
         end if
     end subroutine
@@ -739,6 +751,11 @@ contains
         soln%eq_soln(idx)%nj = soln%eq_soln(2)%nj
         soln%eq_soln(idx)%ln_nj = soln%eq_soln(2)%ln_nj
         soln%eq_soln(idx)%n = soln%eq_soln(2)%n
+        soln%eq_soln(idx)%is_active = soln%eq_soln(2)%is_active
+        soln%eq_soln(idx)%active_rank = soln%eq_soln(2)%active_rank
+        soln%eq_soln(idx)%j_liq = soln%eq_soln(2)%j_liq
+        soln%eq_soln(idx)%j_sol = soln%eq_soln(2)%j_sol
+        soln%eq_soln(idx)%j_switch = soln%eq_soln(2)%j_switch
 
         ! Retrieve values from the incident solution
         u1 = soln%u(1)
@@ -767,7 +784,7 @@ contains
             T5 = t52*T2
             soln%eq_soln(idx)%T = T5
             soln%eq_soln(idx)%constraints%state2 = soln%pressure(idx)
-            call self%eq_solver%products%calc_thermo(soln%eq_soln(idx)%thermo, soln%eq_soln(idx)%T, condensed=.true.)
+            call self%eq_solver%products%calc_thermo(soln%eq_soln(idx)%thermo, soln%eq_soln(idx)%T, condensed=.false.)
 
             ! Update frozen properties from the incident (state-2) frozen composition.
             cp = dot_product(soln%eq_soln(idx)%nj(:ng), soln%eq_soln(idx)%thermo%cp(:ng))
@@ -981,6 +998,9 @@ contains
             end if
             if (soln%eq_soln(3)%T <= 0.0d0) then
                 return
+            end if
+            if (reflected_frozen_ .and. count(soln%eq_soln(3)%is_active) > 0) then
+                call self%eq_solver%products%calc_thermo(soln%eq_soln(3)%thermo, soln%eq_soln(3)%T, condensed=.true.)
             end if
             call self%eq_solver%post_process(soln%eq_soln(3))
         end if

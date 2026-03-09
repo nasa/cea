@@ -264,6 +264,8 @@ module cea_equilibrium
             !! Heat capacity at constant pressure, frozen (kJ/kg-K)
         real(dp) :: cp_eq = 0.0d0
             !! Heat capacity at constant pressure, equilibrium (kJ/kg-K)
+        real(dp) :: cp_eq_transport = 0.0d0
+            !! Heat capacity used in the equilibrium transport model (kJ/kg-K)
         real(dp) :: cv_fr = 0.0d0
             !! Heat capacity at constant volume, frozen (kJ/kg-K)
         real(dp) :: cv_eq = 0.0d0
@@ -5055,9 +5057,10 @@ contains
         integer, parameter :: max_tr = 40     ! Maximum allowable transport species
         logical, allocatable :: selected_species(:)
 
-        if (present(frozen_shock)) then
-            continue  ! Placeholder for future frozen-shock transport handling.
-        end if
+        logical :: frozen_transport_only
+
+        frozen_transport_only = .false.
+        if (present(frozen_shock)) frozen_transport_only = frozen_shock
 
         ! Define shorthand
         np = eq_solver%transport_db%num_pure
@@ -5523,6 +5526,10 @@ contains
         ! Calculate reaction heat capacity and thermal conductivity
         ! --------------------------------------------------------------
 
+        if (frozen_transport_only) then
+            nr = 0
+        end if
+
         if (nr > 0) then
             delh = delh(:nr)
             G = G(:nr, :nr+1)
@@ -5627,8 +5634,15 @@ contains
 
         ! Compute the remaining properties
         eq_soln%pr_fr = eq_soln%viscosity*eq_soln%cp_fr/eq_soln%conductivity_fr
+        if (frozen_transport_only) then
+            eq_soln%cp_eq_transport = 0.0d0
+            eq_soln%conductivity_eq = 0.0d0
+            eq_soln%pr_eq = 0.0d0
+            return
+        end if
         cpreac = cpreac/wtmol
         cp_eq = eq_soln%cp_fr + cpreac
+        eq_soln%cp_eq_transport = cp_eq
         eq_soln%conductivity_eq = eq_soln%conductivity_fr + (reacon*1.d-3)
         eq_soln%pr_eq = eq_soln%viscosity*cp_eq/eq_soln%conductivity_eq
 
