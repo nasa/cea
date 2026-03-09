@@ -228,6 +228,12 @@ module cea_equilibrium
             !! Component species indices (global gas-species indexing) for each basis row
         real(dp), allocatable :: transport_basis_matrix(:, :)
             !! Row-reduced element-by-gas coefficient matrix used by transport reactions
+        integer :: transport_basis_rows_seed = 0
+            !! Last stable transport basis row count
+        integer, allocatable :: transport_component_idx_seed(:)
+            !! Last stable transport component species indices
+        real(dp), allocatable :: transport_basis_matrix_seed(:, :)
+            !! Last stable transport basis matrix
 
         ! Other solution variables
         real(dp), allocatable :: mole_fractions(:)
@@ -266,6 +272,20 @@ module cea_equilibrium
             !! Heat capacity at constant pressure, equilibrium (kJ/kg-K)
         real(dp) :: cp_eq_transport = 0.0d0
             !! Heat capacity used in the equilibrium transport model (kJ/kg-K)
+        real(dp) :: viscosity_seed = 0.0d0
+            !! Last stable transport viscosity (millipoise)
+        real(dp) :: cp_fr_seed = 0.0d0
+            !! Last stable frozen transport heat capacity (kJ/kg-K)
+        real(dp) :: cp_eq_transport_seed = 0.0d0
+            !! Last stable equilibrium transport heat capacity (kJ/kg-K)
+        real(dp) :: conductivity_fr_seed = 0.0d0
+            !! Last stable frozen conductivity (mW/cm-K)
+        real(dp) :: conductivity_eq_seed = 0.0d0
+            !! Last stable equilibrium conductivity (mW/cm-K)
+        real(dp) :: Pr_fr_seed = 0.0d0
+            !! Last stable frozen Prandtl number
+        real(dp) :: Pr_eq_seed = 0.0d0
+            !! Last stable equilibrium Prandtl number
         real(dp) :: cv_fr = 0.0d0
             !! Heat capacity at constant volume, frozen (kJ/kg-K)
         real(dp) :: cv_eq = 0.0d0
@@ -2274,6 +2294,16 @@ contains
         soln%j_sol_seed = soln%j_sol
         soln%j_switch_seed = soln%j_switch
         soln%last_cond_idx_seed = soln%last_cond_idx
+        soln%transport_basis_rows_seed = soln%transport_basis_rows
+        soln%viscosity_seed = soln%viscosity
+        soln%cp_fr_seed = soln%cp_fr
+        soln%cp_eq_transport_seed = soln%cp_eq_transport
+        soln%conductivity_fr_seed = soln%conductivity_fr
+        soln%conductivity_eq_seed = soln%conductivity_eq
+        soln%Pr_fr_seed = soln%Pr_fr
+        soln%Pr_eq_seed = soln%Pr_eq
+        if (allocated(soln%transport_component_idx_seed)) soln%transport_component_idx_seed = soln%transport_component_idx
+        if (allocated(soln%transport_basis_matrix_seed)) soln%transport_basis_matrix_seed = soln%transport_basis_matrix
     end subroutine
 
     subroutine EqSolution_restore_seed(soln)
@@ -2290,6 +2320,36 @@ contains
         soln%j_sol = soln%j_sol_seed
         soln%j_switch = soln%j_switch_seed
         soln%last_cond_idx = soln%last_cond_idx_seed
+        soln%transport_basis_rows = soln%transport_basis_rows_seed
+        soln%viscosity = soln%viscosity_seed
+        soln%cp_fr = soln%cp_fr_seed
+        soln%cp_eq_transport = soln%cp_eq_transport_seed
+        soln%conductivity_fr = soln%conductivity_fr_seed
+        soln%conductivity_eq = soln%conductivity_eq_seed
+        soln%Pr_fr = soln%Pr_fr_seed
+        soln%Pr_eq = soln%Pr_eq_seed
+        if (allocated(soln%transport_component_idx_seed)) soln%transport_component_idx = soln%transport_component_idx_seed
+        if (allocated(soln%transport_basis_matrix_seed)) soln%transport_basis_matrix = soln%transport_basis_matrix_seed
+    end subroutine
+
+    logical function EqSolution_has_transport_seed(soln) result(has_seed)
+        type(EqSolution), intent(in) :: soln
+
+        has_seed = soln%viscosity_seed > 0.0d0
+    end function
+
+    subroutine EqSolution_restore_transport_seed(soln)
+        type(EqSolution), intent(inout) :: soln
+
+        if (.not. EqSolution_has_transport_seed(soln)) return
+
+        soln%viscosity = soln%viscosity_seed
+        soln%cp_fr = soln%cp_fr_seed
+        soln%cp_eq_transport = soln%cp_eq_transport_seed
+        soln%conductivity_fr = soln%conductivity_fr_seed
+        soln%conductivity_eq = soln%conductivity_eq_seed
+        soln%Pr_fr = soln%Pr_fr_seed
+        soln%Pr_eq = soln%Pr_eq_seed
     end subroutine
 
     subroutine EqSolver_solve(self, soln, type, state1, state2, reactant_weights, partials)
@@ -2398,6 +2458,11 @@ contains
                 times_singular = times_singular + 1
                 if (times_singular > 8) then
                     soln%converged = .false.
+                    if (EqSolution_has_transport_seed(soln)) then
+                        call EqSolution_restore_seed(soln)
+                    else if (soln%T > 0.0d0 .and. soln%n > 0.0d0) then
+                        call EqSolution_restore_transport_seed(soln)
+                    end if
                     call EqSolver_restore_reduced_elements(self, soln, num_reduced, reduced_from, reduced_to)
                     call log_warning('EqSolver_solve: Too many singular matrices encountered.')
                     return
@@ -2477,6 +2542,11 @@ contains
                     end if
 
                     call self%post_process(soln, .false.)
+                    if (EqSolution_has_transport_seed(soln)) then
+                        call EqSolution_restore_seed(soln)
+                    else
+                        call EqSolution_restore_transport_seed(soln)
+                    end if
                     call EqSolver_restore_reduced_elements(self, soln, num_reduced, reduced_from, reduced_to)
                     call log_warning('EqSolver_solve: Maximum iterations reached without convergence')
                     return
@@ -2497,7 +2567,9 @@ contains
 
                 ! Compute transport properties
                 if (self%transport) then
-                    call self%update_transport_basis(soln)
+                    if (times_singular == 0 .or. soln%transport_basis_rows <= 0) then
+                        call self%update_transport_basis(soln)
+                    end if
                     call compute_transport_properties(self, soln)
                 end if
 
@@ -4143,6 +4215,8 @@ contains
         allocate(self%active_rank_seed(solver%num_condensed), source=0)
         allocate(self%transport_component_idx(solver%num_elements), source=0)
         allocate(self%transport_basis_matrix(solver%num_elements, solver%num_gas), source=0.0d0)
+        allocate(self%transport_component_idx_seed(solver%num_elements), source=0)
+        allocate(self%transport_basis_matrix_seed(solver%num_elements, solver%num_gas), source=0.0d0)
         self%constraints = EqConstraints(solver%num_elements)
 
         ! Set initial guess
