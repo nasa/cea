@@ -546,8 +546,10 @@ contains
 
         if (prob%problem%shk_reflected) then
             input_reflected = .true.
+            reflected = .true.
         else
             input_reflected = .false.
+            reflected = .false.
             if (.not. incident) then
                 incident = .true.  ! Incident by default
             end if
@@ -872,7 +874,7 @@ contains
         real(dp) :: trace
         logical :: incident, reflected, equilibrium, frozen, input_reflected
         logical :: write_incd_frz, write_refl_frz, write_incd_eql, write_refl_eql
-        logical :: use_mach, have_incident_state, have_reflected_state
+        logical :: use_mach, have_incident_state, have_reflected_state, have_failed_solution
         character(snl), allocatable :: trace_names(:)
         logical, allocatable :: is_trace(:)
         character(:), allocatable :: eq_fmt
@@ -1023,9 +1025,11 @@ contains
 
             have_incident_state = .false.
             have_reflected_state = .false.
+            have_failed_solution = .false.
             do i = 1, m
                 if (solutions(i, 1, k)%eq_soln(2)%T > 0.0d0) have_incident_state = .true.
                 if (solutions(i, 1, k)%eq_soln(3)%T > 0.0d0) have_reflected_state = .true.
+                if (.not. solutions(i, 1, k)%converged) have_failed_solution = .true.
             end do
             if (.not. have_incident_state) then
                 write_incd_frz = .false.
@@ -1036,6 +1040,7 @@ contains
                 write_refl_frz = .false.
                 write_refl_eql = .false.
             end if
+            if (have_failed_solution .and. .not. have_reflected_state) exit
 
             ! -------------------------------------------------------------------
             ! Write results for unshocked gas (equilibrium)
@@ -1044,7 +1049,11 @@ contains
             if (write_incd_eql .or. write_incd_frz) then
                 ! Write the header
                 write(ioout, '(A)') "SHOCK WAVE PARAMETERS ASSUMING"
-                write(ioout, '(A)') "EQUILIBRIUM COMPOSITION FOR INCIDENT SHOCKED CONDITIONS"
+                if (write_incd_eql) then
+                    write(ioout, '(A)') "EQUILIBRIUM COMPOSITION FOR INCIDENT SHOCKED CONDITIONS"
+                else
+                    write(ioout, '(A)') "FROZEN COMPOSITION FOR INCIDENT SHOCKED CONDITIONS"
+                end if
                 write(ioout, '(A)') ""
                 write(ioout, '(A)') "INITIAL GAS (1)"
                 write(ioout, '(A, 14F9.3)') "Mach1            ", (solutions(i, 1, k)%mach(1), i=1,m)
