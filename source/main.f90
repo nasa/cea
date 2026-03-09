@@ -1100,6 +1100,10 @@ contains
                 write(ioout, '(A, 14F9.3)') "Son. Vel., m/s   ", (solutions(i, 1, k)%v_sonic(2), i=1,m)
                 write(ioout, '(A)') ""
 
+                if (prob%output%transport .and. solver%eq_solver%transport) then
+                    call write_shock_transport(ioout, prob, solutions, m, k, 2, write_incd_eql)
+                end if
+
                 ! Write the ratios
                 write(ioout, '(A, 14F9.5)') "P2/P1            ", (solutions(i, 1, k)%p21, i=1,m)
                 write(ioout, '(A, 14F9.5)') "T2/T1            ", (solutions(i, 1, k)%t21, i=1,m)
@@ -1193,6 +1197,10 @@ contains
                 write(ioout, '(A, 14F9.3)') "Son. Vel., m/s   ", (solutions(i, 1, k)%v_sonic(3), i=1,m)
                 write(ioout, '(A)') ""
 
+                if (prob%output%transport .and. solver%eq_solver%transport) then
+                    call write_shock_transport(ioout, prob, solutions, m, k, 3, write_refl_eql)
+                end if
+
                 ! Write the ratios
                 write(ioout, '(A, 14F9.5)') "P5/P2            ", (solutions(i, 1, k)%p52, i=1,m)
                 write(ioout, '(A, 14F9.5)') "T5/T2            ", (solutions(i, 1, k)%t52, i=1,m)
@@ -1267,6 +1275,51 @@ contains
 
         end do
 
+    end subroutine
+
+    subroutine write_shock_transport(ioout, prob, solutions, m, k, idx, include_equilibrium)
+        integer, intent(in) :: ioout, m, k, idx
+        type(ProblemDB), intent(in) :: prob
+        type(ShockSolution), intent(in) :: solutions(:, :, :)
+        logical, intent(in) :: include_equilibrium
+        integer :: i
+
+        write(ioout, '(A)') " TRANSPORT PROPERTIES (GASES ONLY)"
+        if (prob%output%siunit) then
+            write(ioout, '(A)') "   CONDUCTIVITY IN UNITS OF MILLIWATTS/(CM)(K)"
+        else
+            write(ioout, '(A)') "   CONDUCTIVITY IN UNITS OF MILLICALORIES/(CM)(K)(SEC)"
+        end if
+        write(ioout, '(A)') ""
+
+        write(ioout, '(A, 14F9.4)') " Visc, Millipoise", (solutions(i, 1, k)%eq_soln(idx)%viscosity, i=1,m)
+        write(ioout, '(A)') ""
+
+        if (include_equilibrium) then
+            write(ioout, '(A)') " WITH EQUILIBRIUM REACTIONS"
+            if (prob%output%siunit) then
+                write(ioout, '(A, 14F9.4)') " Cp, kJ/(kg-K)   ", (solutions(i, 1, k)%eq_soln(idx)%cp_eq, i=1,m)
+                write(ioout, '(A, 14F9.4)') " Conductivity    ", (solutions(i, 1, k)%eq_soln(idx)%conductivity_eq, i=1,m)
+            else
+                write(ioout, '(A, 14F9.4)') " Cp, cal/(g-K)   ", (solutions(i, 1, k)%eq_soln(idx)%cp_eq/4.184d0, i=1,m)
+                write(ioout, '(A, 14F9.4)') " Conductivity    ", &
+                    (solutions(i, 1, k)%eq_soln(idx)%conductivity_eq/4.184d0, i=1,m)
+            end if
+            write(ioout, '(A, 14F9.4)') " Prandtl Number  ", (solutions(i, 1, k)%eq_soln(idx)%Pr_eq, i=1,m)
+            write(ioout, '(A)') ""
+        end if
+
+        write(ioout, '(A)') " WITH FROZEN REACTIONS"
+        if (prob%output%siunit) then
+            write(ioout, '(A, 14F9.4)') " Cp, kJ/(kg-K)   ", (solutions(i, 1, k)%eq_soln(idx)%cp_fr, i=1,m)
+            write(ioout, '(A, 14F9.4)') " Conductivity    ", (solutions(i, 1, k)%eq_soln(idx)%conductivity_fr, i=1,m)
+        else
+            write(ioout, '(A, 14F9.4)') " Cp, cal/(g-K)   ", (solutions(i, 1, k)%eq_soln(idx)%cp_fr/4.184d0, i=1,m)
+            write(ioout, '(A, 14F9.4)') " Conductivity    ", &
+                (solutions(i, 1, k)%eq_soln(idx)%conductivity_fr/4.184d0, i=1,m)
+        end if
+        write(ioout, '(A, 14F9.4)') " Prandtl Number  ", (solutions(i, 1, k)%eq_soln(idx)%Pr_fr, i=1,m)
+        write(ioout, '(A)') ""
     end subroutine
 
     subroutine deton_output(ioout, prob, solver, solutions)

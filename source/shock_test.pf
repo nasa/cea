@@ -3,17 +3,20 @@ module shock_test
     use cea_shock
     use cea_equilibrium
     use cea_thermo
+    use cea_transport
     use cea_mixture
     use cea_units
     use cea_param, only: R=>gas_constant
 
     type(ThermoDB) :: all_thermo
+    type(TransportDB) :: all_transport
 
 contains
 
     @before
     subroutine setup_mixture()
         all_thermo = read_thermo('data/thermo.lib')
+        all_transport = read_transport('data/trans.lib')
     end subroutine
 
     @test
@@ -122,6 +125,48 @@ contains
     end subroutine
 
     @test
+    subroutine test_shock_transport_eq_and_frozen
+
+        type(Mixture) :: products
+        type(Mixture) :: reactants
+        type(ShockSolver) :: solver
+        type(ShockSolution) :: soln
+        character(:), allocatable :: product_names(:)
+        real(dp) :: p_reac, t_reac, weights(3)
+
+        reactants = Mixture(all_thermo, ['H2', 'O2', 'Ar'])
+        product_names = reactants%get_products(all_thermo)
+        products = Mixture(all_thermo, product_names)
+
+        weights = reactants%weights_from_moles([0.05d0, 0.05d0, 0.90d0])
+        p_reac = 0.1d0
+        t_reac = 300.0d0
+
+        solver = ShockSolver(products, reactants, all_transport=all_transport)
+
+        soln = solver%solve(weights, t_reac, p_reac, u1=1400.0d0, reflected=.true., &
+                            incident_frozen=.false., reflected_frozen=.false.)
+        @assertTrue(soln%eq_soln(2)%viscosity > 0.0d0)
+        @assertTrue(soln%eq_soln(2)%conductivity_eq > 0.0d0)
+        @assertTrue(soln%eq_soln(2)%Pr_eq > 0.0d0)
+        @assertTrue(soln%eq_soln(2)%conductivity_fr > 0.0d0)
+        @assertTrue(soln%eq_soln(2)%Pr_fr > 0.0d0)
+        @assertTrue(soln%eq_soln(3)%viscosity > 0.0d0)
+        @assertTrue(soln%eq_soln(3)%conductivity_eq > 0.0d0)
+        @assertTrue(soln%eq_soln(3)%Pr_eq > 0.0d0)
+
+        soln = solver%solve(weights, t_reac, p_reac, u1=1400.0d0, reflected=.true., &
+                            incident_frozen=.true., reflected_frozen=.true.)
+        @assertTrue(soln%eq_soln(2)%viscosity > 0.0d0)
+        @assertTrue(soln%eq_soln(2)%conductivity_fr > 0.0d0)
+        @assertTrue(soln%eq_soln(2)%Pr_fr > 0.0d0)
+        @assertTrue(soln%eq_soln(3)%viscosity > 0.0d0)
+        @assertTrue(soln%eq_soln(3)%conductivity_fr > 0.0d0)
+        @assertTrue(soln%eq_soln(3)%Pr_fr > 0.0d0)
+
+    end subroutine
+
+    @test
     subroutine test_shock_eq_failure_stops_cleanly
 
         type(Mixture) :: products
@@ -139,7 +184,7 @@ contains
         p_reac = mmhg_to_bar(0.224d0)
         t_reac = 291.0d0
 
-        solver = ShockSolver(products, reactants, ions=.true.)
+        solver = ShockSolver(products, reactants, ions=.true., all_transport=all_transport)
         soln = solver%solve(weights, t_reac, p_reac, u1=2410.0d0, reflected=.true., &
                             incident_frozen=.false., reflected_frozen=.false.)
 
@@ -150,6 +195,8 @@ contains
         @assertEqual(0.0d0, soln%eq_soln(3)%T)
         @assertEqual(0.0d0, soln%pressure(3))
         @assertEqual(0.0d0, soln%u5_p_v2)
+        @assertEqual(0.0d0, soln%eq_soln(2)%viscosity)
+        @assertEqual(0.0d0, soln%eq_soln(3)%viscosity)
 
     end subroutine
 

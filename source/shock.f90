@@ -4,7 +4,7 @@ module cea_shock
     use cea_param, only: dp, empty_dp, R=>gas_constant
     use cea_mixture, only: Mixture, MixtureThermo
     use cea_transport, only: TransportDB
-    use cea_equilibrium, only: EqSolution, EqSolver, EqPartials
+    use cea_equilibrium, only: EqSolution, EqSolver, EqPartials, compute_transport_properties
     use fb_findloc, only: findloc
     use fb_utils
     implicit none
@@ -210,6 +210,21 @@ contains
         end select
     end subroutine
 
+    subroutine ShockSolver_update_transport(self, eq_soln, frozen_shock)
+        class(ShockSolver), intent(in) :: self
+        type(EqSolution), intent(inout) :: eq_soln
+        logical, intent(in), optional :: frozen_shock
+
+        if (.not. self%eq_solver%transport) return
+
+        call self%eq_solver%update_transport_basis(eq_soln)
+        if (present(frozen_shock)) then
+            call compute_transport_properties(self%eq_solver, eq_soln, frozen_shock=frozen_shock)
+        else
+            call compute_transport_properties(self%eq_solver, eq_soln)
+        end if
+    end subroutine
+
     subroutine ShockSolver_solve_incident(self, soln, weights, T0, P0)
         ! Solve the incident shock conditions
 
@@ -387,6 +402,7 @@ contains
         ! Set the reactant weights as the species amount
         soln%eq_soln(idx)%converged = .true.
         soln%eq_soln(idx)%nj(:) = 0.0d0
+        soln%eq_soln(idx)%ln_nj(:) = self%eq_solver%log_min
         do i = 1, self%eq_solver%num_reactants
             j = findloc(self%eq_solver%products%species_names, self%eq_solver%reactants%species_names(i), 1)
             if (j > 0) then
@@ -468,6 +484,7 @@ contains
             ! Convergence check
             if (soln%converged) then
                 call self%eq_solver%products%calc_thermo(soln%eq_soln(idx)%thermo, soln%eq_soln(idx)%T, condensed=.false.)
+                call ShockSolver_update_transport(self, soln%eq_soln(idx), frozen_shock=.true.)
                 soln%rho12 = rho12
                 soln%p21 = p21
                 soln%t21 = t21
@@ -738,6 +755,7 @@ contains
 
             ! Convergence check
             if (soln%converged) then
+                call ShockSolver_update_transport(self, soln%eq_soln(idx), frozen_shock=.true.)
                 soln%rho52 = rho52
                 soln%p52 = p52
                 soln%t52 = t52
@@ -873,6 +891,7 @@ contains
         ! Set the reactant weights as the species amount
         soln%eq_soln(1)%converged = .true.
         soln%eq_soln(1)%nj(:) = 0.0d0
+        soln%eq_soln(1)%ln_nj(:) = self%eq_solver%log_min
         do i = 1, self%eq_solver%num_reactants
             j = findloc(self%eq_solver%products%species_names, self%eq_solver%reactants%species_names(i), 1)
             if (j > 0) then
