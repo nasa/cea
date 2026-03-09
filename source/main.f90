@@ -872,7 +872,7 @@ contains
         real(dp) :: trace
         logical :: incident, reflected, equilibrium, frozen, input_reflected
         logical :: write_incd_frz, write_refl_frz, write_incd_eql, write_refl_eql
-        logical :: use_mach
+        logical :: use_mach, have_incident_state, have_reflected_state
         character(snl), allocatable :: trace_names(:)
         logical, allocatable :: is_trace(:)
         character(:), allocatable :: eq_fmt
@@ -945,7 +945,7 @@ contains
                 incd_type = "FROZEN     "
                 refl_type = "FROZEN     "
                 write_refl_eql = .false.
-                if (reflected) then
+                if (input_reflected) then
                     write_refl_frz = .true.
                 else
                     write_refl_frz = .false.
@@ -1019,6 +1019,22 @@ contains
                     write_refl_eql = .true.
                     write_refl_frz = .false.
                 end if
+            end if
+
+            have_incident_state = .false.
+            have_reflected_state = .false.
+            do i = 1, m
+                if (solutions(i, 1, k)%eq_soln(2)%T > 0.0d0) have_incident_state = .true.
+                if (solutions(i, 1, k)%eq_soln(3)%T > 0.0d0) have_reflected_state = .true.
+            end do
+            if (.not. have_incident_state) then
+                write_incd_frz = .false.
+                write_incd_eql = .false.
+                write_refl_frz = .false.
+                write_refl_eql = .false.
+            else if (.not. have_reflected_state) then
+                write_refl_frz = .false.
+                write_refl_eql = .false.
             end if
 
             ! -------------------------------------------------------------------

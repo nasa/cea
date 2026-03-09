@@ -41,6 +41,14 @@ contains
         ! Products order: Ar, H, H2, H2O, H2O2, HO2, O, O2, O3, OH, H2O(L), H2O(cr)
 
         ! Test the equilibrium solution of the incident shock
+        ! write(*,*) "incident P = ", soln%pressure(2), " rel = ", &
+        !    abs((1.9235852279853596d0 - soln%pressure(2))/1.9235852279853596d0)
+        ! write(*,*) "incident T = ", soln%eq_soln(2)%T, " rel = ", &
+        !    abs((2268.1839840465000d0 - soln%eq_soln(2)%T)/2268.1839840465000d0)
+        ! write(*,*) "incident ln_nj(HO2) = ", soln%eq_soln(2)%ln_nj(6), " rel = ", &
+        !    abs((-17.223079678243373d0 - soln%eq_soln(2)%ln_nj(6))/(-17.223079678243373d0))
+        ! write(*,*) "incident ln_nj(OH) = ", soln%eq_soln(2)%ln_nj(10), " rel = ", &
+        !    abs((-9.6259080229365601d0 - soln%eq_soln(2)%ln_nj(10))/(-9.6259080229365601d0))
         @assertRelativelyEqual(1.9235852279853596d0, soln%pressure(2), 1.d-1)
         @assertRelativelyEqual(2268.1839840465000d0, soln%eq_soln(2)%T, 1.d-1)
         @assertRelativelyEqual(-3.7337979531569845d0, soln%eq_soln(2)%ln_nj(1), tol)
@@ -55,6 +63,14 @@ contains
         @assertRelativelyEqual(-9.6259080229365601d0, soln%eq_soln(2)%ln_nj(10), 1.d-1)
 
         ! Test the equilibrium solution of the reflected shock
+        ! write(*,*) "reflected P = ", soln%pressure(3), " rel = ", &
+        !    abs((6.8857588009600743d0 - soln%pressure(3))/6.8857588009600743d0)
+        ! write(*,*) "reflected T = ", soln%eq_soln(3)%T, " rel = ", &
+        !    abs((3253.2881222920269d0 - soln%eq_soln(3)%T)/3253.2881222920269d0)
+        ! write(*,*) "reflected ln_nj(HO2) = ", soln%eq_soln(3)%ln_nj(6), " rel = ", &
+        !    abs((-15.149034932828400d0 - soln%eq_soln(3)%ln_nj(6))/(-15.149034932828400d0))
+        ! write(*,*) "reflected ln_nj(OH) = ", soln%eq_soln(3)%ln_nj(10), " rel = ", &
+        !    abs((-7.6811535944113283d0 - soln%eq_soln(3)%ln_nj(10))/(-7.6811535944113283d0))
         @assertRelativelyEqual(6.8857588009600743d0, soln%pressure(3), tol)
         @assertRelativelyEqual(3253.2881222920269d0, soln%eq_soln(3)%T, tol)
         @assertRelativelyEqual(-3.7337979531569845d0, soln%eq_soln(3)%ln_nj(1), tol)
@@ -101,6 +117,39 @@ contains
         ! Test the equilibrium solution of the reflected shock
         @assertRelativelyEqual(11.687670103399892d0, soln%pressure(3), tol)
         @assertRelativelyEqual(3867.0814002158386d0, soln%eq_soln(3)%T, tol)
+        @assertRelativelyEqual(607.9270885112162d0, soln%u5_p_v2, tol)
+
+    end subroutine
+
+    @test
+    subroutine test_shock_eq_failure_stops_cleanly
+
+        type(Mixture) :: products
+        type(Mixture) :: reactants
+        type(ShockSolver) :: solver
+        type(ShockSolution) :: soln
+        character(:), allocatable :: product_names(:)
+        real(dp) :: p_reac, t_reac, weights(2)
+
+        reactants = Mixture(all_thermo, ['N2 ', 'CH4'], ions=.true.)
+        product_names = reactants%get_products(all_thermo, omit=["C(gr)"])
+        products = Mixture(all_thermo, product_names, ions=.true.)
+
+        weights = reactants%weights_from_moles([0.985d0, 0.015d0])
+        p_reac = mmhg_to_bar(0.224d0)
+        t_reac = 291.0d0
+
+        solver = ShockSolver(products, reactants, ions=.true.)
+        soln = solver%solve(weights, t_reac, p_reac, u1=2410.0d0, reflected=.true., &
+                            incident_frozen=.false., reflected_frozen=.false.)
+
+        @assertFalse(soln%converged)
+        @assertTrue(soln%eq_soln(1)%T > 0.0d0)
+        @assertEqual(0.0d0, soln%eq_soln(2)%T)
+        @assertEqual(0.0d0, soln%pressure(2))
+        @assertEqual(0.0d0, soln%eq_soln(3)%T)
+        @assertEqual(0.0d0, soln%pressure(3))
+        @assertEqual(0.0d0, soln%u5_p_v2)
 
     end subroutine
 

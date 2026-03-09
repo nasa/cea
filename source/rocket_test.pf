@@ -43,6 +43,10 @@ contains
         ! Products order:  H, H2, H2O, H2O2, HO2, O, O2, O3, OH, H2O(L), H2O(cr)
 
         ! Test the chamber conditions
+        ! write(*,*) "st1 T = ", soln%eq_soln(1)%T, " rel = ", &
+        !    abs((3383.8446259451043d0 - soln%eq_soln(1)%T)/3383.8446259451043d0)
+        ! write(*,*) "st1 ln_nj(H2) = ", soln%eq_soln(1)%ln_nj(2), " rel = ", &
+        !    abs((-3.7643107135196541d0 - soln%eq_soln(1)%ln_nj(2))/(-3.7643107135196541d0))
         @assertRelativelyEqual(3383.8446259451043d0,  soln%eq_soln(1)%T, tol)
         @assertRelativelyEqual(-5.9391066300902899d0, soln%eq_soln(1)%ln_nj(1), tol)
         @assertRelativelyEqual(-3.7643107135196541d0, soln%eq_soln(1)%ln_nj(2), tol)
@@ -58,6 +62,10 @@ contains
         @assertRelativelyEqual(1.1446952882630981d0, soln%eq_partials(1)%gamma_s, tol)
 
         ! Test the throat conditions
+        ! write(*,*) "st2 T = ", soln%eq_soln(2)%T, " rel = ", &
+        !    abs((3185.6731730807096d0 - soln%eq_soln(2)%T)/3185.6731730807096d0)
+        ! write(*,*) "st2 ln_nj(H2) = ", soln%eq_soln(2)%ln_nj(2), " rel = ", &
+        !    abs((-3.7758918668469459d0 - soln%eq_soln(2)%ln_nj(2))/(-3.7758918668469459d0))
         @assertRelativelyEqual(3185.6731730807096d0,  soln%eq_soln(2)%T, tol)
         @assertRelativelyEqual(-6.1821344716750914d0, soln%eq_soln(2)%ln_nj(1), tol)
         @assertRelativelyEqual(-3.7758918668469459d0, soln%eq_soln(2)%ln_nj(2), tol)
@@ -72,6 +80,10 @@ contains
         @assertEqual(0.0d0, soln%eq_soln(1)%nj(11), tol)
 
         ! Test the exit conditions (pi_p)
+        ! write(*,*) "st3 T = ", soln%eq_soln(3)%T, " rel = ", &
+        !    abs((2567.3401804441942d0 - soln%eq_soln(3)%T)/2567.3401804441942d0)
+        ! write(*,*) "st3 ln_nj(H2) = ", soln%eq_soln(3)%ln_nj(2), " rel = ", &
+        !    abs((-3.7880413204534467d0 - soln%eq_soln(3)%ln_nj(2))/(-3.7880413204534467d0))
         @assertRelativelyEqual(2567.3401804441942d0,  soln%eq_soln(3)%T, tol)
         @assertRelativelyEqual(-7.4110702063645491d0, soln%eq_soln(3)%ln_nj(1), tol)
         @assertRelativelyEqual(-3.7880413204534467d0, soln%eq_soln(3)%ln_nj(2), tol)

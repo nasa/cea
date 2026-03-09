@@ -470,6 +470,17 @@ contains
         ! Test the full solve
         call solver%solve(solution, 'uv', u_reac, v_reac, weights)
 
+        ! write(*,*) "T = ", solution%T, " rel = ", &
+        !    abs((2418.5382574474097d0 - solution%T)/2418.5382574474097d0)
+        ! write(*,*) "ln_nj(1) = ", solution%ln_nj(1), " rel = ", &
+        !    abs((-52.374890133250204d0 - solution%ln_nj(1))/(-52.374890133250204d0))
+        ! write(*,*) "ln_nj(2) = ", solution%ln_nj(2), " rel = ", &
+        !    abs((-8.0940265640663025d0 - solution%ln_nj(2))/(-8.0940265640663025d0))
+        ! write(*,*) "ln_nj(3) = ", solution%ln_nj(3), " rel = ", &
+        !    abs((-42.957051147438705d0 - solution%ln_nj(3))/(-42.957051147438705d0))
+        ! write(*,*) "ln_nj(7) = ", solution%ln_nj(7), " rel = ", &
+        !    abs((-9.7591561204275976d0 - solution%ln_nj(7))/(-9.7591561204275976d0))
+
         @assertRelativelyEqual(2418.5382574474097d0, solution%T, tol)
         @assertRelativelyEqual(-52.374890133250204d0, solution%ln_nj(1), tol)
         @assertRelativelyEqual(-8.0940265640663025d0, solution%ln_nj(2), tol)

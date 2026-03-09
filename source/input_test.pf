@@ -9,7 +9,6 @@ contains
     subroutine test_read_input
         type(ProblemDB), allocatable :: problems(:)
         allocate(problems(0))
-        write(*,*) 'Testing read_input'
         !call set_log_level(log_levels%debug)
         problems = read_input('samples/rp1311_examples.inp')
         @assertEqual(14, size(problems))

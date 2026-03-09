@@ -145,6 +145,71 @@ contains
 
     end subroutine
 
+    logical function ShockSolver_state_valid(soln, idx) result(valid)
+        type(ShockSolution), intent(in) :: soln
+        integer, intent(in) :: idx
+
+        valid = .false.
+        if (idx < 1 .or. idx > soln%num_pts) return
+
+        valid = soln%eq_soln(idx)%converged .and. &
+                soln%eq_soln(idx)%T > 0.0d0 .and. &
+                soln%eq_soln(idx)%n > 0.0d0
+    end function
+
+    subroutine ShockSolver_fail_state(soln, idx, message)
+        type(ShockSolution), intent(inout) :: soln
+        integer, intent(in) :: idx
+        character(*), intent(in) :: message
+
+        if (len_trim(message) > 0) call log_warning(trim(message))
+        call log_warning("Shock calculation stopped after the last valid point.")
+
+        soln%converged = .false.
+        soln%pressure(idx) = 0.0d0
+        soln%mach(idx) = 0.0d0
+        soln%u(idx) = 0.0d0
+        soln%v_sonic(idx) = 0.0d0
+        soln%eq_soln(idx)%T = 0.0d0
+        soln%eq_soln(idx)%n = 0.0d0
+        soln%eq_soln(idx)%converged = .false.
+        soln%eq_partials(idx)%dlnV_dlnP = 0.0d0
+        soln%eq_partials(idx)%dlnV_dlnT = 0.0d0
+        soln%eq_partials(idx)%gamma_s = 0.0d0
+
+        select case (idx)
+            case (2)
+                soln%rho12 = 0.0d0
+                soln%p21 = 0.0d0
+                soln%t21 = 0.0d0
+                soln%M21 = 0.0d0
+                soln%v2 = 0.0d0
+                if (soln%num_pts >= 3) then
+                    soln%pressure(3) = 0.0d0
+                    soln%mach(3) = 0.0d0
+                    soln%u(3) = 0.0d0
+                    soln%v_sonic(3) = 0.0d0
+                    soln%eq_soln(3)%T = 0.0d0
+                    soln%eq_soln(3)%n = 0.0d0
+                    soln%eq_soln(3)%converged = .false.
+                    soln%eq_partials(3)%dlnV_dlnP = 0.0d0
+                    soln%eq_partials(3)%dlnV_dlnT = 0.0d0
+                    soln%eq_partials(3)%gamma_s = 0.0d0
+                    soln%rho52 = 0.0d0
+                    soln%p52 = 0.0d0
+                    soln%t52 = 0.0d0
+                    soln%M52 = 0.0d0
+                    soln%u5_p_v2 = 0.0d0
+                end if
+            case (3)
+                soln%rho52 = 0.0d0
+                soln%p52 = 0.0d0
+                soln%t52 = 0.0d0
+                soln%M52 = 0.0d0
+                soln%u5_p_v2 = 0.0d0
+        end select
+    end subroutine
+
     subroutine ShockSolver_solve_incident(self, soln, weights, T0, P0)
         ! Solve the incident shock conditions
 
@@ -198,6 +263,11 @@ contains
 
         soln%pressure(idx) = p21*P0
         call self%eq_solver%solve(soln%eq_soln(idx), "hp", h0, soln%pressure(idx), weights, partials=soln%eq_partials(idx))
+        if (.not. ShockSolver_state_valid(soln, idx)) then
+            call ShockSolver_fail_state(soln, idx, &
+                                        "ShockSolver_solve_incident: incident equilibrium initialization failed.")
+            return
+        end if
 
         t21 = soln%eq_soln(idx)%T/T0
         ttmax = 1.05*T_gas_max/T0
@@ -209,6 +279,11 @@ contains
             T2 = t21*T0
 
             call self%eq_solver%solve(soln%eq_soln(idx), "tp", T2, soln%pressure(idx), weights, partials=soln%eq_partials(idx))
+            if (.not. ShockSolver_state_valid(soln, idx)) then
+                call ShockSolver_fail_state(soln, idx, &
+                                            "ShockSolver_solve_incident: incident equilibrium iteration failed.")
+                return
+            end if
 
             ! Update properties after the equilibrium shock
             wm_k = 1.0d0/soln%eq_soln(idx)%n
@@ -244,10 +319,8 @@ contains
             call self%update_solution(soln, X(1), X(2), p21, t21, i)
 
             if (i == 1 .and. .not. soln%converged .and. t21 >= ttmax) then
-                call log_warning("ShockSolver_solve_incident: first-iteration update hit " // &
-                                 "temperature cap; marking incident point as failed.")
-                soln%eq_soln(idx)%T = 0.0d0
-                soln%pressure(idx) = 0.0d0
+                call ShockSolver_fail_state(soln, idx, "ShockSolver_solve_incident: first-iteration update hit " // &
+                                            "temperature cap; marking incident point as failed.")
                 return
             end if
 
@@ -268,14 +341,7 @@ contains
 
         ! Not converged; compute shock properties
         if (.not. soln%converged) then
-            soln%rho12 = rho12
-            soln%p21 = p21
-            soln%t21 = t21
-            soln%u(idx) = u1*rho12
-            soln%M21 = wm_k/wm
-            soln%mach(idx) = soln%M21*mach1
-            soln%v_sonic(idx) = (R*T2*(cp/(cp - 1.0/wm_k))/wm_k)**0.5d0
-            soln%v2 = u1 - soln%u(idx)
+            call ShockSolver_fail_state(soln, idx, "ShockSolver_solve_incident: incident equilibrium solve did not converge.")
         end if
 
     end subroutine
@@ -394,10 +460,8 @@ contains
             call self%update_solution(soln, X(1), X(2), p21, t21, i)
 
             if (i == 1 .and. .not. soln%converged .and. t21 >= ttmax) then
-                call log_warning("ShockSolver_solve_incident_frozen: first-iteration update hit " // &
-                                 "temperature cap; marking incident point as failed.")
-                soln%eq_soln(idx)%T = 0.0d0
-                soln%pressure(idx) = 0.0d0
+                call ShockSolver_fail_state(soln, idx, "ShockSolver_solve_incident_frozen: first-iteration update hit " // &
+                                            "temperature cap; marking incident point as failed.")
                 return
             end if
 
@@ -419,14 +483,7 @@ contains
 
         ! Not converged; compute shock properties
         if (.not. soln%converged) then
-            soln%rho12 = rho12
-            soln%p21 = p21
-            soln%t21 = t21
-            soln%u(idx) = u1*rho12
-            soln%M21 = wm_k/wm
-            soln%mach(idx) = soln%M21*mach1
-            soln%v_sonic(idx) = (R*T2*(cp/(cp - 1.0/wm_k))/wm_k)**0.5d0
-            soln%v2 = u1 - soln%u(idx)
+            call ShockSolver_fail_state(soln, idx, "ShockSolver_solve_incident_frozen: incident frozen solve did not converge.")
         end if
 
     end subroutine
@@ -456,7 +513,7 @@ contains
         real(dp) :: G(2, 3)               ! Solution matrix
         real(dp) :: X(3)                  ! Solution vector
         real(dp) :: dlnV_dlnP, dlnV_dlnT  ! Partial derivatives
-        real(dp) :: rho12                 ! Ratios of chemical potential and density across the incident shock
+        real(dp) :: rho12                 ! Incident-shock density ratio carried into reflected solve
         real(dp) :: mu25rt, rho52         ! Ratios of chemical potential and density across the reflected shock
         real(dp) :: tmp                   ! Intermediate variabls
         real(dp), allocatable :: nj_g(:)  ! Total/gas species concentrations [kmol-per-kg]
@@ -492,6 +549,11 @@ contains
             T5 = t52*T2
 
             call self%eq_solver%solve(soln%eq_soln(idx), "tp", T5, soln%pressure(idx), weights, partials=soln%eq_partials(idx))
+            if (.not. ShockSolver_state_valid(soln, idx)) then
+                call ShockSolver_fail_state(soln, idx, &
+                                            "ShockSolver_solve_reflected: reflected equilibrium iteration failed.")
+                return
+            end if
 
             ! Update properties after the equilibrium shock
             wm_k = 1.0d0/soln%eq_soln(idx)%n
@@ -531,10 +593,8 @@ contains
             call self%update_solution(soln, X(1), X(2), p52, t52, i)
 
             if (i == 1 .and. .not. soln%converged .and. t52 >= ttmax) then
-                call log_warning("ShockSolver_solve_reflected: first-iteration update hit " // &
-                                 "temperature cap; marking reflected point as failed.")
-                soln%eq_soln(idx)%T = 0.0d0
-                soln%pressure(idx) = 0.0d0
+                call ShockSolver_fail_state(soln, idx, "ShockSolver_solve_reflected: first-iteration update hit " // &
+                                            "temperature cap; marking reflected point as failed.")
                 return
             end if
 
@@ -555,14 +615,7 @@ contains
 
         ! Not converged; compute shock properties
         if (.not. soln%converged) then
-            soln%rho52 = rho52
-            soln%p52 = p52
-            soln%t52 = t52
-            soln%u(idx) = (u1 - u1*rho12)/rho52
-            soln%M52 = wm_k/wm
-            soln%mach(idx) = soln%M52*soln%mach(2)
-            soln%u5_p_v2 = (u1 - u1*rho12)*(1.0d0-1.0d0/rho52)
-            soln%v_sonic(idx) = (R*T5*(cp/(cp - 1.0/wm_k))/wm_k)**0.5d0
+            call ShockSolver_fail_state(soln, idx, "ShockSolver_solve_reflected: reflected equilibrium solve did not converge.")
         end if
 
     end subroutine
@@ -594,6 +647,7 @@ contains
         real(dp) :: dlnV_dlnP, dlnV_dlnT  ! Partial derivatives
         real(dp) :: rho12                 ! Ratios of chemical potential and density across the incident shock
         real(dp) :: mu25rt, rho52         ! Ratios of chemical potential and density across the reflected shock
+        real(dp) :: rho25_inv             ! Reflected-shock inverse density ratio used in the Newton system
         real(dp) :: tmp                   ! Intermediate variabls
         integer, parameter :: max_iter = 60
         real(dp), parameter :: T_gas_max = 20000.d0  ! Max gas temperature in the thermo database [K]
@@ -652,8 +706,8 @@ contains
             dlnV_dlnP = soln%eq_partials(idx)%dlnV_dlnP
             dlnV_dlnT = soln%eq_partials(idx)%dlnV_dlnT
 
-            rho12 = wm*t52/(wm_k*p52)
-            rho52 = 1./rho12
+            rho25_inv = wm*t52/(wm_k*p52)
+            rho52 = 1./rho25_inv
             soln%rho52 = rho52
             tmp = -mu25rt*rho52/(rho52 - 1.0d0)**2
 
@@ -677,10 +731,8 @@ contains
             call self%update_solution(soln, X(1), X(2), p52, t52, i)
 
             if (i == 1 .and. .not. soln%converged .and. t52 >= ttmax) then
-                call log_warning("ShockSolver_solve_reflected_frozen: first-iteration update hit " // &
-                                 "temperature cap; marking reflected point as failed.")
-                soln%eq_soln(idx)%T = 0.0d0
-                soln%pressure(idx) = 0.0d0
+                call ShockSolver_fail_state(soln, idx, "ShockSolver_solve_reflected_frozen: first-iteration update hit " // &
+                                            "temperature cap; marking reflected point as failed.")
                 return
             end if
 
@@ -701,14 +753,7 @@ contains
 
         ! Not converged; compute shock properties
         if (.not. soln%converged) then
-            soln%rho52 = rho52
-            soln%p52 = p52
-            soln%t52 = t52
-            soln%u(idx) = soln%v2/rho52
-            soln%M52 = wm_k/wm
-            soln%mach(idx) = soln%M52*soln%mach(2)
-            soln%u5_p_v2 = (u1 - u1*rho12)*(1.0d0-1.0d0/rho52)
-            soln%v_sonic(idx) = (R*T5*(cp/(cp - 1.0/wm_k))/wm_k)**0.5d0
+            call ShockSolver_fail_state(soln, idx, "ShockSolver_solve_reflected_frozen: reflected frozen solve did not converge.")
         end if
 
     end subroutine
