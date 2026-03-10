@@ -9,9 +9,14 @@ All notable user-visible changes to this project are documented here.
 - Added SI-focused custom-reactant handling at the Python API layer: `Reactant.temperature` is specified in K and `Reactant.enthalpy` in J/kg (converted internally for core input) (`#53`).
 - Legacy input parsing now supports repeated `outp` dataset keywords (including multiline forms) by merging successive `outp` entries during dataset assembly (`#52`).
 - FAC rocket chamber-closure iteration logic in `RocketSolver_solve_fac` was updated toward CEA2 parity: Option-1 pressure correction direction now follows legacy semantics, the Option-1 convergence check is normalized to assigned injector pressure, the fixed 4-pass outer loop was replaced with tolerance-driven iteration plus a bounded safety guard, and FAC combustor-end reseeding now refreshes from the current infinity state each chamber iteration (`#54`).
+- Legacy SHCK branch sequencing and output selection were reworked toward CEA2 parity: explicit incident requests now report only the requested incident branch (with reflected state attached when requested), while reflected-only requests continue exploring the mixed equilibrium/frozen permutations.
+- Shock reports now include incident/reflected transport tables (`Visc`, `Cp`, `Conductivity`, `Prandtl Number`) when `outp tran` is enabled and transport data are available.
 
 ### Fixed
 - Legacy CLI equilibrium/rocket/shock workflows now propagate `include_ions` into generated product mixtures so ionized products are retained when requested (`#52`).
+- Reflected-shock velocity and related state outputs (`u5/v2`, sonic speed, and reflected ratios) were corrected for reflected equilibrium/frozen workflows, including reflected-frozen header thermodynamic values.
+- Shock failure handling now stops at the last valid state instead of emitting partially invalid reflected results; failed downstream shock states are explicitly zeroed for consistent output.
+- Shock transport-property calculations now preserve and restore stable transport seeds across singular-recovery paths, fixing incorrect or missing transport values in difficult reflected-shock cases.
 
 ### Added
 - Added C and Python support for custom reactant data (including species not present in `thermo.lib`) in parity with the main interface workflow used by RP-1311 Example 5 (`#53`).
@@ -20,6 +25,7 @@ All notable user-visible changes to this project are documented here.
   - `cea_mixture_create_products_from_input_reactants_w_ions` (`#53`).
 - Added a shared bindc parser path for `cea_reactant_input -> ReactantInput` conversion to reduce duplicated C-binding logic (`#53`).
 - Added Python `cea.Reactant` and mixed-input `Mixture(...)` support in the Cython binding (`#53`).
+- Added shock regression coverage for transport output population across equilibrium/frozen branches and for singular-recovery reflected-shock cases.
 
 ## [3.1.0] - 2026-03-02
 

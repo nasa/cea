@@ -759,12 +759,7 @@ contains
             T5 = t52*T2
 
             call self%eq_solver%solve(soln%eq_soln(idx), "tp", T5, soln%pressure(idx), weights, partials=soln%eq_partials(idx))
-            if (.not. ShockSolver_state_valid(soln, idx)) then
-                call ShockSolver_fail_state(soln, idx, &
-                                            "ShockSolver_solve_reflected: reflected equilibrium iteration failed.")
-                return
-            end if
-            if (.not. soln%eq_soln(idx)%converged) then
+            if ((.not. ShockSolver_state_valid(soln, idx)) .or. (.not. soln%eq_soln(idx)%converged)) then
                 call ShockSolver_fail_state(soln, idx, &
                                             "ShockSolver_solve_reflected: reflected equilibrium iteration failed.")
                 return

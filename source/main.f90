@@ -741,10 +741,10 @@ contains
                     if (.not. solution%converged .or. solution%eq_soln(3)%T <= 0.0d0) branch_failed = .true.
                 end do
 
-                if (branch_failed) stop_after_branch = .true.
-            else if (input_reflected) then
-                if (branch_failed) stop_after_branch = .true.
             end if
+            ! If any reflected-equilibrium branch fails, skip downstream frozen
+            ! permutations and keep only the successful branch outputs.
+            if (input_reflected .and. branch_failed) stop_after_branch = .true.
         end if
 
         if (frozen .and. .not. stop_after_branch .and. (.not. incident .or. .not. equilibrium)) then
@@ -1026,6 +1026,8 @@ contains
             incd_type = "FROZEN     "
             refl_type = "FROZEN     "
 
+            ! Branch codes capture solve ordering; output sections are selected
+            ! directly from this code rather than recomputing input flags.
             select case (branch_codes(k))
                 case (BR_INCD_EQ)
                     write_incd_eql = .true.

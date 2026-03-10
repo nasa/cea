@@ -5133,7 +5133,7 @@ contains
         logical, allocatable :: selected_species(:)
 
         logical :: frozen_transport_only
-        real(dp), parameter :: legacy_transport_log_cutoff = 25.328436d0
+        real(dp), parameter :: transport_log_cutoff = 25.328436d0
 
         frozen_transport_only = .false.
         if (present(frozen_shock)) frozen_transport_only = frozen_shock
@@ -5177,7 +5177,7 @@ contains
             ! TODO(smooth_truncation): transport species screening currently uses hard-zero semantics.
             ! Revisit whether smooth mode should use a practical-zero cutoff instead.
             if (eq_soln%nj(i) <= 0.0d0) then
-                if (eq_soln%ln_nj(i) - log(eq_soln%n) + legacy_transport_log_cutoff > 0.0d0) then
+                if (eq_soln%ln_nj(i) - log(eq_soln%n) + transport_log_cutoff > 0.0d0) then
                     eq_soln%nj(i) = exp(eq_soln%ln_nj(i))
                 end if
             end if
