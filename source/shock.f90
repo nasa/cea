@@ -97,7 +97,7 @@ contains
                                       insert=insert, smooth_truncation=smooth_truncation, &
                                       truncation_width=truncation_width)
         else
-            ! CEA2 uses default trace of 5e-9 for shock problems
+            ! Use a default trace of 5e-9 for shock problems.
             self%eq_solver = EqSolver(products, reactants, trace=5.d-9, ions=ions, all_transport=all_transport, &
                                       insert=insert, smooth_truncation=smooth_truncation, &
                                       truncation_width=truncation_width)
@@ -151,9 +151,9 @@ contains
         valid = .false.
         if (idx < 1 .or. idx > soln%num_pts) return
 
-        ! Legacy SHCK continues with the last nonzero equilibrium state after
-        ! singular-recovery exits. Mirror that behavior here and let the shock
-        ! layer decide whether to finalize or reject the state.
+        ! Continue with the last nonzero equilibrium state after
+        ! singular-recovery exits, and let the shock layer decide whether to
+        ! finalize or reject the state.
         valid = soln%eq_soln(idx)%T > 0.0d0 .and. &
                 soln%eq_soln(idx)%n > 0.0d0
     end function
@@ -267,6 +267,40 @@ contains
         end if
     end subroutine
 
+    subroutine ShockSolver_apply_atomic_transport_basis(self, eq_soln)
+        ! Force transport basis rows to elemental gas species.
+        class(ShockSolver), intent(in) :: self
+        type(EqSolution), intent(inout) :: eq_soln
+
+        integer :: ne, nn, ng
+        integer :: i, lc, fallback
+        real(dp), parameter :: tol = 1.0d-8
+
+        ng = self%eq_solver%num_gas
+        ne = self%eq_solver%num_active_elements()
+        nn = ne
+        if (self%eq_solver%ions .and. self%eq_solver%active_ions) nn = max(1, ne-1)
+        if (nn <= 0 .or. ng <= 0) return
+
+        eq_soln%transport_basis_rows = nn
+        eq_soln%transport_component_idx = 0
+        eq_soln%transport_basis_matrix = 0.0d0
+
+        do lc = 1, nn
+            fallback = 0
+            do i = 1, ng
+                if (self%eq_solver%products%stoich_matrix(i, lc) > tol .and. fallback == 0) fallback = i
+                if (abs(self%eq_solver%products%stoich_matrix(i, lc) - 1.0d0) < tol .and. &
+                    abs(sum(abs(self%eq_solver%products%stoich_matrix(i, :ne))) - 1.0d0) < tol) then
+                    eq_soln%transport_component_idx(lc) = i
+                    exit
+                end if
+            end do
+            if (eq_soln%transport_component_idx(lc) == 0) eq_soln%transport_component_idx(lc) = fallback
+            eq_soln%transport_basis_matrix(lc, :ng) = self%eq_solver%products%stoich_matrix(:ng, lc)
+        end do
+    end subroutine
+
     subroutine ShockSolver_finalize_equilibrium_state(self, soln, idx, update_transport)
         class(ShockSolver), intent(in) :: self
         type(ShockSolution), intent(inout) :: soln
@@ -321,8 +355,8 @@ contains
         soln%eq_soln(idx)%entropy = entropy_sum * R / 1.d3
         soln%eq_soln(idx)%gibbs_energy = soln%eq_soln(idx)%enthalpy - soln%eq_soln(idx)%T*soln%eq_soln(idx)%entropy
 
-        ! Match legacy SHCK reflected-frozen header thermo: use the carried
-        ! incident-state frozen-gas Cp basis with incident molecular weight.
+        ! For reflected-frozen header thermo, use the carried incident-state
+        ! frozen-gas Cp basis with incident molecular weight.
         cp_dimless = dot_product(soln%eq_soln(2)%nj(:ng), soln%eq_soln(2)%thermo%cp(:ng))
         soln%eq_soln(idx)%cp_eq = cp_dimless * R / 1.d3
         soln%eq_soln(idx)%cv_eq = soln%eq_soln(idx)%cp_eq - soln%eq_soln(idx)%n*R/1.d3
@@ -424,7 +458,7 @@ contains
                 end if
             end if
             if (.not. soln%eq_soln(idx)%converged) then
-                call ShockSolver_finalize_equilibrium_state(self, soln, idx)
+                call ShockSolver_finalize_equilibrium_state(self, soln, idx, update_transport=.false.)
             end if
 
             ! Update properties after the equilibrium shock
@@ -489,15 +523,19 @@ contains
 
         end do
 
-        ! Legacy SHCK keeps the last valid incident-equilibrium state after
-        ! singular-recovery exits and continues with warning semantics.
+        ! For non-converged incident-equilibrium states, recompute transport
+        ! using elemental component rows, even if shock-level variables converge.
+        if (ShockSolver_state_valid(soln, idx)) then
+            if (self%eq_solver%transport .and. .not. soln%eq_soln(idx)%converged) then
+                call ShockSolver_apply_atomic_transport_basis(self, soln%eq_soln(idx))
+                call ShockSolver_update_transport(self, soln%eq_soln(idx), update_basis=.false.)
+            end if
+        end if
+
+        ! Keep the last valid incident-equilibrium state after
+        ! singular-recovery exits and continue with warning semantics.
         if (.not. soln%converged) then
             if (ShockSolver_state_valid(soln, idx)) then
-                if (self%eq_solver%transport) then
-                    ! Legacy SHCK recomputes transport from the retained state
-                    ! with the active component basis (Jcm/Lsave analogue).
-                    call ShockSolver_update_transport(self, soln%eq_soln(idx), update_basis=.true.)
-                end if
                 soln%rho12 = rho12
                 soln%p21 = p21
                 soln%t21 = t21
@@ -965,8 +1003,7 @@ contains
         logical :: reflected_, incident_frozen_, reflected_frozen_    ! Problem flags
         real(dp) :: mach1_, u1_           ! Initial mach and velocity
         integer :: npts                   ! Number of problem types to solve
-        integer :: i, j                   ! Index variables
-        integer :: saved_transport_rows
+        integer :: i, j
         real(dp) :: gamma1                ! Ratio of specific heats at initial condition
         real(dp) :: cp                    ! Mixture heat capacity
         real(dp) :: wm                    ! Mixture molecular weight (initial, k-th iteration)
@@ -989,7 +1026,7 @@ contains
         ! 5. Incident frozen + reflected frozen
         ! 5. Incident frozen + reflected equilbrium
 
-        ! NOTE: solution defaults to equilibrium analysis, which is different than CEA2 default
+        ! NOTE: solution defaults to equilibrium analysis, which differs from CEA2 default.
 
         ! Input handling
         if ((present(u1)) .and. (present(mach1))) then
@@ -1088,15 +1125,9 @@ contains
             call self%eq_solver%post_process(soln%eq_soln(2))
         end if
         if (.not. incident_frozen_ .and. reflected_ .and. reflected_frozen_ .and. self%eq_solver%transport) then
-            ! In SHCK this path calls TRANP after retaining the incident-equilibrium
-            ! state. Use the fallback reaction-basis assembly for this retained
-            ! branch to match legacy failure-path transport behavior.
-            saved_transport_rows = soln%eq_soln(2)%transport_basis_rows
-            soln%eq_soln(2)%transport_basis_rows = 0
+            call ShockSolver_apply_atomic_transport_basis(self, soln%eq_soln(2))
             call ShockSolver_update_transport(self, soln%eq_soln(2), update_basis=.false.)
-            soln%eq_soln(2)%transport_basis_rows = saved_transport_rows
         end if
-
         ! Compute the reflected shock solution
         if (reflected_) then
             if (reflected_frozen_) then
