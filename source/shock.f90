@@ -321,7 +321,9 @@ contains
         soln%eq_soln(idx)%entropy = entropy_sum * R / 1.d3
         soln%eq_soln(idx)%gibbs_energy = soln%eq_soln(idx)%enthalpy - soln%eq_soln(idx)%T*soln%eq_soln(idx)%entropy
 
-        cp_dimless = dot_product(soln%eq_soln(idx)%nj, soln%eq_soln(idx)%thermo%cp)
+        ! Match legacy SHCK reflected-frozen header thermo: use the carried
+        ! incident-state frozen-gas Cp basis with incident molecular weight.
+        cp_dimless = dot_product(soln%eq_soln(2)%nj(:ng), soln%eq_soln(2)%thermo%cp(:ng))
         soln%eq_soln(idx)%cp_eq = cp_dimless * R / 1.d3
         soln%eq_soln(idx)%cv_eq = soln%eq_soln(idx)%cp_eq - soln%eq_soln(idx)%n*R/1.d3
         soln%eq_partials(idx)%gamma_s = cp_dimless/(cp_dimless - 1.0d0/wmx)
@@ -422,7 +424,7 @@ contains
                 end if
             end if
             if (.not. soln%eq_soln(idx)%converged) then
-                call ShockSolver_finalize_equilibrium_state(self, soln, idx, update_transport=.false.)
+                call ShockSolver_finalize_equilibrium_state(self, soln, idx)
             end if
 
             ! Update properties after the equilibrium shock
@@ -491,6 +493,11 @@ contains
         ! singular-recovery exits and continues with warning semantics.
         if (.not. soln%converged) then
             if (ShockSolver_state_valid(soln, idx)) then
+                if (self%eq_solver%transport) then
+                    ! Legacy SHCK recomputes transport from the retained state
+                    ! with the active component basis (Jcm/Lsave analogue).
+                    call ShockSolver_update_transport(self, soln%eq_soln(idx), update_basis=.true.)
+                end if
                 soln%rho12 = rho12
                 soln%p21 = p21
                 soln%t21 = t21
@@ -959,6 +966,7 @@ contains
         real(dp) :: mach1_, u1_           ! Initial mach and velocity
         integer :: npts                   ! Number of problem types to solve
         integer :: i, j                   ! Index variables
+        integer :: saved_transport_rows
         real(dp) :: gamma1                ! Ratio of specific heats at initial condition
         real(dp) :: cp                    ! Mixture heat capacity
         real(dp) :: wm                    ! Mixture molecular weight (initial, k-th iteration)
@@ -1078,6 +1086,15 @@ contains
         end if
         if (soln%eq_soln(2)%converged) then
             call self%eq_solver%post_process(soln%eq_soln(2))
+        end if
+        if (.not. incident_frozen_ .and. reflected_ .and. reflected_frozen_ .and. self%eq_solver%transport) then
+            ! In SHCK this path calls TRANP after retaining the incident-equilibrium
+            ! state. Use the fallback reaction-basis assembly for this retained
+            ! branch to match legacy failure-path transport behavior.
+            saved_transport_rows = soln%eq_soln(2)%transport_basis_rows
+            soln%eq_soln(2)%transport_basis_rows = 0
+            call ShockSolver_update_transport(self, soln%eq_soln(2), update_basis=.false.)
+            soln%eq_soln(2)%transport_basis_rows = saved_transport_rows
         end if
 
         ! Compute the reflected shock solution

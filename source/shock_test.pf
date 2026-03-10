@@ -226,6 +226,9 @@ contains
         @assertTrue(soln%eq_soln(2)%cp_eq_transport > soln%eq_soln(2)%cp_fr)
         @assertTrue(soln%eq_soln(2)%conductivity_eq > soln%eq_soln(2)%conductivity_fr)
         @assertTrue(soln%eq_soln(2)%Pr_eq > 0.0d0)
+        @assertRelativelyEqual(1.9055d0, soln%eq_soln(2)%cp_eq_transport, 1.d-2)
+        @assertRelativelyEqual(4.2202d0, soln%eq_soln(2)%conductivity_eq, 1.d-2)
+        @assertRelativelyEqual(0.3369d0, soln%eq_soln(2)%Pr_eq, 1.d-2)
         @assertRelativelyEqual(1.3437d0, soln%eq_soln(2)%cp_fr, 5.d-2)
         @assertRelativelyEqual(1.4323d0, soln%eq_soln(2)%conductivity_fr, 5.d-2)
 
@@ -234,6 +237,8 @@ contains
         @assertRelativelyEqual(-48418.2d0, soln%eq_soln(3)%gibbs_energy, 5.d-2)
         @assertRelativelyEqual(11.0893d0, soln%eq_soln(3)%entropy, 5.d-2)
         @assertRelativelyEqual(1566.35d0, soln%u5_p_v2, 5.d-2)
+        @assertRelativelyEqual(1.3456d0, soln%eq_soln(3)%cp_eq, 1.d-2)
+        @assertRelativelyEqual(1.2940d0, soln%eq_soln(3)%gamma_s, 1.d-2)
         @assertRelativelyEqual(1.3970d0, soln%eq_soln(3)%cp_fr, 5.d-2)
         @assertRelativelyEqual(2.6324d0, soln%eq_soln(3)%conductivity_fr, 5.d-2)
 

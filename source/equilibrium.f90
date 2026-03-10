@@ -2567,9 +2567,9 @@ contains
 
                 ! Compute transport properties
                 if (self%transport) then
-                    if (times_singular == 0 .or. soln%transport_basis_rows <= 0) then
-                        call self%update_transport_basis(soln)
-                    end if
+                    ! Legacy TRANP/TRANIN uses the current retained component set.
+                    ! Always refresh the transport basis from the finalized state.
+                    call self%update_transport_basis(soln)
                     call compute_transport_properties(self, soln)
                 end if
 
@@ -5404,6 +5404,14 @@ contains
                     exit
                 end if
             end do
+        end if
+
+        ! Guard against under-ranked cached bases on singular-retained states.
+        ! When fewer components than active element rows are available, fall back
+        ! to the legacy-style element-basis construction below.
+        if (ncomp > 0 .and. ncomp < min(ne, nm)) then
+            ncomp = 0
+            is_component = .false.
         end if
 
         if (ncomp > 0 .and. ncomp < nm) then
