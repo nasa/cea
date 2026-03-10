@@ -362,6 +362,7 @@ contains
         soln%eq_soln(idx)%cv_eq = soln%eq_soln(idx)%cp_eq - soln%eq_soln(idx)%n*R/1.d3
         soln%eq_partials(idx)%gamma_s = cp_dimless/(cp_dimless - 1.0d0/wmx)
         soln%eq_soln(idx)%gamma_s = soln%eq_partials(idx)%gamma_s
+        soln%v_sonic(idx) = sqrt(R*soln%eq_soln(idx)%T*soln%eq_soln(idx)%gamma_s/wmx)
 
         soln%eq_soln(idx)%M = wmx
         soln%eq_soln(idx)%MW = wmx*(1.0d0 - sum(soln%eq_soln(idx)%mole_fractions(ng+1:)))

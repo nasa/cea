@@ -209,6 +209,7 @@ contains
         type(ShockSolution) :: soln
         character(:), allocatable :: product_names(:)
         real(dp) :: p_reac, t_reac, weights(2)
+        real(dp) :: wmx_reflected
 
         reactants = Mixture(all_thermo, ['N2 ', 'CH4'], ions=.true.)
         product_names = reactants%get_products(all_thermo)
@@ -239,8 +240,12 @@ contains
         @assertRelativelyEqual(1566.35d0, soln%u5_p_v2, 5.d-2)
         @assertRelativelyEqual(1.3456d0, soln%eq_soln(3)%cp_eq, 1.d-2)
         @assertRelativelyEqual(1.2940d0, soln%eq_soln(3)%gamma_s, 1.d-2)
+        @assertRelativelyEqual(1396.5d0, soln%v_sonic(3), 1.d-3)
         @assertRelativelyEqual(1.3970d0, soln%eq_soln(3)%cp_fr, 5.d-2)
         @assertRelativelyEqual(2.6324d0, soln%eq_soln(3)%conductivity_fr, 5.d-2)
+
+        wmx_reflected = soln%eq_soln(2)%M
+        @assertRelativelyEqual(soln%v_sonic(3)**2, R*soln%eq_soln(3)%T*soln%eq_soln(3)%gamma_s/wmx_reflected, 1.d-10)
 
     end subroutine
 
