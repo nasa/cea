@@ -142,6 +142,8 @@ module cea_input
             !! Exact species to include in product mixture
         character(sn), allocatable :: insert(:)
             !! Species to insert into product mixture
+        character(:), allocatable :: raw_input
+            !! Original input text for this problem block
     end type
 
 contains
@@ -171,8 +173,7 @@ contains
             do
                 read(fin, '(a)', iostat=ierr) line
                 if (ierr /= 0) exit
-                line = adjustl(line)
-                if (.not. is_empty(line)) then
+                if (len_trim(line) > 0) then
                     backspace(fin)
                     exit
                 end if
@@ -205,17 +206,18 @@ contains
         type(ProblemDB), intent(out) :: problem
         integer, intent(out) :: ierr
 
-        character(512) :: line
+        character(512) :: line, raw_line
         character(:), allocatable :: buffer, dsname
-        logical :: has_data, has_prob, has_reac
+        logical :: has_data, has_prob, has_reac, capture_started
 
         has_data = .false.
         has_prob = .false.
         has_reac = .false.
+        capture_started = .false.
         do
 
             ! Get next good line of input
-            read(fin, '(a)', iostat=ierr) line
+            read(fin, '(a)', iostat=ierr) raw_line
             if (ierr /= 0) then
                 if (has_data) then
                     call abort('Problem is missing end keyword.')
@@ -224,7 +226,18 @@ contains
                     return
                 end if
             end if
-            line = adjustl(line)
+            line = adjustl(raw_line)
+            if (len_trim(raw_line) > 0) then
+                if (.not. capture_started) then
+                    problem%raw_input = trim(raw_line)
+                    capture_started = .true.
+                else
+                    problem%raw_input = problem%raw_input // new_line('a') // trim(raw_line)
+                end if
+            else if (capture_started) then
+                problem%raw_input = problem%raw_input // new_line('a')
+            end if
+
             if (is_empty(line)) cycle
             if (startswith(line,'end')) then
                 call assert(has_prob, 'Problem is missing prob dataset.')
@@ -245,19 +258,28 @@ contains
             ! Read until next keyword, saving input
             buffer = trim(line)
             do
-                read(fin, '(A)', iostat=ierr) line
+                read(fin, '(A)', iostat=ierr) raw_line
                 if (ierr /= 0) call abort('Problem has incomplete dataset: '//dsname)
-                line = adjustl(line)
-                if (is_empty(line)) cycle
+                line = adjustl(raw_line)
+                if (len_trim(raw_line) == 0) then
+                    problem%raw_input = problem%raw_input // new_line('a')
+                    cycle
+                end if
+                if (is_empty(line)) then
+                    problem%raw_input = problem%raw_input // new_line('a') // trim(raw_line)
+                    cycle
+                end if
                 if (is_keyword(line)) then
                     if (dsname == 'outp' .and. line(1:4) == 'outp') then
                         ! Legacy behavior allows repeated output datasets; merge them.
+                        problem%raw_input = problem%raw_input // new_line('a') // trim(raw_line)
                         buffer = buffer // ' ' // trim(line)
                         cycle
                     end if
                     backspace(fin)
                     exit
                 else
+                    problem%raw_input = problem%raw_input // new_line('a') // trim(raw_line)
                     buffer = buffer // ' ' // trim(line)
                 end if
             end do

@@ -5,6 +5,7 @@ All notable user-visible changes to this project are documented here.
 ## [Unreleased]
 
 ### Changed
+- Legacy CLI `.out` files now echo each problem’s original input block before the corresponding equilibrium, rocket, shock, or detonation output section.
 
 ### Fixed
 

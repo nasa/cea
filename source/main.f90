@@ -90,6 +90,7 @@ program cea
 
         ! Setup
         prob = problems(n)
+        call write_problem_input(1, prob, n > 1)
 
         select case(prob%problem%type)
             case ("tp", "hp", "sp", "tv", "uv", "sv")
@@ -201,6 +202,35 @@ contains
         end if
 
         return
+    end subroutine
+
+    subroutine write_problem_input(ioout, prob, separate_from_previous)
+        integer, intent(in) :: ioout
+        type(ProblemDB), intent(in) :: prob
+        logical, intent(in) :: separate_from_previous
+
+        integer :: line_start, line_end
+        character(:), allocatable :: line
+
+        if (.not. allocated(prob%raw_input)) return
+
+        if (separate_from_previous) write(ioout, '(A)') ""
+        write(ioout, '(A)') ""
+
+        line_start = 1
+        do while (line_start <= len(prob%raw_input))
+            line_end = index(prob%raw_input(line_start:), new_line('a'))
+            if (line_end == 0) then
+                line = prob%raw_input(line_start:)
+                line_start = len(prob%raw_input) + 1
+            else
+                line = prob%raw_input(line_start:line_start + line_end - 2)
+                line_start = line_start + line_end
+            end if
+            write(ioout, '(A)') ' ' // line
+        end do
+
+        write(ioout, '(A)') ""
     end subroutine
 
     subroutine display_help
