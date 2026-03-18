@@ -238,7 +238,7 @@ Build and install:
 
 3. Prepare Python packages used by the optional binding/tests/docs::
 
-      pip install cython numpy setuptools pandas pytest
+      pip install cython numpy setuptools pytest
 
 4. Configure with the Intel preset (this is the corrected preset usage) and
    build::

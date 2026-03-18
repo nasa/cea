@@ -10,7 +10,6 @@ dependencies:
   - gxx
   - ninja
   - numpy
-  - pandas
   - pytest
   - python
   - setuptools

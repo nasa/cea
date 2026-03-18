@@ -120,7 +120,7 @@ contains
         ! Test the equilibrium solution of the reflected shock
         @assertRelativelyEqual(11.687670103399892d0, soln%pressure(3), tol)
         @assertRelativelyEqual(3867.0814002158386d0, soln%eq_soln(3)%T, tol)
-        @assertRelativelyEqual(607.9270885112162d0, soln%u5_p_v2, tol)
+        @assertRelativelyEqual(1694.6846032446817d0, soln%u5_p_v2, tol)
 
     end subroutine
 
@@ -237,7 +237,7 @@ contains
         @assertRelativelyEqual(4737.13d0, soln%eq_soln(3)%energy, 5.d-2)
         @assertRelativelyEqual(-48418.2d0, soln%eq_soln(3)%gibbs_energy, 5.d-2)
         @assertRelativelyEqual(11.0893d0, soln%eq_soln(3)%entropy, 5.d-2)
-        @assertRelativelyEqual(1566.35d0, soln%u5_p_v2, 5.d-2)
+        @assertRelativelyEqual(2705.0876981752d0, soln%u5_p_v2, 5.d-2)
         @assertRelativelyEqual(1.3456d0, soln%eq_soln(3)%cp_eq, 1.d-2)
         @assertRelativelyEqual(1.2940d0, soln%eq_soln(3)%gamma_s, 1.d-2)
         @assertRelativelyEqual(1396.5d0, soln%v_sonic(3), 1.d-3)

@@ -2,8 +2,8 @@ import os
 import shutil
 import subprocess
 import warnings
+import csv
 from pathlib import Path
-import pandas as pd
 
 # This program will run the tests in `test_names`, executing the `.inp` files
 # with the CEA main interface, and compare the output files generated in `test_dir`
@@ -363,14 +363,9 @@ for test in test_names:
 
 print(f"------- {passed_count}/{num_tests} tests passed. -------")
 
-# Save the results to a CSV file
-df = pd.DataFrame({
-    "test_name": test_names_csv,
-    "value_type": value_type,
-    "variable": variable,
-    "value": value,
-    "reference": reference,
-    "abs_error": abs_error,
-    "rel_error": rel_error
-})
-df.to_csv("test_results.csv", index=False)
+# Save the results to a CSV file without requiring pandas.
+with open("test_results.csv", "w", newline="") as csv_file:
+    writer = csv.writer(csv_file)
+    writer.writerow(["test_name", "value_type", "variable", "value", "reference", "abs_error", "rel_error"])
+    for row in zip(test_names_csv, value_type, variable, value, reference, abs_error, rel_error):
+        writer.writerow(row)

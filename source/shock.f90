@@ -770,7 +770,7 @@ contains
             wm_k = 1.0d0/soln%eq_soln(idx)%n
             nj_g = soln%eq_soln(idx)%nj(1:self%eq_solver%num_gas)
             cp = soln%eq_soln(idx)%cp_eq/(R*1.d-3)
-                call self%eq_solver%products%calc_thermo(soln%eq_soln(idx)%thermo, soln%eq_soln(idx)%T, condensed=.true.)
+            call self%eq_solver%products%calc_thermo(soln%eq_soln(idx)%thermo, soln%eq_soln(idx)%T, condensed=.true.)
             h0 = dot_product(soln%eq_soln(idx)%nj, soln%eq_soln(idx)%thermo%enthalpy)*T5
             dlnV_dlnP = soln%eq_partials(idx)%dlnV_dlnP
             dlnV_dlnT = soln%eq_partials(idx)%dlnV_dlnT
@@ -814,10 +814,10 @@ contains
                 soln%rho52 = rho52
                 soln%p52 = p52
                 soln%t52 = t52
-                soln%u(idx) = (u1 - u1*rho12)/rho52
+                soln%u(idx) = (u1 - u1*rho12)/(rho52 - 1.0d0)
                 soln%M52 = wm_k/wm
                 soln%mach(idx) = soln%M52*soln%mach(2)
-                soln%u5_p_v2 = (u1 - u1*rho12)*(1.0d0-1.0d0/rho52)
+                soln%u5_p_v2 = (u1 - u1*rho12)*rho52/(rho52 - 1.0d0)
                 soln%v_sonic(idx) = (R*T5*soln%eq_soln(idx)%gamma_s/wm_k)**0.5d0
                 exit
             end if
@@ -959,10 +959,10 @@ contains
                 soln%rho52 = rho52
                 soln%p52 = p52
                 soln%t52 = t52
-                soln%u(idx) = soln%v2/rho52
+                soln%u(idx) = soln%v2/(rho52 - 1.0d0)
                 soln%M52 = wm_k/wm
                 soln%mach(idx) = soln%M52*soln%mach(2)
-                soln%u5_p_v2 = (u1 - u1*rho12)*(1.0d0-1.0d0/rho52)
+                soln%u5_p_v2 = (u1 - u1*rho12)*rho52/(rho52 - 1.0d0)
                 soln%eq_partials(idx)%gamma_s = gamma5
                 soln%eq_soln(idx)%gamma_s = gamma5
                 soln%v_sonic(idx) = (R*T5*gamma5/wm_k)**0.5d0
