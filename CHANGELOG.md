@@ -11,10 +11,11 @@ All notable user-visible changes to this project are documented here.
 - FAC rocket chamber-closure iteration logic in `RocketSolver_solve_fac` was updated toward CEA2 parity: Option-1 pressure correction direction now follows legacy semantics, the Option-1 convergence check is normalized to assigned injector pressure, the fixed 4-pass outer loop was replaced with tolerance-driven iteration plus a bounded safety guard, and FAC combustor-end reseeding now refreshes from the current infinity state each chamber iteration (`#54`).
 - Legacy SHCK branch sequencing and output selection were reworked toward CEA2 parity: explicit incident requests now report only the requested incident branch (with reflected state attached when requested), while reflected-only requests continue exploring the mixed equilibrium/frozen permutations.
 - Shock reports now include incident/reflected transport tables (`Visc`, `Cp`, `Conductivity`, `Prandtl Number`) when `outp tran` is enabled and transport data are available.
+- Python test/main-interface helper workflows no longer require `pandas`; CSV result output is now written with the standard library and the installation guidance/environment were updated accordingly.
 
 ### Fixed
 - Legacy CLI equilibrium/rocket/shock workflows now propagate `include_ions` into generated product mixtures so ionized products are retained when requested (`#52`).
-- Reflected-shock velocity and related state outputs (`u5/v2`, sonic speed, and reflected ratios) were corrected for reflected equilibrium/frozen workflows, including reflected-frozen header thermodynamic values.
+- Reflected-shock velocity outputs were corrected for reflected equilibrium/frozen workflows: the legacy CEA2 `u5`/`u5+v2` relations effectively used `rho5/rho2` where the reflected-shock mass balance requires `rho5/rho2 - 1`, so the old equations underpredicted reflected velocities and did not satisfy the reflected conservation equations. CEA now reports conservation-consistent `u5`, `u5+v2`, sonic speed, reflected ratios, and reflected-frozen header thermodynamic values.
 - Shock failure handling now stops at the last valid state instead of emitting partially invalid reflected results; failed downstream shock states are explicitly zeroed for consistent output.
 - Shock transport-property calculations now preserve and restore stable transport seeds across singular-recovery paths, fixing incorrect or missing transport values in difficult reflected-shock cases.
 
@@ -26,6 +27,7 @@ All notable user-visible changes to this project are documented here.
 - Added a shared bindc parser path for `cea_reactant_input -> ReactantInput` conversion to reduce duplicated C-binding logic (`#53`).
 - Added Python `cea.Reactant` and mixed-input `Mixture(...)` support in the Cython binding (`#53`).
 - Added shock regression coverage for transport output population across equilibrium/frozen branches and for singular-recovery reflected-shock cases.
+- Added a Python `pytest` reflected-shock conservation check that verifies incident/reflected mass, momentum, and energy balances and confirms the corrected `u5+v2` relation.
 
 ## [3.1.0] - 2026-03-02
 
