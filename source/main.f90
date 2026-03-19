@@ -2429,21 +2429,21 @@ contains
                         write(ioout, thermo_fmt) " Visc, Millipoise", (solutions(i, j, k)%eq_soln(idx)%viscosity, idx=1,np)
                         write(ioout, *) ""
 
-                        ! Equilibrium properies
-                        write(ioout, '(A)') " WITH EQUILIBRIUM REACTIONS"
-                        if (prob%output%siunit) then
-                            write(ioout, thermo_fmt) " Cp, kJ/(kg-K)   ", (solutions(i, j, k)%eq_soln(idx)%cp_eq, idx=1,np)
-                            write(ioout, thermo_fmt) " Conductivity    ", &
-                                (solutions(i, j, k)%eq_soln(idx)%conductivity_eq, idx=1,np)
-                        else
-                            write(ioout, thermo_fmt) " Cp, cal/(g-K)   ", (solutions(i, j, k)%eq_soln(idx)%cp_eq/4.184d0, idx=1,np)
-                            write(ioout, thermo_fmt) " Conductivity    ", &
-                                (solutions(i, j, k)%eq_soln(idx)%conductivity_eq/4.184d0, idx=1,np)
+                        if (.not. frozen) then
+                            write(ioout, '(A)') " WITH EQUILIBRIUM REACTIONS"
+                            if (prob%output%siunit) then
+                                write(ioout, thermo_fmt) " Cp, kJ/(kg-K)   ", (solutions(i, j, k)%eq_soln(idx)%cp_eq, idx=1,np)
+                                write(ioout, thermo_fmt) " Conductivity    ", &
+                                    (solutions(i, j, k)%eq_soln(idx)%conductivity_eq, idx=1,np)
+                            else
+                                write(ioout, thermo_fmt) " Cp, cal/(g-K)   ", (solutions(i, j, k)%eq_soln(idx)%cp_eq/4.184d0, idx=1,np)
+                                write(ioout, thermo_fmt) " Conductivity    ", &
+                                    (solutions(i, j, k)%eq_soln(idx)%conductivity_eq/4.184d0, idx=1,np)
+                            end if
+                            write(ioout, thermo_fmt) " Prandtl Number  ", (solutions(i, j, k)%eq_soln(idx)%Pr_eq, idx=1,np)
+                            write(ioout, *) ""
                         end if
-                        write(ioout, thermo_fmt) " Prandtl Number  ", (solutions(i, j, k)%eq_soln(idx)%Pr_eq, idx=1,np)
-                        write(ioout, *) ""
 
-                        ! Frozen properties
                         write(ioout, '(A)') " WITH FROZEN REACTIONS"
                         if (prob%output%siunit) then
                             write(ioout, thermo_fmt) " Cp, kJ/(kg-K)   ", (solutions(i, j, k)%eq_soln(idx)%cp_fr, idx=1,np)
@@ -2715,31 +2715,31 @@ contains
                             write(ioout, '(F13.3)') (solutions(i, j, k)%eq_soln(idx)%viscosity, idx=x,y)
                             write(ioout, *) ""
 
-                            ! Equilibrium properies
-                            write(ioout, '(A)') " WITH EQUILIBRIUM REACTIONS"
-                            if (prob%output%siunit) then
-                                write(ioout, '(A, F13.4)', advance="no") " Cp, kJ/(kg-K)   ", &
-                                    (solutions(i, j, k)%eq_soln(idx)%cp_eq, idx=1,nc)
-                                write(ioout, '(F13.4)') (solutions(i, j, k)%eq_soln(idx)%cp_eq, idx=x,y)
+                            if (.not. frozen) then
+                                write(ioout, '(A)') " WITH EQUILIBRIUM REACTIONS"
+                                if (prob%output%siunit) then
+                                    write(ioout, '(A, F13.4)', advance="no") " Cp, kJ/(kg-K)   ", &
+                                        (solutions(i, j, k)%eq_soln(idx)%cp_eq, idx=1,nc)
+                                    write(ioout, '(F13.4)') (solutions(i, j, k)%eq_soln(idx)%cp_eq, idx=x,y)
 
-                                write(ioout, '(A, F13.3)', advance="no") " Conductivity    ", &
-                                    (solutions(i, j, k)%eq_soln(idx)%conductivity_eq, idx=1,nc)
-                                write(ioout, '(F13.3)') (solutions(i, j, k)%eq_soln(idx)%conductivity_eq, idx=x,y)
-                            else
-                                write(ioout, '(A, F13.4)', advance="no") " Cp, cal/(g-K)   ", &
-                                    (solutions(i, j, k)%eq_soln(idx)%cp_eq/4.184d0, idx=1,nc)
-                                write(ioout, '(F13.4)') (solutions(i, j, k)%eq_soln(idx)%cp_eq/4.184d0, idx=x,y)
+                                    write(ioout, '(A, F13.3)', advance="no") " Conductivity    ", &
+                                        (solutions(i, j, k)%eq_soln(idx)%conductivity_eq, idx=1,nc)
+                                    write(ioout, '(F13.3)') (solutions(i, j, k)%eq_soln(idx)%conductivity_eq, idx=x,y)
+                                else
+                                    write(ioout, '(A, F13.4)', advance="no") " Cp, cal/(g-K)   ", &
+                                        (solutions(i, j, k)%eq_soln(idx)%cp_eq/4.184d0, idx=1,nc)
+                                    write(ioout, '(F13.4)') (solutions(i, j, k)%eq_soln(idx)%cp_eq/4.184d0, idx=x,y)
 
-                                write(ioout, '(A, F13.3)', advance="no") " Conductivity    ", &
-                                    (solutions(i, j, k)%eq_soln(idx)%conductivity_eq/4.184d0, idx=1,nc)
-                                write(ioout, '(F13.3)') (solutions(i, j, k)%eq_soln(idx)%conductivity_eq/4.184d0, idx=x,y)
+                                    write(ioout, '(A, F13.3)', advance="no") " Conductivity    ", &
+                                        (solutions(i, j, k)%eq_soln(idx)%conductivity_eq/4.184d0, idx=1,nc)
+                                    write(ioout, '(F13.3)') (solutions(i, j, k)%eq_soln(idx)%conductivity_eq/4.184d0, idx=x,y)
+                                end if
+                                write(ioout, '(A, F13.4)', advance="no") " Prandtl Number  ", &
+                                    (solutions(i, j, k)%eq_soln(idx)%Pr_eq, idx=1,nc)
+                                write(ioout, '(F13.4)') (solutions(i, j, k)%eq_soln(idx)%Pr_eq, idx=x,y)
+                                write(ioout, *) ""
                             end if
-                            write(ioout, '(A, F13.4)', advance="no") " Prandtl Number  ", &
-                                (solutions(i, j, k)%eq_soln(idx)%Pr_eq, idx=1,nc)
-                            write(ioout, '(F13.4)') (solutions(i, j, k)%eq_soln(idx)%Pr_eq, idx=x,y)
-                            write(ioout, *) ""
 
-                            ! Frozen properties
                             write(ioout, '(A)') " WITH FROZEN REACTIONS"
                             if (prob%output%siunit) then
                                 write(ioout, '(A, F13.4)', advance="no") " Cp, kJ/(kg-K)   ", &
@@ -2913,9 +2913,13 @@ contains
         real(dp) :: ratio_val
         real(dp), allocatable :: fuel_moles(:), oxidant_moles(:)
         real(dp), allocatable :: fuel_weights(:), oxidant_weights(:)
+        real(dp), allocatable :: vm(:), vp(:), b0_ox(:), b0_fu(:)
+        real(dp) :: vm_fu, vp_fu, vm_ox, vp_ox
 
         allocate(fuel_moles(reactants%num_species), oxidant_moles(reactants%num_species), &
-                 fuel_weights(reactants%num_species), oxidant_weights(reactants%num_species))
+                 fuel_weights(reactants%num_species), oxidant_weights(reactants%num_species), &
+                 vm(reactants%num_elements), vp(reactants%num_elements), &
+                 b0_ox(reactants%num_elements), b0_fu(reactants%num_elements))
 
         fuel_weights = 0.0d0
         oxidant_weights = 0.0d0
@@ -3021,6 +3025,24 @@ contains
 
                 end select
 
+            end if
+
+            if (sum(fuel_weights) > 0.0d0 .and. sum(oxidant_weights) > 0.0d0 .and. of_ratio > 0.0d0) then
+                call reactants%get_valence(vm, vp)
+                b0_ox = reactants%element_amounts_from_weights(oxidant_weights)
+                b0_fu = reactants%element_amounts_from_weights(fuel_weights)
+
+                vm_ox = dot_product(vm, b0_ox)
+                vp_ox = dot_product(vp, b0_ox)
+                vm_fu = dot_product(vm, b0_fu)
+                vp_fu = dot_product(vp, b0_fu)
+
+                if (abs(vm_ox + vp_ox) > tiny(1.0d0)) then
+                    phi_eq = reactants%phi_from_of(oxidant_weights, fuel_weights, of_ratio)
+                end if
+                if (abs(vm_fu + vm_ox*of_ratio) > tiny(1.0d0)) then
+                    r_eq = reactants%equivalence_from_of(oxidant_weights, fuel_weights, of_ratio)
+                end if
             end if
 
         end if
