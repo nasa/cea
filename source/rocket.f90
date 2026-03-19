@@ -10,6 +10,13 @@ module cea_rocket
     use fb_utils
     implicit none
 
+    integer, parameter :: rocket_status_success = 0
+    integer, parameter :: rocket_status_partial = 1
+    integer, parameter :: rocket_status_failed = 2
+
+    integer, parameter :: rocket_warning_none = 0
+    integer, parameter :: rocket_warning_condensed_temp_range = 1
+
     type :: RocketSolver
         !! Rocket solver class
 
@@ -85,6 +92,12 @@ module cea_rocket
         ! Convergence variables
         logical :: converged = .false.
             !! Convergence flag
+        integer :: status_code = rocket_status_failed
+            !! Rocket solve status
+        integer :: warning_code = rocket_warning_none
+            !! Legacy warning selector for partial output
+        integer :: last_completed_idx = 0
+            !! Last successfully completed station index
 
     end type
     interface RocketSolution
@@ -92,6 +105,42 @@ module cea_rocket
     end interface
 
 contains
+
+    logical function has_real_value(value)
+        real(dp), intent(in), optional :: value
+
+        has_real_value = .false.
+        if (.not. present(value)) return
+        has_real_value = (value /= empty_dp)
+    end function
+
+    logical function has_array_values(values)
+        real(dp), intent(in), optional :: values(:)
+
+        has_array_values = .false.
+        if (.not. present(values)) return
+        has_array_values = (size(values) > 0)
+    end function
+
+    subroutine frozen_fit_bounds(species, T_ref, T_low, T_high)
+        use cea_thermo, only: SpeciesThermo
+        type(SpeciesThermo), intent(in) :: species
+        real(dp), intent(in) :: T_ref
+        real(dp), intent(out) :: T_low
+        real(dp), intent(out) :: T_high
+
+        integer :: i, idx
+
+        idx = 1
+        do i = 1, species%num_intervals
+            if (T_ref > species%T_fit(i, 1)) then
+                idx = i
+            end if
+        end do
+
+        T_low = species%T_fit(idx, 1)
+        T_high = species%T_fit(idx, 2)
+    end subroutine
 
     !-----------------------------------------------------------------------
     ! RocketSolver
@@ -140,7 +189,8 @@ contains
         real(dp) :: cpsum, ssum              ! Temporary variables for mixture properties
         real(dp) :: cpj, sj                  ! Temporary variables for species properties
         real(dp) :: dlnt                     ! Update variable for log-temperature
-        real(dp) :: T_low, T_high            ! Condensed species temperature bounds [K]
+        real(dp) :: T_low, T_high            ! Species temperature bounds [K]
+        real(dp) :: gas_T_min                ! Minimum valid gas-fit lower bound [K]
 
         call log_debug("Starting frozen calculations")
 
@@ -189,15 +239,27 @@ contains
                 soln%eq_partials(idx)%dlnV_dlnT = 1.0d0
                 call self%eq_solver%products%calc_thermo(soln%eq_soln(idx)%thermo, soln%eq_soln(idx)%T)
 
-                ! Stop if any frozen condensed species is outside its
-                ! valid temperature range by more than 50 K.
+                gas_T_min = huge(1.0d0)
+                do j = 1, ng
+                    if (abs(soln%eq_soln(n_frz)%nj(j)) <= approx_zero_tol) cycle
+                    gas_T_min = min(gas_T_min, minval(self%eq_solver%products%species(j)%T_fit(:, 1)))
+                end do
+
+                if (soln%eq_soln(idx)%T < (0.8d0 * gas_T_min)) then
+                    call log_warning("Frozen calculations stopped: temperature below lower-limit "// &
+                        "(0.8*Tmin="//to_str(0.8d0 * gas_T_min)//")")
+                    call mark_partial_stop(soln, idx-1, rocket_warning_condensed_temp_range)
+                    return
+                end if
+
+                ! Check the thermo interval associated with the frozen
+                ! composition point, not the species' overall span.
                 in_range = .true.
                 do j = 1, self%eq_solver%num_condensed
                     ! TODO(smooth_truncation): smooth gating means species are rarely exactly zero.
                     ! Frozen-mode checks intentionally use a practical-zero tolerance.
                     if (abs(soln%eq_soln(n_frz)%nj(ng+j)) <= approx_zero_tol) cycle
-                    T_low = minval(self%eq_solver%products%species(ng+j)%T_fit(:, 1))
-                    T_high = maxval(self%eq_solver%products%species(ng+j)%T_fit(:, 2))
+                    call frozen_fit_bounds(self%eq_solver%products%species(ng+j), soln%eq_soln(n_frz)%T, T_low, T_high)
                     if (soln%eq_soln(idx)%T < (T_low-phase_gap) .or. soln%eq_soln(idx)%T > (T_high+phase_gap)) then
                         in_range = .false.
                         exit
@@ -207,7 +269,7 @@ contains
                 if (.not. in_range) then
                     call log_warning("Frozen calculations stopped: temperature is more than 50 K outside "// &
                         "the range of a condensed species")
-                    soln%converged = .false.
+                    call mark_partial_stop(soln, idx-1, rocket_warning_condensed_temp_range)
                     return
                 end if
 
@@ -223,7 +285,12 @@ contains
 
         if (.not. finalized) then
             call log_warning("Frozen calculations did not converge in 8 iterations")
-            soln%converged = .false.
+            if (idx > 1) then
+                call mark_partial_stop(soln, idx-1, rocket_warning_condensed_temp_range)
+            else
+                soln%converged = .false.
+                soln%status_code = rocket_status_failed
+            end if
             return
         end if
 
@@ -237,7 +304,28 @@ contains
         soln%eq_soln(idx)%energy = soln%eq_soln(idx)%enthalpy - soln%eq_soln(idx)%n*soln%eq_soln(idx)%T*R/1.d3
         soln%eq_soln(idx)%entropy = soln%eq_soln(n_frz)%entropy
         soln%eq_soln(idx)%gibbs_energy = (soln%eq_soln(idx)%enthalpy - soln%eq_soln(idx)%T*soln%eq_soln(idx)%entropy)
+        call self%eq_solver%compute_transport_state(soln%eq_soln(idx))
+    end subroutine
 
+    subroutine mark_completed(soln, idx)
+        type(RocketSolution), intent(inout) :: soln
+        integer, intent(in) :: idx
+
+        soln%last_completed_idx = max(soln%last_completed_idx, idx)
+        soln%converged = .true.
+        soln%status_code = rocket_status_success
+    end subroutine
+
+    subroutine mark_partial_stop(soln, last_idx, warning_code)
+        type(RocketSolution), intent(inout) :: soln
+        integer, intent(in) :: last_idx
+        integer, intent(in) :: warning_code
+
+        soln%converged = .false.
+        soln%status_code = rocket_status_partial
+        soln%warning_code = warning_code
+        soln%last_completed_idx = max(soln%last_completed_idx, last_idx)
+        soln%num_pts = max(0, soln%last_completed_idx)
     end subroutine
 
     subroutine RocketSolver_solve_throat(self, soln, idx, pc, h_inf, s0, weights, awt)
@@ -393,6 +481,8 @@ contains
 
         end do
 
+        call mark_completed(soln, idx)
+
     end subroutine
 
     subroutine RocketSolver_solve_pi_p(self, soln, idx, pc, pi_p, h_inf, s0, weights)
@@ -453,6 +543,7 @@ contains
 
             ! Iterate
             idx = idx + 1
+            call mark_completed(soln, idx-1)
 
         end do
 
@@ -484,8 +575,8 @@ contains
             (soln%pressure(soln%throat_idx)*soln%v_sonic(soln%throat_idx))
         pip_nf = pc/soln%pressure(n_frz)
         do i = 1, size(pi_p)
-            ! Legacy frozen scheduling: omit assigned pressure ratios lower than
-            ! the value at the freeze point.
+            ! Omit assigned pressure ratios lower than the value at the
+            ! freeze point.
             if (pi_p(i) < pip_nf) then
                 call log_info('RocketSolver: WARNING!!  FOR FROZEN PERFORMANCE, POINT OMITTED BECAUSE '// &
                     'ASSIGNED pi/p IS LESS THAN VALUE AT nfz='//to_str(n_frz))
@@ -514,6 +605,7 @@ contains
             soln%ae_at(idx) = soln%eq_soln(idx)%n*soln%eq_soln(idx)%T/(soln%pressure(idx)*usq**0.5*awt)
 
             idx = idx + 1
+            call mark_completed(soln, idx-1)
 
         end do
 
@@ -603,6 +695,7 @@ contains
 
             ! Iterate to the next exit condition
             idx = idx + 1
+            call mark_completed(soln, idx-1)
 
         end do
 
@@ -688,6 +781,7 @@ contains
             end if
 
             idx = idx + 1
+            call mark_completed(soln, idx-1)
 
         end do
 
@@ -776,6 +870,7 @@ contains
             end do
 
             idx = idx + 1
+            call mark_completed(soln, idx-1)
 
         end do
 
@@ -822,9 +917,10 @@ contains
         call log_debug("Initialized RocketSolution")
         soln%throat_idx = 2
         soln%converged = .true.
+        soln%status_code = rocket_status_success
 
         ! Set the equilibrium problem type
-        if (present(hc)) then
+        if (has_real_value(hc)) then
             prob_type = "hp"
             state1 = hc
             h_inf = hc
@@ -851,7 +947,7 @@ contains
         ! -----------------------------------------------
         ! Chamber conditions (infinity)
         ! -----------------------------------------------
-        if (present(tc_est)) then
+        if (has_real_value(tc_est)) then
             soln%eq_soln(1) = EqSolution(self%eq_solver, T_init=tc_est)
         else
             soln%eq_soln(1) = EqSolution(self%eq_solver)
@@ -879,6 +975,7 @@ contains
             soln%eq_soln(1)%gamma_s = soln%eq_partials(1)%gamma_s
             soln%v_sonic(1) = sqrt(soln%eq_soln(1)%n*R*soln%gamma_s(1)*soln%eq_soln(1)%T)
         end if
+        call mark_completed(soln, 1)
 
         ! Save some chamber solution variables for later use
         state1 = soln%eq_soln(1)%calc_entropy_sum(self%eq_solver)  ! Combustor entropy
@@ -894,13 +991,17 @@ contains
         else
             call self%solve_throat(soln, idx, pc, h_inf, state1, reactant_weights, awt)
         end if
-        if (.not. soln%converged) return
+        if (soln%status_code == rocket_status_failed) return
+        if (soln%status_code == rocket_status_partial) then
+            call self%post_process(soln, .false.)
+            return
+        end if
         ln_pinf_pt = log(soln%pressure(1)/soln%pressure(2))
 
         ! -----------------------------------------------
         ! Exit conditions: pressure ratio
         ! -----------------------------------------------
-        if (present(pi_p)) then
+        if (has_array_values(pi_p)) then
             idx = 3
 
             if (frozen .and. idx > n_frz_) then
@@ -908,7 +1009,11 @@ contains
             else
                 call self%solve_pi_p(soln, idx, pc, pi_p, h_inf, state1, reactant_weights)
             end if
-            if (.not. soln%converged) return
+            if (soln%status_code == rocket_status_failed) return
+            if (soln%status_code == rocket_status_partial) then
+                call self%post_process(soln, .false.)
+                return
+            end if
         else
             ! If pi_p not present, idx stays at 3 for subsequent sections
             idx = 3
@@ -918,7 +1023,7 @@ contains
         ! Exit conditions: subsonic area ratio
         ! -----------------------------------------------
 
-        if (present(subar)) then
+        if (has_array_values(subar)) then
 
             if (frozen .and. n_frz_ > 1) then
                 call log_info('RocketSolver: WARNING!!  FREEZING IS NOT ALLOWED AT A SUBSONIC PRESSURE RATIO')
@@ -932,14 +1037,18 @@ contains
         ! Exit conditions: supersonic area ratio
         ! -----------------------------------------------
 
-        if (present(supar)) then
+        if (has_array_values(supar)) then
 
             if (frozen .and. idx > n_frz_) then
                 call self%solve_supar_frozen(soln, idx, n_frz, pc, supar, h_inf, reactant_weights, idx-1, ln_pinf_pt, awt)
             else
                 call self%solve_supar(soln, idx, pc, supar, h_inf, state1, reactant_weights, ln_pinf_pt, awt)
             end if
-            if (.not. soln%converged) return
+            if (soln%status_code == rocket_status_failed) return
+            if (soln%status_code == rocket_status_partial) then
+                call self%post_process(soln, .false.)
+                return
+            end if
 
         end if
 
@@ -1009,28 +1118,29 @@ contains
 
         ! Set the total number of evaluation points
         num_pts = 4  ! injector + infinity + combustor + throat
-        if (present(pi_p)) num_pts = num_pts + size(pi_p)
-        if (present(subar)) num_pts = num_pts + size(subar)
-        if (present(supar)) num_pts = num_pts + size(supar)
+        if (has_array_values(pi_p)) num_pts = num_pts + size(pi_p)
+        if (has_array_values(subar)) num_pts = num_pts + size(subar)
+        if (has_array_values(supar)) num_pts = num_pts + size(supar)
 
         ! Initialize the solution variables
         soln = RocketSolution(self, num_pts=num_pts)
         call log_debug("Initialized RocketSolution")
         soln%throat_idx = 4
         soln%converged = .true.
+        soln%status_code = rocket_status_success
 
         ! Set a flag to determine whether to use the contraction ratio or mdot for the chamber solution
-        if (present(ac_at)) then
+        if (has_real_value(ac_at)) then
             use_acat = .true.
             ac_at_ = ac_at
-        else if (present(mdot)) then
+        else if (has_real_value(mdot)) then
             use_acat = .false.
         else
             call abort("Either Ac/At or mdot/At must be specified for FAC rocket problem")
         end if
 
         ! Set the equilibrium problem type
-        if (present(hc)) then
+        if (has_real_value(hc)) then
             prob_type = "hp"
             state1 = hc
             h_inj = hc
@@ -1060,7 +1170,7 @@ contains
         idx = 1
         soln%station(idx) = "injector"
 
-        if (present(tc_est)) then
+        if (has_real_value(tc_est)) then
             soln%eq_soln(idx) = EqSolution(self%eq_solver, T_init=tc_est)
             soln%eq_soln(2) = EqSolution(self%eq_solver, T_init=tc_est)  ! Initialize soln at infinity too
         else
@@ -1076,6 +1186,7 @@ contains
         gamma_s = soln%eq_partials(idx)%gamma_s  ! Save gamma_s as the initial value for the next station
         soln%gamma_s(1) = gamma_s
         soln%v_sonic(idx) = sqrt(soln%eq_soln(idx)%n*R*soln%gamma_s(idx)*soln%eq_soln(idx)%T)
+        call mark_completed(soln, idx)
 
         ! Save the injector enthalpy to compute conditions at infinity, which is isenthropic with the injector
         if (prob_type == "tp") h_inj = dot_product(soln%eq_soln(idx)%nj, soln%eq_soln(idx)%thermo%enthalpy)*soln%eq_soln(idx)%T
@@ -1095,7 +1206,8 @@ contains
         ! P_c initial guess
         soln%pressure(3) = p_inf
 
-        ! Iterate until combustor conditions converge (legacy CEA2-style stopping test).
+        ! Iterate until combustor conditions converge with the same stopping
+        ! test used for this chamber closure loop.
         chamber_iter = 0
         do
             chamber_iter = chamber_iter + 1
@@ -1112,8 +1224,8 @@ contains
             ! Throat conditions
             ! -----------------------------------------------
             idx = 4
-            ! Legacy SETEN-style initialization for FAC throat:
-            ! seed the throat solve from point 2 (infinity) by saving/using it.
+            ! Seed the throat solve from point 2 (infinity) by saving and
+            ! reusing that state as the initial condition.
             soln%eq_soln(3) = soln%eq_soln(2)
             soln%i_save = -2
             call self%solve_throat(soln, idx, p_inf, h_inj, S_ref, reactant_weights, awt)
@@ -1224,12 +1336,16 @@ contains
         if (frozen .and. idx > n_frz_) then
             call self%solve_throat_frozen(soln, idx, n_frz_, p_inf, h_inj, awt)
         end if
-        if (.not. soln%converged) return
+        if (soln%status_code == rocket_status_failed) return
+        if (soln%status_code == rocket_status_partial) then
+            call self%post_process(soln, .true.)
+            return
+        end if
 
         ! -----------------------------------------------
         ! Exit conditions: pressure ratio
         ! -----------------------------------------------
-        if (present(pi_p)) then
+        if (has_array_values(pi_p)) then
             idx = 5
 
             if (frozen .and. idx > n_frz_) then
@@ -1237,7 +1353,11 @@ contains
             else
                 call self%solve_pi_p(soln, idx, pc, pi_p, h_inj, S_ref, reactant_weights)
             end if
-            if (.not. soln%converged) return
+            if (soln%status_code == rocket_status_failed) return
+            if (soln%status_code == rocket_status_partial) then
+                call self%post_process(soln, .true.)
+                return
+            end if
         else
             ! If pi_p not present, idx stays at 5 for subsequent sections
             idx = 5
@@ -1247,7 +1367,7 @@ contains
         ! Exit conditions: subsonic area ratio
         ! -----------------------------------------------
 
-        if (present(subar)) then
+        if (has_array_values(subar)) then
 
             if (frozen .and. n_frz_ > 1) then
                 call log_info('RocketSolver: WARNING!!  FREEZING IS NOT ALLOWED AT A SUBSONIC PRESSURE RATIO')
@@ -1263,7 +1383,7 @@ contains
         ! Exit conditions: supersonic area ratio
         ! -----------------------------------------------
 
-        if (present(supar)) then
+        if (has_array_values(supar)) then
             ln_pinf_pt = log(soln%pressure(2)/soln%pressure(4))
 
             if (frozen .and. idx > n_frz_) then
@@ -1273,7 +1393,11 @@ contains
                 call self%solve_supar(soln, idx, soln%pressure(2), supar, h_inj, S_ref, reactant_weights, &
                     ln_pinf_pt, awt)
             end if
-            if (.not. soln%converged) return
+            if (soln%status_code == rocket_status_failed) return
+            if (soln%status_code == rocket_status_partial) then
+                call self%post_process(soln, .true.)
+                return
+            end if
         end if
 
         ! Omitted frozen schedule points do not consume output indices.

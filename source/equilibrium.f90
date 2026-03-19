@@ -91,6 +91,7 @@ module cea_equilibrium
         procedure :: test_condensed => EqSolver_test_condensed
         procedure :: correct_singular => EqSolver_correct_singular
         procedure :: update_transport_basis => EqSolver_update_transport_basis
+        procedure :: compute_transport_state => EqSolver_compute_transport_state
         procedure :: assemble_matrix => EqSolver_assemble_matrix
         procedure :: post_process => EqSolver_post_process
         procedure :: solve => EqSolver_solve
@@ -737,6 +738,15 @@ contains
             end do
         end if
         self%reduced_elements = 0
+    end subroutine
+
+    subroutine EqSolver_compute_transport_state(self, soln)
+        class(EqSolver), intent(in) :: self
+        type(EqSolution), intent(inout) :: soln
+
+        if (.not. self%transport) return
+        call self%update_transport_basis(soln)
+        call compute_transport_properties(self, soln)
     end subroutine
 
     function EqSolver_compute_damped_update_factor(self, soln) result(lambda)
@@ -1865,7 +1875,7 @@ contains
 
     end subroutine
 
-    subroutine EqSolver_correct_singular(self, soln, iter, ierr, singular_index, reduced_from, reduced_to)
+    subroutine EqSolver_correct_singular(self, soln, iter, ierr, singular_index, reduced_from, reduced_to, times_singular)
         ! Try to correct the singular Jacobian matrix
 
         ! Arguments
@@ -1876,6 +1886,7 @@ contains
         integer, intent(out), optional :: singular_index
         integer, intent(out), optional :: reduced_from
         integer, intent(out), optional :: reduced_to
+        integer, intent(in), optional :: times_singular
 
         ! Locals
         integer :: i, j, k                   ! Iterators
@@ -2013,7 +2024,8 @@ contains
         end if
 
         ! Component-reduction fallback for persistent element-row singularities.
-        if (.not. made_change .and. ierr >= 1 .and. ierr <= ne .and. iter < 1 .and. &
+        if (.not. made_change .and. ierr >= 1 .and. ierr <= ne .and. &
+            (iter < 1 .or. (present(times_singular) .and. times_singular >= 4)) .and. &
             ne > 1 .and. .not. (self%ions .and. self%active_ions)) then
             call log_info("Reducing active element equations after singular restart on "// &
                           trim(self%products%element_names(ierr)))
@@ -2458,10 +2470,21 @@ contains
                 times_singular = times_singular + 1
                 if (times_singular > 8) then
                     soln%converged = .false.
-                    if (EqSolution_has_transport_seed(soln)) then
-                        call EqSolution_restore_seed(soln)
-                    else if (soln%T > 0.0d0 .and. soln%n > 0.0d0) then
-                        call EqSolution_restore_transport_seed(soln)
+                    if (num_reduced > 0 .and. soln%T > 0.0d0 .and. soln%n > 0.0d0) then
+                        ! Retain the reduced-component state at the current
+                        ! point after repeated singular matrices instead of
+                        ! restoring the previous seed.
+                        if (self%transport) then
+                            call self%update_transport_basis(soln)
+                            call compute_transport_properties(self, soln)
+                        end if
+                        call self%post_process(soln, .false.)
+                    else
+                        if (EqSolution_has_transport_seed(soln)) then
+                            call EqSolution_restore_seed(soln)
+                        else if (soln%T > 0.0d0 .and. soln%n > 0.0d0) then
+                            call EqSolution_restore_transport_seed(soln)
+                        end if
                     end if
                     call EqSolver_restore_reduced_elements(self, soln, num_reduced, reduced_from, reduced_to)
                     call log_warning('EqSolver_solve: Too many singular matrices encountered.')
@@ -2472,7 +2495,8 @@ contains
                 singular_index_iter = 0
                 reduced_from_iter = 0
                 reduced_to_iter = 0
-                call self%correct_singular(soln, iter, ierr, singular_index_iter, reduced_from_iter, reduced_to_iter)
+                call self%correct_singular(soln, iter, ierr, singular_index_iter, reduced_from_iter, reduced_to_iter, &
+                                           times_singular)
                 if (singular_index_iter > 0) singular_index = singular_index_iter
                 if (reduced_to_iter > 0) then
                     num_reduced = num_reduced + 1
@@ -5063,7 +5087,7 @@ contains
         ! Compute the transport properties of a mixture for a given equilibrium solution
 
         ! Arguments
-        class(EqSolver), target :: eq_solver
+        class(EqSolver), intent(in), target :: eq_solver
         type(EqSolution), intent(inout) :: eq_soln
         logical, intent(in), optional :: frozen_shock  ! TODO: Estimate mole fractions for a frozen shock problem
 

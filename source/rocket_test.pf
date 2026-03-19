@@ -465,6 +465,83 @@ contains
     end subroutine
 
     @test
+    subroutine test_rocket_frozen_partial_output_fail1()
+        type(Mixture) :: products
+        type(Mixture) :: reactants
+        type(RocketSolver) :: solver
+        type(RocketSolution) :: soln
+        character(:), allocatable :: product_names(:)
+        real(dp) :: hc, pc, weights(4)
+        real(dp), parameter :: tol = 1.0d-4
+
+        reactants = Mixture(all_thermo, ['CH4(L) ', 'C2H6(L)', 'C3H8(L)', 'O2(L)  '])
+        product_names = reactants%get_products(all_thermo)
+        products = Mixture(all_thermo, product_names)
+
+        weights = reactants%weights_from_of([0.0d0, 0.0d0, 0.0d0, 1.0d0], &
+                                            [0.95d0, 0.036d0, 0.014d0, 0.0d0], 0.7777778d0)
+        hc = -150.411d0
+        pc = psi_to_bar(1000.0d0)
+
+        solver = RocketSolver(products, reactants)
+        soln = solver%solve(weights, pc, supar=[10.433d0], hc=hc, fac=.false., n_frz=1)
+
+        @assertFalse(soln%converged)
+        @assertEqual(rocket_status_partial, soln%status_code)
+        @assertEqual(rocket_warning_condensed_temp_range, soln%warning_code)
+        @assertEqual(2, soln%num_pts)
+        @assertEqual(2, soln%last_completed_idx)
+
+        @assertRelativelyEqual(1369.34d0, soln%eq_soln(1)%T, tol)
+        @assertRelativelyEqual(68.947d0, soln%pressure(1), tol)
+        @assertRelativelyEqual(1210.78d0, soln%eq_soln(2)%T, tol)
+        @assertRelativelyEqual(38.038d0, soln%pressure(2), tol)
+        @assertRelativelyEqual(1.0d0, soln%mach(2), tol)
+        @assertRelativelyEqual(1466.5d0, soln%c_star(2), tol)
+    end subroutine
+
+    @test
+    subroutine test_rocket_frozen_partial_output_fail2()
+        type(Mixture) :: products
+        type(Mixture) :: reactants
+        type(RocketSolver) :: solver
+        type(RocketSolution) :: soln
+        real(dp) :: hc, pc, weights(2)
+        real(dp), parameter :: tol = 1.0d-4
+        real(dp), parameter :: transport_tol = 5.0d-4
+
+        reactants = Mixture(all_thermo, ['CH4', 'N2 '])
+        products = Mixture(all_thermo, ['CH4', 'N2 '])
+
+        weights = reactants%weights_from_of([0.0d0, 1.0d0], [1.0d0, 0.0d0], 13.286d0)
+        hc = reactants%calc_enthalpy(weights, [1000.0d0, 1000.0d0])/R
+        pc = psi_to_bar(800.0d0)
+
+        solver = RocketSolver(products, reactants, all_transport=all_transport)
+        soln = solver%solve(weights, pc, &
+            supar=[10.0d0, 20.0d0, 30.0d0, 40.0d0, 50.0d0, 60.0d0, 70.0d0, 80.0d0, 90.0d0, 100.0d0, 120.0d0, 135.0d0, 150.0d0], &
+            hc=hc, fac=.false., n_frz=1)
+
+        @assertFalse(soln%converged)
+        @assertEqual(rocket_status_partial, soln%status_code)
+        @assertEqual(rocket_warning_condensed_temp_range, soln%warning_code)
+        @assertEqual(6, soln%num_pts)
+        @assertEqual(6, soln%last_completed_idx)
+
+        @assertRelativelyEqual(1000.0d0, soln%eq_soln(1)%T, tol)
+        @assertRelativelyEqual(871.91d0, soln%eq_soln(2)%T, tol)
+        @assertRelativelyEqual(294.16d0, soln%eq_soln(3)%T, tol)
+        @assertRelativelyEqual(220.95d0, soln%eq_soln(4)%T, tol)
+        @assertRelativelyEqual(187.22d0, soln%eq_soln(5)%T, tol)
+        @assertRelativelyEqual(166.58d0, soln%eq_soln(6)%T, tol)
+        @assertRelativelyEqual(40.0d0, soln%ae_at(6), tol)
+        @assertRelativelyEqual(839.1d0, soln%c_star(6), tol)
+        @assertRelativelyEqual(1.7089d0, soln%cf(6), tol)
+        @assertRelativelyEqual(1.1219d0, soln%eq_soln(3)%cp_fr, tol)
+        @assertRelativelyEqual(0.2654d0, soln%eq_soln(3)%conductivity_fr, transport_tol)
+    end subroutine
+
+    @test
     subroutine test_rocket_transport
         type(Mixture) :: products
         type(Mixture) :: reactants

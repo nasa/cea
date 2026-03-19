@@ -6,10 +6,15 @@ All notable user-visible changes to this project are documented here.
 
 ### Changed
 - Legacy CLI `.out` files now echo each problem’s original input block before the corresponding equilibrium, rocket, shock, or detonation output section.
+- Frozen rocket failure handling was aligned with the established partial-output behavior: successful upstream stations are retained, output truncates at the last valid station, and the existing warning text is emitted after the partial report.
+- Frozen rocket stop checks now use the active thermo-fit interval for condensed species plus the existing lower-temperature frozen-fit guard, and frozen retained points now populate transport properties before output.
 
 ### Fixed
+- Non-converging frozen rocket cases no longer produce empty output, overrun into invalid exit columns, or crash while writing partial results.
+- Difficult frozen rocket chamber solves can now retain a usable reduced-component state after repeated singular matrices, restoring partial output for reproduced failure cases.
 
 ### Added
+- Added focused rocket regressions covering frozen partial-output failure behavior for the reproduced `rkt_test_fail1` and `rkt_test_fail2` cases.
 
 ## [3.1.1] - 2026-03-18
 
