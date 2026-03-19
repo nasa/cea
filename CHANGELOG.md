@@ -14,7 +14,6 @@ All notable user-visible changes to this project are documented here.
 - Difficult frozen rocket chamber solves can now retain a usable reduced-component state after repeated singular matrices, restoring partial output for reproduced failure cases.
 
 ### Added
-- Added focused rocket regressions covering frozen partial-output failure behavior for the reproduced `rkt_test_fail1` and `rkt_test_fail2` cases.
 
 ## [3.1.1] - 2026-03-18
 
