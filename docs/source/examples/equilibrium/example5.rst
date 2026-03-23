@@ -21,14 +21,13 @@ Define the pressure schedule and reactant composition by weight fraction:
     weights = np.array([0.7206, 0.1858, 0.09, 0.002, 0.0016], dtype=np.float64)
     T_reac = np.array([298.15, 298.15, 298.15, 298.15, 298.15], dtype=np.float64)
 
-Create a :class:`~cea.Reactant` for ``CHOS-Binder`` using SI values.
-In the Python API, custom reactant ``enthalpy`` is in J/kg and ``temperature`` is in K.
-Use :mod:`cea.units` helpers for pre-conversion as needed.
+Create a :class:`~cea.Reactant` for ``CHOS-Binder`` using explicit enthalpy units.
+For backward compatibility, omitting ``enthalpy_units`` still defaults to ``J/kg`` for now,
+but that implicit behavior is deprecated and emits a warning.
 
 .. code-block:: python
 
-    chos_binder_mw_kg_per_mol = 14.6652984484e-3
-    chos_binder_h_si = cea.units.cal_to_joule(-2999.082) / chos_binder_mw_kg_per_mol
+    chos_binder_h_cal_per_mol = -2999.082
 
     reactants = [
         "NH4CLO4(I)",
@@ -36,7 +35,8 @@ Use :mod:`cea.units` helpers for pre-conversion as needed.
             name="CHOS-Binder",
             formula={"C": 1.0, "H": 1.86955, "O": 0.031256, "S": 0.008415},
             molecular_weight=14.6652984484,
-            enthalpy=chos_binder_h_si,
+            enthalpy=chos_binder_h_cal_per_mol,
+            enthalpy_units="cal/mol",
             temperature=298.15,
         ),
         "AL(cr)",

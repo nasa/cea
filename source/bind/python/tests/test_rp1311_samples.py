@@ -202,8 +202,7 @@ def test_example5_hp_custom_reactant(cea_module):
     weights = np.array([0.7206, 0.1858, 0.09, 0.002, 0.0016], dtype=np.float64)
     T_reac = np.array([298.15, 298.15, 298.15, 298.15, 298.15], dtype=np.float64)
 
-    chos_binder_mw_kg_per_mol = 14.6652984484e-3
-    chos_binder_h_si = cea.units.cal_to_joule(-2999.082) / chos_binder_mw_kg_per_mol
+    chos_binder_h_cal_per_mol = -2999.082
 
     reactants = [
         "NH4CLO4(I)",
@@ -211,7 +210,8 @@ def test_example5_hp_custom_reactant(cea_module):
             name="CHOS-Binder",
             formula={"C": 1.0, "H": 1.86955, "O": 0.031256, "S": 0.008415},
             molecular_weight=14.6652984484,
-            enthalpy=chos_binder_h_si,
+            enthalpy=chos_binder_h_cal_per_mol,
+            enthalpy_units="cal/mol",
             temperature=298.15,
         ),
         "AL(cr)",
@@ -238,6 +238,148 @@ def test_example5_hp_custom_reactant(cea_module):
     assert soln.gamma_s == pytest.approx(1.1494, rel=5e-5)
     assert cea.units.joule_to_cal(soln.cp_eq) == pytest.approx(0.9585, rel=5e-4)
     assert soln.mole_fractions["CO"] == pytest.approx(0.25896, rel=1e-4)
+
+
+def test_reactant_enthalpy_implicit_units_warn_and_match_explicit(cea_module):
+    cea = cea_module
+    mw = 14.6652984484
+    h_cal_per_mol = -2999.082
+    h_j_per_kg = cea.units.cal_to_joule(h_cal_per_mol) / (mw * 1.0e-3)
+    formula = {"C": 1.0, "H": 1.86955, "O": 0.031256, "S": 0.008415}
+
+    with pytest.warns(FutureWarning, match="legacy default J/kg"):
+        legacy = cea.Reactant(
+            name="CHOS-Binder",
+            formula=formula,
+            molecular_weight=mw,
+            enthalpy=h_j_per_kg,
+            temperature=298.15,
+        )
+    explicit = cea.Reactant(
+        name="CHOS-Binder",
+        formula=formula,
+        molecular_weight=mw,
+        enthalpy=h_j_per_kg,
+        enthalpy_units="J/kg",
+        temperature=298.15,
+    )
+
+    assert legacy.enthalpy_units == "j/kg"
+    assert explicit.enthalpy_units == "j/kg"
+
+    mix_legacy = cea.Mixture([legacy])
+    mix_explicit = cea.Mixture([explicit])
+    weights = np.array([1.0], dtype=np.float64)
+    T_reac = np.array([298.15], dtype=np.float64)
+    h_legacy = mix_legacy.calc_property(cea.ENTHALPY, weights, T_reac)
+    h_explicit = mix_explicit.calc_property(cea.ENTHALPY, weights, T_reac)
+    assert h_legacy == pytest.approx(h_explicit, rel=1e-12)
+
+
+def test_reactant_molar_enthalpy_units_do_not_require_molecular_weight(cea_module):
+    cea = cea_module
+    reactant = cea.Reactant(
+        name="CHOS-Binder",
+        formula={"C": 1.0, "H": 1.86955, "O": 0.031256, "S": 0.008415},
+        enthalpy=-2999.082,
+        enthalpy_units="cal/mol",
+        temperature=298.15,
+    )
+    assert reactant.enthalpy_units == "cal/mole"
+
+    mix = cea.Mixture([reactant])
+    weights = np.array([1.0], dtype=np.float64)
+    T_reac = np.array([298.15], dtype=np.float64)
+    h0 = mix.calc_property(cea.ENTHALPY, weights, T_reac)
+    assert np.isfinite(h0)
+
+
+def test_reactant_weight_enthalpy_units_require_molecular_weight(cea_module):
+    cea = cea_module
+    with pytest.raises(ValueError, match="weight-based"):
+        cea.Reactant(
+            name="CHOS-Binder",
+            formula={"C": 1.0, "H": 1.86955, "O": 0.031256, "S": 0.008415},
+            enthalpy=-1.0,
+            enthalpy_units="kJ/kg",
+            temperature=298.15,
+        )
+
+
+def test_reactant_enthalpy_units_alias_and_weight_molar_equivalence(cea_module):
+    cea = cea_module
+    mw = 14.6652984484
+    h_cal_per_mol = -2999.082
+    h_cal_per_kg = h_cal_per_mol / (mw * 1.0e-3)
+    formula = {"C": 1.0, "H": 1.86955, "O": 0.031256, "S": 0.008415}
+
+    molar = cea.Reactant(
+        name="CHOS-Binder",
+        formula=formula,
+        molecular_weight=mw,
+        enthalpy=h_cal_per_mol,
+        enthalpy_units="cal/mol",
+        temperature=298.15,
+    )
+    alias = cea.Reactant(
+        name="Alias-Binder",
+        formula=formula,
+        enthalpy=1.0,
+        enthalpy_units="kJ/mol",
+        temperature=298.15,
+    )
+    weight = cea.Reactant(
+        name="CHOS-Binder",
+        formula=formula,
+        molecular_weight=mw,
+        enthalpy=h_cal_per_kg,
+        enthalpy_units="cal/kg",
+        temperature=298.15,
+    )
+
+    assert molar.enthalpy_units == "cal/mole"
+    assert alias.enthalpy_units == "kj/mole"
+    assert weight.enthalpy_units == "cal/kg"
+
+    mix_molar = cea.Mixture([molar])
+    mix_weight = cea.Mixture([weight])
+    weights = np.array([1.0], dtype=np.float64)
+    T_reac = np.array([298.15], dtype=np.float64)
+    h_molar = mix_molar.calc_property(cea.ENTHALPY, weights, T_reac)
+    h_weight = mix_weight.calc_property(cea.ENTHALPY, weights, T_reac)
+    assert h_molar == pytest.approx(h_weight, rel=1e-12)
+
+
+@pytest.mark.parametrize(
+    "units,mw",
+    [
+        ("J/kg", 10.0),
+        ("kJ/kg", 10.0),
+        ("cal/kg", 10.0),
+        ("kcal/kg", 10.0),
+        ("J/mol", None),
+        ("kJ/mol", None),
+        ("cal/mol", None),
+        ("kcal/mol", None),
+    ],
+)
+def test_reactant_enthalpy_units_supported(cea_module, units, mw):
+    cea = cea_module
+    kwargs = {
+        "name": "Unit-Check",
+        "formula": {"H": 2.0},
+        "enthalpy": 1.0,
+        "enthalpy_units": units,
+        "temperature": 298.15,
+    }
+    if mw is not None:
+        kwargs["molecular_weight"] = mw
+    reactant = cea.Reactant(**kwargs)
+    mix = cea.Mixture([reactant])
+    weights = np.array([1.0], dtype=np.float64)
+    T_reac = np.array([298.15], dtype=np.float64)
+    h0 = mix.calc_property(cea.ENTHALPY, weights, T_reac)
+    assert np.isfinite(h0)
 
 
 @pytest.mark.rp1311

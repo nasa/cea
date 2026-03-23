@@ -34,9 +34,8 @@ omit_names = [
     "(HCOOH)2", "C6H6(L)", "C7H8(L)", "C8H18(L),n-octa", "Jet-A(L)", "H2O(s)", "H2O(L)",
 ]
 
-# Convert h,cal = -2999.082 cal/mol to SI J/kg for Python Reactant input.
-chos_binder_mw_kg_per_mol = 14.6652984484e-3
-chos_binder_h_si = cea.units.cal_to_joule(-2999.082) / chos_binder_mw_kg_per_mol
+# CHOS-Binder reference enthalpy from RP-1311 example input.
+chos_binder_h_cal_per_mol = -2999.082
 
 reactants = [
     "NH4CLO4(I)",
@@ -44,7 +43,8 @@ reactants = [
         name="CHOS-Binder",
         formula={"C": 1.0, "H": 1.86955, "O": 0.031256, "S": 0.008415},
         molecular_weight=14.6652984484,
-        enthalpy=chos_binder_h_si,
+        enthalpy=chos_binder_h_cal_per_mol,
+        enthalpy_units="cal/mol",
         temperature=298.15,
     ),
     "AL(cr)",

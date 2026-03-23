@@ -530,22 +530,45 @@ cdef class Reactant:
     molecular_weight : float, optional
         Molecular weight in kg/kmol (numerically equivalent to g/mol).
     enthalpy : float, optional
-        Reference enthalpy in SI units (J/kg).
+        Reference enthalpy value interpreted according to ``enthalpy_units``.
+    enthalpy_units : str, optional
+        Units for ``enthalpy``. Supported values (case-insensitive):
+        ``J/kg``, ``kJ/kg``, ``cal/kg``, ``kcal/kg``, ``J/mol``, ``kJ/mol``,
+        ``cal/mol``, ``kcal/mol`` (``/mole`` spellings are also accepted).
+        If omitted while ``enthalpy`` is provided, the legacy default ``J/kg``
+        is used for backward compatibility and a ``FutureWarning`` is emitted.
+        Future minor versions will require explicit ``enthalpy_units``.
     temperature : float, optional
         Reference temperature in SI units (K).
 
     Notes
     -----
-    Python Reactant inputs are SI-only. Use :mod:`cea.units` helpers to pre-convert
-    non-SI values before constructing a Reactant.
+    Weight-based enthalpy inputs (``*/kg``) require ``molecular_weight`` to
+    convert to the core molar convention. Molar enthalpy inputs (``*/mol``)
+    do not require ``molecular_weight`` for enthalpy interpretation.
     """
     cdef public object name
     cdef public object formula
     cdef public object molecular_weight
     cdef public object enthalpy
+    cdef public object enthalpy_units
     cdef public object temperature
+    cdef object _enthalpy_core_units
+    cdef object _enthalpy_is_weight_units
 
-    def __init__(self, name, formula=None, molecular_weight=None, enthalpy=None, temperature=None):
+    def __init__(
+        self,
+        name,
+        formula=None,
+        molecular_weight=None,
+        enthalpy=None,
+        enthalpy_units=None,
+        temperature=None,
+    ):
+        cdef object normalized_enthalpy_units = None
+        cdef object enthalpy_core_units = None
+        cdef bint enthalpy_is_weight_units = False
+
         if not isinstance(name, str) or len(name.strip()) == 0:
             raise TypeError("Reactant name must be a non-empty str")
 
@@ -575,14 +598,80 @@ cdef class Reactant:
                 raise TypeError(f"Reactant {field_name} must be numeric")
             if not np.isfinite(fval):
                 raise ValueError(f"Reactant {field_name} must be finite")
-        if enthalpy is not None and molecular_weight is None:
-            raise ValueError("Reactant molecular_weight is required when enthalpy is specified")
+
+        if enthalpy is not None:
+            if enthalpy_units is None:
+                warnings.warn(
+                    "Reactant enthalpy without explicit enthalpy_units is deprecated; "
+                    "using legacy default J/kg for backward compatibility. "
+                    "Future minor versions will require explicit enthalpy_units. "
+                    "Pass enthalpy_units='J/kg' or enthalpy_units='kJ/mol'.",
+                    FutureWarning,
+                )
+                normalized_enthalpy_units = "j/kg"
+                enthalpy_core_units = "j/mole"
+                enthalpy_is_weight_units = True
+            else:
+                (
+                    normalized_enthalpy_units,
+                    enthalpy_core_units,
+                    enthalpy_is_weight_units,
+                ) = _normalize_enthalpy_units(enthalpy_units)
+            if enthalpy_is_weight_units and molecular_weight is None:
+                raise ValueError(
+                    "Reactant molecular_weight is required when enthalpy_units is weight-based "
+                    "(J/kg, kJ/kg, cal/kg, or kcal/kg)"
+                )
+        elif enthalpy_units is not None:
+            normalized_enthalpy_units, _, _ = _normalize_enthalpy_units(enthalpy_units)
 
         self.name = name
         self.formula = formula
         self.molecular_weight = molecular_weight
         self.enthalpy = enthalpy
+        self.enthalpy_units = normalized_enthalpy_units
         self.temperature = temperature
+        self._enthalpy_core_units = enthalpy_core_units
+        self._enthalpy_is_weight_units = bool(enthalpy_is_weight_units)
+
+
+cdef tuple _normalize_enthalpy_units(object enthalpy_units):
+    cdef str units_text
+    cdef dict canonical_map
+    cdef tuple normalized
+    cdef object key
+
+    if isinstance(enthalpy_units, bytes):
+        units_text = (<bytes>enthalpy_units).decode("utf-8", "strict")
+    elif isinstance(enthalpy_units, str):
+        units_text = <str>enthalpy_units
+    else:
+        raise TypeError("Reactant enthalpy_units must be str when provided")
+
+    units_text = "".join(units_text.split()).lower()
+
+    canonical_map = {
+        "j/kg": ("j/kg", "j/mole", True),
+        "kj/kg": ("kj/kg", "kj/mole", True),
+        "cal/kg": ("cal/kg", "cal/mole", True),
+        "kcal/kg": ("kcal/kg", "kcal/mole", True),
+        "j/mol": ("j/mole", "j/mole", False),
+        "j/mole": ("j/mole", "j/mole", False),
+        "kj/mol": ("kj/mole", "kj/mole", False),
+        "kj/mole": ("kj/mole", "kj/mole", False),
+        "cal/mol": ("cal/mole", "cal/mole", False),
+        "cal/mole": ("cal/mole", "cal/mole", False),
+        "kcal/mol": ("kcal/mole", "kcal/mole", False),
+        "kcal/mole": ("kcal/mole", "kcal/mole", False),
+    }
+
+    if units_text not in canonical_map:
+        raise ValueError(
+            "Reactant enthalpy_units must be one of: "
+            "J/kg, kJ/kg, cal/kg, kcal/kg, J/mol, kJ/mol, cal/mol, or kcal/mol"
+        )
+    normalized = canonical_map[units_text]
+    return normalized
 
 
 cdef class Mixture:
@@ -638,7 +727,6 @@ cdef class Mixture:
         cdef list _reactant_keepalive = []
         cdef list _element_ptr_buffers = []
         cdef list _coeff_ptr_buffers = []
-        cdef _CString _enthalpy_units
         cdef _CString _temperature_units
 
         if species is None:
@@ -649,7 +737,6 @@ cdef class Mixture:
             raise TypeError("Mixture species must be a list")
         if type(omit) is not list:
             raise TypeError("Mixture omit must be a list")
-        _enthalpy_units = _CString("j/mole", "Reactant enthalpy units")
         _temperature_units = _CString("k", "Reactant temperature units")
 
         self.num_species = <int>len(species)
@@ -737,9 +824,14 @@ cdef class Mixture:
                         cea_reactants[i].molecular_weight = float(reactant.molecular_weight)
 
                     if reactant.enthalpy is not None:
+                        _encoded = _CString(reactant._enthalpy_core_units, "Reactant enthalpy units")
+                        _reactant_keepalive.append(_encoded)
                         cea_reactants[i].has_enthalpy = 1
-                        cea_reactants[i].enthalpy = float(reactant.enthalpy) * float(reactant.molecular_weight) / 1000.0
-                        cea_reactants[i].enthalpy_units = _enthalpy_units.ptr
+                        if reactant._enthalpy_is_weight_units:
+                            cea_reactants[i].enthalpy = float(reactant.enthalpy) * float(reactant.molecular_weight) / 1000.0
+                        else:
+                            cea_reactants[i].enthalpy = float(reactant.enthalpy)
+                        cea_reactants[i].enthalpy_units = _encoded.ptr
 
                     if reactant.temperature is not None:
                         cea_reactants[i].has_temperature = 1

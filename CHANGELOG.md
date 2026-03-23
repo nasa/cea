@@ -5,10 +5,16 @@ All notable user-visible changes to this project are documented here.
 ## [Unreleased]
 
 ### Changed
+- Python `cea.Reactant` now supports explicit `enthalpy_units` for custom reactant enthalpy input (`J/kg`, `kJ/kg`, `cal/kg`, `kcal/kg`, `J/mol`, `kJ/mol`, `cal/mol`, `kcal/mol`; `/mol` and `/mole` spellings accepted).
+- Backward-compatible behavior is preserved when `Reactant.enthalpy` is provided without `enthalpy_units`: the legacy default (`J/kg`) is still used, but this now emits a `FutureWarning` directing users to pass `enthalpy_units` explicitly.
+- Weight-based enthalpy units (`*/kg`) now require `Reactant.molecular_weight` for conversion, while molar units (`*/mol`) do not require molecular weight for enthalpy interpretation.
+- Python docs and examples were updated to pass explicit `enthalpy_units` for custom reactants (including RP-1311 Example 5) instead of relying on implicit defaults.
+- **Compatibility notice:** a future **minor** version increment will require `enthalpy_units` whenever `Reactant.enthalpy` is defined. Code that currently relies on implicit enthalpy units may break until updated.
 
 ### Fixed
 
 ### Added
+- Added Python regression coverage for `Reactant` enthalpy-unit handling, including omitted-units warning behavior, explicit molar/weight units, molecular-weight requirements for weight units, and accepted unit spellings.
 
 ## [3.1.2] - 2026-03-23
 
