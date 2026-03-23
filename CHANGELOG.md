@@ -5,6 +5,14 @@ All notable user-visible changes to this project are documented here.
 ## [Unreleased]
 
 ### Changed
+
+### Fixed
+
+### Added
+
+## [3.1.2] - 2026-03-23
+
+### Changed
 - Legacy CLI `.out` files now echo each problem’s original input block before the corresponding equilibrium, rocket, shock, or detonation output section.
 - Frozen rocket failure handling was aligned with the established partial-output behavior: successful upstream stations are retained, output truncates at the last valid station, and the existing warning text is emitted after the partial report.
 - Frozen rocket stop checks now use the active thermo-fit interval for condensed species plus the existing lower-temperature frozen-fit guard, and frozen retained points now populate transport properties before output.
