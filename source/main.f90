@@ -2436,7 +2436,8 @@ contains
                                 write(ioout, thermo_fmt) " Conductivity    ", &
                                     (solutions(i, j, k)%eq_soln(idx)%conductivity_eq, idx=1,np)
                             else
-                                write(ioout, thermo_fmt) " Cp, cal/(g-K)   ", (solutions(i, j, k)%eq_soln(idx)%cp_eq/4.184d0, idx=1,np)
+                                write(ioout, thermo_fmt) " Cp, cal/(g-K)   ", &
+                                    (solutions(i, j, k)%eq_soln(idx)%cp_eq/4.184d0, idx=1,np)
                                 write(ioout, thermo_fmt) " Conductivity    ", &
                                     (solutions(i, j, k)%eq_soln(idx)%conductivity_eq/4.184d0, idx=1,np)
                             end if
