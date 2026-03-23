@@ -728,6 +728,8 @@ contains
         ! Loop over the species
         vm = 0.0d0; vp = 0.0d0
         do i = 1, ne
+            ! "E" is a pseudo-element used for ionized bookkeeping, not a real atom.
+            if (self%element_names(i) == 'E') cycle
             v = get_atom_valence(self%element_names(i))
             if (v < 0.0d0) then
                 vm(i) = vm(i) + v
