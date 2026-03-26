@@ -578,6 +578,30 @@ contains
         end if
     end subroutine
 
+    pure subroutine compute_reported_nj(ln_nj, log_min, nj, dnj_dln_nj, is_reported)
+        ! Map ln(nj) to the final exposed gas-species amount returned to the user.
+        ! This post-processing is intentionally separate from the internal solve-path
+        ! activity logic controlled by tsize/xsize.
+        real(dp), intent(in) :: ln_nj
+        real(dp), intent(in) :: log_min
+        real(dp), intent(out) :: nj
+        real(dp), intent(out), optional :: dnj_dln_nj
+        logical, intent(out), optional :: is_reported
+
+        logical :: above_log_min
+
+        above_log_min = (ln_nj > log_min)
+        if (present(is_reported)) is_reported = above_log_min
+
+        if (above_log_min) then
+            nj = exp(ln_nj)
+            if (present(dnj_dln_nj)) dnj_dln_nj = nj
+        else
+            nj = 0.0d0
+            if (present(dnj_dln_nj)) dnj_dln_nj = 0.0d0
+        end if
+    end subroutine
+
     pure real(dp) function gas_amount_ln_threshold(ln_n, tsize, esize, ion_species) result(ln_threshold)
         ! Species-amount truncation threshold: ions use esize, non-ions use tsize.
         real(dp), intent(in) :: ln_n
@@ -2522,14 +2546,10 @@ contains
             if (soln%converged .or. (iter == self%max_iterations)) then
 
                 ! Compute final species concentrations
-                ! * NOTE: post-processing uses a lower threshold when computing nj = exp(ln(nj))
+                ! * NOTE: exposed nj uses the final log_min post-processing rule,
+                !   independent of the internal solve-path activity threshold.
                 do i = 1, self%num_gas
-                    if (self%smooth_truncation) then
-                        call compute_nj_effective(soln%ln_nj(i), log(soln%n)-self%tsize, self%smooth_truncation, &
-                                                  self%truncation_width, nj_eff=soln%nj(i))
-                    else
-                        if (soln%ln_nj(i) > self%log_min) soln%nj(i) = exp(soln%ln_nj(i))
-                    end if
+                    call compute_reported_nj(soln%ln_nj(i), self%log_min, soln%nj(i))
                 end do
 
                 if (.not. soln%converged) then
@@ -3044,8 +3064,6 @@ contains
         real(dp) :: ln_n
         real(dp) :: log_p_over_n
         real(dp) :: ln_threshold
-        real(dp) :: ln_threshold_nj
-        real(dp) :: species_size
         real(dp) :: dlogP_over_n_state1
         real(dp) :: dlogP_over_n_state2
         real(dp), allocatable :: dlogP_over_n_db0(:)
@@ -3063,9 +3081,7 @@ contains
         real(dp), allocatable :: dS_sum_dw0(:)
         real(dp), allocatable :: ln_nj_eff(:)
         real(dp), allocatable :: nj_g_eff(:)
-        real(dp), allocatable :: dnj_dln_nj(:)
         real(dp), allocatable :: dln_nj_eff_dln_nj(:)
-        real(dp), allocatable :: dln_nj_amount_dln_nj(:)
         real(dp) :: sum_h
         real(dp) :: sum_dh_dT
         real(dp) :: sum_h_dnj
@@ -3076,8 +3092,8 @@ contains
         real(dp) :: entropy_sum
         real(dp) :: entropy_dim
         real(dp) :: temp_dT
-        real(dp) :: threshold_value
-        real(dp) :: threshold_margin
+        real(dp) :: dnj_reported_dln_nj
+        real(dp) :: nj_tmp
         real(dp) :: fac
         logical :: ion_species
         logical :: const_p, const_t, const_s, const_h, const_u  ! Flags enabling/disabling matrix equations
@@ -3159,19 +3175,14 @@ contains
         log_p_over_n = log(P/n)
         ln_threshold = ln_n - solver%tsize
 
-        allocate(ln_nj_eff(ng), nj_g_eff(ng), dnj_dln_nj(ng), dln_nj_eff_dln_nj(ng), dln_nj_amount_dln_nj(ng))
+        allocate(ln_nj_eff(ng), nj_g_eff(ng), dln_nj_eff_dln_nj(ng))
         do i = 1, ng
             call compute_nj_effective(ln_nj(i), ln_threshold, solver%smooth_truncation, solver%truncation_width, &
-                                      nj_eff=nj_g_eff(i), ln_nj_eff=ln_nj_eff(i), dln_nj_eff_dln_nj=dln_nj_eff_dln_nj(i))
+                                      nj_eff=nj_tmp, ln_nj_eff=ln_nj_eff(i), &
+                                      dln_nj_eff_dln_nj=dln_nj_eff_dln_nj(i))
             ion_species = solver%ions .and. solver%active_ions .and. ne > 0 .and. A_g(i, ne) /= 0.0d0
-            ln_threshold_nj = gas_amount_ln_threshold(ln_n, solver%tsize, solver%esize, ion_species)
-            call compute_nj_effective(ln_nj(i), ln_threshold_nj, solver%smooth_truncation, solver%truncation_width, &
-                                      nj_eff=nj_g_eff(i), dln_nj_eff_dln_nj=dln_nj_amount_dln_nj(i))
-            if (solver%smooth_truncation) then
-                dnj_dln_nj(i) = exp(ln_nj(i)) * dln_nj_amount_dln_nj(i)
-            else
-                dnj_dln_nj(i) = nj_g_eff(i)
-            end if
+            call compute_nj_effective(ln_nj(i), gas_amount_ln_threshold(ln_n, solver%tsize, solver%esize, ion_species), &
+                                      solver%smooth_truncation, solver%truncation_width, nj_eff=nj_g_eff(i))
         end do
 
         ! Compute gas phase chemical potentials
@@ -3310,29 +3321,13 @@ contains
         end do
 
         do i = 1, ng
-            ion_species = solver%ions .and. solver%active_ions .and. ne > 0 .and. A_g(i, ne) /= 0.0d0
-            if (ion_species) then
-                species_size = solver%esize
-            else
-                species_size = solver%tsize
-            end if
-            threshold_value = ln_nj(i) - ln_n + species_size
-            threshold_margin = 0.05d0*species_size
-            if (solver%smooth_truncation) then
-                self%dnj_dstate1(i) = dnj_dln_nj(i)*dln_nj_dstate1(i)
-                self%dnj_dstate2(i) = dnj_dln_nj(i)*dln_nj_dstate2(i)
-                dnj_db0(i, :) = dnj_dln_nj(i)*dln_nj_db0(i, :)
-            else if (threshold_value > 0.0d0) then
-                self%dnj_dstate1(i) = nj_g_eff(i)*dln_nj_dstate1(i)
-                self%dnj_dstate2(i) = nj_g_eff(i)*dln_nj_dstate2(i)
-                dnj_db0(i, :) = nj_g_eff(i)*dln_nj_db0(i, :)
-            else
-                if (threshold_value >= -threshold_margin) then
-                    call log_warning("EqDerivatives_unpack_values: "// &
-                        trim(solver%products%species_names(i))// &
-                        " not in the active-set so derivatives are 0, but they are close to the threshold")
-                end if
-            end if
+            ! Reported dnj derivatives must differentiate the final exposed nj,
+            ! not the internal solve-path activity mask. The solve-path still
+            ! uses nj_g_eff/ln_nj_eff above for thermo and closure derivatives.
+            call compute_reported_nj(ln_nj(i), solver%log_min, nj_tmp, dnj_dln_nj=dnj_reported_dln_nj)
+            self%dnj_dstate1(i) = dnj_reported_dln_nj*dln_nj_dstate1(i)
+            self%dnj_dstate2(i) = dnj_reported_dln_nj*dln_nj_dstate2(i)
+            dnj_db0(i, :) = dnj_reported_dln_nj*dln_nj_db0(i, :)
         end do
 
         do idx_c = 1, na

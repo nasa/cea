@@ -45,6 +45,29 @@ contains
     end subroutine
 
     @test
+    subroutine test_compute_reported_nj_post_process
+        real(dp), parameter :: log_min = -20.0d0
+        real(dp), parameter :: h = 1.0d-7
+        real(dp), parameter :: tol = 1.0d-8
+        real(dp) :: ln_nj, nj, dnj_dln, nj_plus, nj_minus, fd
+
+        ln_nj = log_min + 0.5d0
+        call compute_reported_nj(ln_nj, log_min, nj, dnj_dln_nj=dnj_dln)
+        @assertRelativelyEqual(exp(ln_nj), nj, tol)
+        @assertRelativelyEqual(exp(ln_nj), dnj_dln, tol)
+
+        call compute_reported_nj(ln_nj + h, log_min, nj_plus)
+        call compute_reported_nj(ln_nj - h, log_min, nj_minus)
+        fd = (nj_plus - nj_minus)/(2.0d0*h)
+        @assertRelativelyEqual(dnj_dln, fd, 1.0d-6)
+
+        ln_nj = log_min - 0.5d0
+        call compute_reported_nj(ln_nj, log_min, nj, dnj_dln_nj=dnj_dln)
+        @assertEqual(0.0d0, nj)
+        @assertEqual(0.0d0, dnj_dln)
+    end subroutine
+
+    @test
     subroutine test_smooth_truncation_disabled_is_unchanged
         type(Mixture) :: products
         type(Mixture) :: reactants
