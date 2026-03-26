@@ -519,7 +519,7 @@ contains
     end subroutine
 
     pure subroutine compute_nj_effective(ln_nj, ln_threshold, smooth_truncation, width, nj_eff, g, dg_dln, ln_nj_eff, &
-                                         dln_nj_eff_dln_nj, is_hard_active)
+                                         dln_nj_eff_dln_nj, dln_nj_eff_dln_threshold, is_hard_active)
         ! Map log-species amount to the effective physical amount used in thermo/properties.
         ! In this solver, ln_threshold = log(n) - tsize.
         real(dp), intent(in) :: ln_nj
@@ -531,6 +531,7 @@ contains
         real(dp), intent(out), optional :: dg_dln
         real(dp), intent(out), optional :: ln_nj_eff
         real(dp), intent(out), optional :: dln_nj_eff_dln_nj
+        real(dp), intent(out), optional :: dln_nj_eff_dln_threshold
         logical, intent(out), optional :: is_hard_active
 
         real(dp) :: gate
@@ -558,6 +559,7 @@ contains
             if (present(dg_dln)) dg_dln = 0.0d0
             if (present(ln_nj_eff)) ln_nj_eff = ln_nj
             if (present(dln_nj_eff_dln_nj)) dln_nj_eff_dln_nj = 1.0d0
+            if (present(dln_nj_eff_dln_threshold)) dln_nj_eff_dln_threshold = 0.0d0
             return
         end if
 
@@ -574,6 +576,13 @@ contains
                 dln_nj_eff_dln_nj = 1.0d0 + gate_prime / gate
             else
                 dln_nj_eff_dln_nj = 1.0d0
+            end if
+        end if
+        if (present(dln_nj_eff_dln_threshold)) then
+            if (gate > 0.0d0) then
+                dln_nj_eff_dln_threshold = -gate_prime / gate
+            else
+                dln_nj_eff_dln_threshold = 0.0d0
             end if
         end if
     end subroutine
@@ -869,7 +878,9 @@ contains
         real(dp), pointer :: ln_nj(:)         ! Log of the product concentrations
         real(dp) :: ln_nj_eff(self%num_gas)   ! Effective log-species concentrations
         real(dp) :: dln_nj_eff_dln_nj(self%num_gas)  ! d(ln(nj_eff))/d(ln_nj)
+        real(dp) :: dln_nj_eff_dln_threshold(self%num_gas) ! d(ln(nj_eff))/d(ln_threshold)
         real(dp) :: nj_eff_tmp                ! Temporary effective species amount
+        real(dp) :: rhs_eff                   ! Effective-space update before back-transform
         logical :: ion_species                ! True if gas species is charged and ions are active
 
         ! Define shorthand
@@ -904,7 +915,8 @@ contains
             ln_threshold = gas_amount_ln_threshold(ln_n, self%tsize, self%esize, ion_species)
             call compute_nj_effective(ln_nj(i), ln_threshold, self%smooth_truncation, self%truncation_width, &
                                       nj_eff=nj_eff_tmp, ln_nj_eff=ln_nj_eff(i), &
-                                      dln_nj_eff_dln_nj=dln_nj_eff_dln_nj(i))
+                                      dln_nj_eff_dln_nj=dln_nj_eff_dln_nj(i), &
+                                      dln_nj_eff_dln_threshold=dln_nj_eff_dln_threshold(i))
         end do
         mu_g = h_g - s_g + ln_nj_eff + log(P/n)
 
@@ -951,10 +963,17 @@ contains
         do i = 1, ng
             ! TODO: Skip the update here for species with removed elements
 
-            soln%dln_nj(i) = -mu_g(i) + soln%dln_n + dot_product(A_g(i, :ne), soln%pi(:ne)) + soln%dln_T*h_g(i)
-            if (.not. const_p) soln%dln_nj(i) = soln%dln_nj(i) - soln%dln_T
+            rhs_eff = -mu_g(i) + soln%dln_n + dot_product(A_g(i, :ne), soln%pi(:ne)) + soln%dln_T*h_g(i)
+            if (.not. const_p) rhs_eff = rhs_eff - soln%dln_T
             if (self%smooth_truncation) then
-                soln%dln_nj(i) = soln%dln_nj(i) / max(dln_nj_eff_dln_nj(i), tiny(1.0d0))
+                if (const_p) then
+                    soln%dln_nj(i) = (rhs_eff - dln_nj_eff_dln_threshold(i)*soln%dln_n) / &
+                                     max(dln_nj_eff_dln_nj(i), tiny(1.0d0))
+                else
+                    soln%dln_nj(i) = rhs_eff / max(dln_nj_eff_dln_nj(i), tiny(1.0d0))
+                end if
+            else
+                soln%dln_nj(i) = rhs_eff
             end if
 
             ! Ionized species update
@@ -3082,6 +3101,7 @@ contains
         real(dp), allocatable :: ln_nj_eff(:)
         real(dp), allocatable :: nj_g_eff(:)
         real(dp), allocatable :: dln_nj_eff_dln_nj(:)
+        real(dp), allocatable :: dln_nj_eff_dln_threshold(:)
         real(dp) :: sum_h
         real(dp) :: sum_dh_dT
         real(dp) :: sum_h_dnj
@@ -3175,11 +3195,12 @@ contains
         log_p_over_n = log(P/n)
         ln_threshold = ln_n - solver%tsize
 
-        allocate(ln_nj_eff(ng), nj_g_eff(ng), dln_nj_eff_dln_nj(ng))
+        allocate(ln_nj_eff(ng), nj_g_eff(ng), dln_nj_eff_dln_nj(ng), dln_nj_eff_dln_threshold(ng))
         do i = 1, ng
             call compute_nj_effective(ln_nj(i), ln_threshold, solver%smooth_truncation, solver%truncation_width, &
                                       nj_eff=nj_tmp, ln_nj_eff=ln_nj_eff(i), &
-                                      dln_nj_eff_dln_nj=dln_nj_eff_dln_nj(i))
+                                      dln_nj_eff_dln_nj=dln_nj_eff_dln_nj(i), &
+                                      dln_nj_eff_dln_threshold=dln_nj_eff_dln_threshold(i))
             ion_species = solver%ions .and. solver%active_ions .and. ne > 0 .and. A_g(i, ne) /= 0.0d0
             call compute_nj_effective(ln_nj(i), gas_amount_ln_threshold(ln_n, solver%tsize, solver%esize, ion_species), &
                                       solver%smooth_truncation, solver%truncation_width, nj_eff=nj_g_eff(i))
@@ -3318,6 +3339,14 @@ contains
             dln_nj_eff_dstate1(i) = dln_nj_eff_dln_nj(i) * dln_nj_dstate1(i)
             dln_nj_eff_dstate2(i) = dln_nj_eff_dln_nj(i) * dln_nj_dstate2(i)
             dln_nj_eff_dw0(i, :) = dln_nj_eff_dln_nj(i) * dln_nj_dw0(i, :)
+            if (const_p) then
+                dln_nj_eff_dstate1(i) = dln_nj_eff_dstate1(i) + &
+                                        dln_nj_eff_dln_threshold(i) * self%dn_dstate1 / n
+                dln_nj_eff_dstate2(i) = dln_nj_eff_dstate2(i) + &
+                                        dln_nj_eff_dln_threshold(i) * self%dn_dstate2 / n
+                dln_nj_eff_dw0(i, :) = dln_nj_eff_dw0(i, :) + &
+                                       dln_nj_eff_dln_threshold(i) * self%dn_dw0 / n
+            end if
         end do
 
         do i = 1, ng
