@@ -1949,7 +1949,10 @@ contains
         real(dp) :: weights(2), fuel_weights(2), oxidizer_weights(2), of_ratio
         real(dp) :: temperature, pressure, h_pressure
         real(dp) :: dnj_dp_hard_fd, dnj_dp_smooth_fd
+        real(dp) :: dH_dp_hard_fd, dH_dp_smooth_fd
+        real(dp) :: dS_dp_hard_fd, dS_dp_smooth_fd
         real(dp) :: rel_hard, rel_smooth
+        real(dp) :: closure_tol
         integer, parameter :: idx_co = 3
         real(dp), parameter :: tol = 1.0d-2
 
@@ -1987,8 +1990,16 @@ contains
         call totals_hard%compute_derivatives(solver_hard, sol_hard)
         call totals_hard%unpack_values(solver_hard, sol_hard)
         dnj_dp_hard_fd = (sol_hard_plus%nj(idx_co) - sol_hard_minus%nj(idx_co)) / (2.0d0*h_pressure)
+        dH_dp_hard_fd = (sol_hard_plus%enthalpy - sol_hard_minus%enthalpy) / (2.0d0*h_pressure)
+        dS_dp_hard_fd = (sol_hard_plus%entropy - sol_hard_minus%entropy) / (2.0d0*h_pressure)
         rel_hard = abs(dnj_dp_hard_fd - totals_hard%dnj_dstate2(idx_co)) / &
                    max(max(abs(dnj_dp_hard_fd), abs(totals_hard%dnj_dstate2(idx_co))), 1.0d-30)
+        @assertLessThan(rel_hard, tol)
+        rel_hard = abs(dH_dp_hard_fd - totals_hard%dH_dstate2) / &
+                   max(max(abs(dH_dp_hard_fd), abs(totals_hard%dH_dstate2)), 1.0d-30)
+        @assertLessThan(rel_hard, tol)
+        rel_hard = abs(dS_dp_hard_fd - totals_hard%dS_dstate2) / &
+                   max(max(abs(dS_dp_hard_fd), abs(totals_hard%dS_dstate2)), 1.0d-30)
         @assertLessThan(rel_hard, tol)
 
         call solver_smooth%solve(sol_smooth, 'tp', temperature, pressure, weights)
@@ -1996,12 +2007,22 @@ contains
         call solver_smooth%solve(sol_smooth_minus, 'tp', temperature, pressure - h_pressure, weights)
 
         totals_smooth = EqDerivatives(solver_smooth, sol_smooth)
-        call totals_smooth%compute_derivatives(solver_smooth, sol_smooth)
+        call totals_smooth%compute_derivatives(solver_smooth, sol_smooth, check_closure_defect=.true.)
         call totals_smooth%unpack_values(solver_smooth, sol_smooth)
         dnj_dp_smooth_fd = (sol_smooth_plus%nj(idx_co) - sol_smooth_minus%nj(idx_co)) / (2.0d0*h_pressure)
+        dH_dp_smooth_fd = (sol_smooth_plus%enthalpy - sol_smooth_minus%enthalpy) / (2.0d0*h_pressure)
+        dS_dp_smooth_fd = (sol_smooth_plus%entropy - sol_smooth_minus%entropy) / (2.0d0*h_pressure)
         rel_smooth = abs(dnj_dp_smooth_fd - totals_smooth%dnj_dstate2(idx_co)) / &
                      max(max(abs(dnj_dp_smooth_fd), abs(totals_smooth%dnj_dstate2(idx_co))), 1.0d-30)
+        rel_smooth = abs(dH_dp_smooth_fd - totals_smooth%dH_dstate2) / &
+                     max(max(abs(dH_dp_smooth_fd), abs(totals_smooth%dH_dstate2)), 1.0d-30)
         @assertLessThan(rel_smooth, tol)
+        rel_smooth = abs(dS_dp_smooth_fd - totals_smooth%dS_dstate2) / &
+                     max(max(abs(dS_dp_smooth_fd), abs(totals_smooth%dS_dstate2)), 1.0d-30)
+        @assertLessThan(rel_smooth, tol)
+
+        closure_tol = 1.0d-10
+        @assertLessThan(maxval(abs(totals_smooth%delta_check)), closure_tol)
     end subroutine
 
     @test

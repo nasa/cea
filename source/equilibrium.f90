@@ -2716,8 +2716,47 @@ contains
         type(EqSolver), intent(in) :: solver
         type(EqSolution), intent(inout) :: solution
 
+        ! Locals
+        integer :: ng
+        integer :: ne
+        integer :: ne_full
+        integer :: i
+        integer :: j
+        real(dp) :: ln_n
+        real(dp) :: ln_threshold
+        real(dp) :: nj_eff_g(solver%num_gas)
+        real(dp) :: dln_nj_eff_dln_nj(solver%num_gas)
+        real(dp) :: nj_linear_pi(solver%num_gas)
+        real(dp) :: tmp(solver%num_gas)
+        logical :: ion_species
+        logical :: const_t
+
         call solver%assemble_matrix(solution)
         self%J = solution%G(:self%m, :self%m)
+
+        const_t = solution%constraints%is_constant_temperature()
+        if (.not. (solver%smooth_truncation .and. const_t)) return
+
+        ng = solver%num_gas
+        ne = solver%num_active_elements()
+        ne_full = solver%num_elements
+        ln_n = log(solution%n)
+        do i = 1, ng
+            ion_species = solver%ions .and. solver%active_ions .and. ne_full > 0 .and. &
+                          solver%products%stoich_matrix(i, ne_full) /= 0.0d0
+            ln_threshold = gas_amount_ln_threshold(ln_n, solver%tsize, solver%esize, ion_species)
+            call compute_nj_effective(solution%ln_nj(i), ln_threshold, solver%smooth_truncation, &
+                                      solver%truncation_width, nj_eff=nj_eff_g(i), &
+                                      dln_nj_eff_dln_nj=dln_nj_eff_dln_nj(i))
+            nj_linear_pi(i) = nj_eff_g(i) * dln_nj_eff_dln_nj(i)
+        end do
+
+        do i = 1, ne
+            tmp = nj_linear_pi * solver%products%stoich_matrix(:ng, i)
+            do j = 1, ne
+                self%J(i, j) = dot_product(tmp, solver%products%stoich_matrix(:ng, j))
+            end do
+        end do
     end subroutine
 
     subroutine EqDerivatives_assemble_Rx(self, solver, solution)
@@ -2739,9 +2778,10 @@ contains
         real(dp) :: n                           ! Total moles of mixture
         real(dp) :: P                           ! Pressure of mixture (bar)
         real(dp) :: T                           ! Temperature of mixture (K)
-        real(dp), pointer :: nj(:), nj_g(:)     ! Total/gas species concentrations [kmol-per-kg]
+        real(dp), pointer :: nj(:)              ! Total species concentrations [kmol-per-kg]
         real(dp), pointer :: ln_nj(:)           ! Log of gas species concentrations [kmol-per-kg]
         real(dp) :: ln_nj_eff(solver%num_gas)   ! Effective log-species concentrations
+        real(dp) :: nj_g_eff(solver%num_gas)    ! Effective gas concentrations [kmol-per-kg]
         real(dp) :: ln_threshold                ! Truncation threshold in log-space
         real(dp), pointer :: h_g(:), h_c(:)     ! Gas enthalpies [unitless]
         real(dp), pointer :: s_g(:)             ! Gas entropies [unitless]
@@ -2753,6 +2793,7 @@ contains
         real(dp), pointer :: A_g(:,:), A_c(:,:) ! Gas/condensed stoichiometric matrices
         integer :: r, c                         ! Iteration matrix row/column indices
         integer :: i                            ! Loop counters
+        logical :: ion_species
         logical :: const_p, const_t, const_s, const_h, const_u  ! Flags enabling/disabling matrix equations
         type(EqConstraints), pointer :: cons    ! Abbreviation for soln%constraints
 
@@ -2773,7 +2814,6 @@ contains
         A_c => solver%products%stoich_matrix(ng+1:,:)
         n = solution%n
         nj  => solution%nj
-        nj_g => solution%nj(:ng)
         ln_nj => solution%ln_nj
         h_g => solution%thermo%enthalpy(:ng)
         h_c => solution%thermo%enthalpy(ng+1:)
@@ -2783,19 +2823,20 @@ contains
         ! Get the mixture pressure and temperature
         P = solution%calc_pressure()
         T = solution%T
-        ln_threshold = log(n) - solver%tsize
 
         ! Compute gas phase chemical potentials
         do i = 1, ng
+            ion_species = solver%ions .and. solver%active_ions .and. ne > 0 .and. A_g(i, ne) /= 0.0d0
+            ln_threshold = gas_amount_ln_threshold(log(n), solver%tsize, solver%esize, ion_species)
             call compute_nj_effective(ln_nj(i), ln_threshold, solver%smooth_truncation, solver%truncation_width, &
-                                      nj_eff=tmp(i), ln_nj_eff=ln_nj_eff(i))
+                                      nj_eff=nj_g_eff(i), ln_nj_eff=ln_nj_eff(i))
         end do
         mu_g = h_g - s_g + ln_nj_eff + log(P/n)
 
         ! Evalutate constraint residuals
         dhsu_delta_dP = 0.0d0
         if (const_s .and. const_p) then
-            dhsu_delta_dP = sum(nj_g)/P
+            dhsu_delta_dP = sum(nj_g_eff)/P
         end if
 
         ! Compute intermediate derivatives
@@ -2817,7 +2858,7 @@ contains
         ! Equation (2.24/2.45): Element constraints
         !-------------------------------------------------------
         do i = 1,ne
-            tmp = nj_g*A_g(:,i)
+            tmp = nj_g_eff*A_g(:,i)
             r = r+1
             c = 0
 
@@ -2875,7 +2916,7 @@ contains
 
             ! dR/dx1 (x1: fixed pressure or volume)
             c = c+1
-            self%Rx(r, c) = -sum(nj_g)/P
+            self%Rx(r, c) = -sum(nj_g_eff)/P
             if (.not. const_p) then
                 self%Rx(r, c) = self%Rx(r, c)*(-P/cons%state2)
             end if
@@ -2883,7 +2924,7 @@ contains
             ! dR/dx2 (x2: fixed temperature/enthalpy/entropy/energy)
             c = c+1
             if (const_t) then
-                self%Rx(r, c) = -dot_product(nj_g, dh_g_dT-ds_g_dT)
+                self%Rx(r, c) = -dot_product(nj_g_eff, dh_g_dT-ds_g_dT)
             else
                 self%Rx(r, c) = 0.0d0
             end if
@@ -2901,11 +2942,11 @@ contains
 
             ! Select entropy/enthalpy constraint
             if (const_s) then
-                tmp = nj_g*(h_g-mu_g)
+                tmp = nj_g_eff*(h_g-mu_g)
             else if (const_h) then
-                tmp = nj_g*h_g
+                tmp = nj_g_eff*h_g
             else if (const_u) then
-                tmp = nj_g*u_g
+                tmp = nj_g_eff*u_g
             end if
 
             dtmp_dP = 0.0d0
@@ -2946,12 +2987,19 @@ contains
         real(dp) :: b_delta(solver%num_elements)  ! Residual for element constraints
         real(dp) :: n_delta                     ! Residual for total moles / pressure constraint
         real(dp) :: hsu_delta                   ! Residual for enthalpy / entropy constraint
-        real(dp), pointer :: nj(:), nj_g(:)     ! Total/gas species concentrations [kmol-per-kg]
+        real(dp), pointer :: nj(:)              ! Total species concentrations [kmol-per-kg]
+        real(dp) :: nj_g_eff(solver%num_gas)    ! Effective gas concentrations [kmol-per-kg]
+        real(dp) :: nj_eval(solver%num_products)! Internal residual composition
+        real(dp) :: ln_nj_eff(solver%num_gas)   ! Effective log gas concentrations
+        real(dp) :: ln_threshold
+        real(dp) :: P
         real(dp), pointer :: h_c(:)             ! Condensed enthalpies [unitless]
+        real(dp), pointer :: s_g(:)
         real(dp), pointer :: s_c(:)             ! Condensed entropies [unitless]
         real(dp), pointer :: A_c(:,:)           ! Condensed stoichiometric matrix
         real(dp), pointer :: pi(:)              ! Modified Lagrange multipliers
         integer :: i
+        logical :: ion_species
         logical :: const_p, const_t, const_s, const_h, const_u
         type(EqConstraints), pointer :: cons
 
@@ -2969,20 +3017,32 @@ contains
         ! Associate subarray pointers
         A_c => solver%products%stoich_matrix(ng+1:, :)
         nj => solution%nj
-        nj_g => solution%nj(:ng)
         h_c => solution%thermo%enthalpy(ng+1:)
+        s_g => solution%thermo%entropy(:ng)
         s_c => solution%thermo%entropy(ng+1:)
         pi => solution%pi
+        P = solution%calc_pressure()
+
+        do i = 1, ng
+            ion_species = solver%ions .and. solver%active_ions .and. ne > 0 .and. &
+                          solver%products%stoich_matrix(i, ne) /= 0.0d0
+            ln_threshold = gas_amount_ln_threshold(log(solution%n), solver%tsize, solver%esize, ion_species)
+            call compute_nj_effective(solution%ln_nj(i), ln_threshold, solver%smooth_truncation, &
+                                      solver%truncation_width, nj_eff=nj_g_eff(i), ln_nj_eff=ln_nj_eff(i))
+        end do
+        nj_eval = nj
+        nj_eval(:ng) = nj_g_eff
 
         ! Evaluate constraint residuals
-        b_delta = cons%b0 - solver%products%elements_from_species(nj)
-        n_delta = solution%n - sum(nj_g)
+        b_delta = cons%b0 - solver%products%elements_from_species(nj_eval)
+        n_delta = solution%n - sum(nj_g_eff)
         if (const_s) then
-            hsu_delta = cons%state1 - solution%calc_entropy_sum(solver)
+            hsu_delta = cons%state1 - dot_product(nj_g_eff, s_g - ln_nj_eff - log(P/solution%n)) - &
+                        dot_product(nj(ng+1:), s_c)
         else if (const_h) then
-            hsu_delta = cons%state1/solution%T - dot_product(nj, solution%thermo%enthalpy)
+            hsu_delta = cons%state1/solution%T - dot_product(nj_eval, solution%thermo%enthalpy)
         else if (const_u) then
-            hsu_delta = cons%state1/solution%T - dot_product(nj, solution%thermo%energy)
+            hsu_delta = cons%state1/solution%T - dot_product(nj_eval, solution%thermo%energy)
         else
             hsu_delta = 0.0d0
         end if
@@ -3091,11 +3151,15 @@ contains
         real(dp), allocatable :: dn_db0(:)
         real(dp), allocatable :: dln_nj_dstate1(:)
         real(dp), allocatable :: dln_nj_dstate2(:)
+        real(dp), allocatable :: dln_nj_eff_db0(:,:)
         real(dp), allocatable :: dln_nj_eff_dstate1(:)
         real(dp), allocatable :: dln_nj_eff_dstate2(:)
         real(dp), allocatable :: dln_nj_db0(:,:)
         real(dp), allocatable :: dln_nj_dw0(:,:)
         real(dp), allocatable :: dln_nj_eff_dw0(:,:)
+        real(dp), allocatable :: dnj_eff_dstate1(:)
+        real(dp), allocatable :: dnj_eff_dstate2(:)
+        real(dp), allocatable :: dnj_eff_dw0(:,:)
         real(dp), allocatable :: dnj_db0(:,:)
         real(dp), allocatable :: dS_sum_dw0(:)
         real(dp), allocatable :: ln_nj_eff(:)
@@ -3278,9 +3342,11 @@ contains
         allocate(dT_db0(ne), dn_db0(ne))
         allocate(dlogP_over_n_db0(ne), dlogP_over_n_dw0(nr))
         allocate(dln_nj_dstate1(ng), dln_nj_dstate2(ng))
+        allocate(dln_nj_eff_db0(ng, ne))
         allocate(dln_nj_eff_dstate1(ng), dln_nj_eff_dstate2(ng))
         allocate(dln_nj_db0(ng, ne), dln_nj_dw0(ng, nr))
         allocate(dln_nj_eff_dw0(ng, nr))
+        allocate(dnj_eff_dstate1(ng), dnj_eff_dstate2(ng), dnj_eff_dw0(ng, nr))
         allocate(dnj_db0(ng+na, ne))
         allocate(dS_sum_dw0(nr))
 
@@ -3310,44 +3376,62 @@ contains
 
         dln_nj_dstate1 = 0.0d0
         dln_nj_dstate2 = 0.0d0
+        dln_nj_eff_db0 = 0.0d0
         dln_nj_eff_dstate1 = 0.0d0
         dln_nj_eff_dstate2 = 0.0d0
         dln_nj_db0 = 0.0d0
         dln_nj_eff_dw0 = 0.0d0
+        dnj_eff_dstate1 = 0.0d0
+        dnj_eff_dstate2 = 0.0d0
+        dnj_eff_dw0 = 0.0d0
         dnj_db0 = 0.0d0
         self%dnj_dstate1 = 0.0d0
         self%dnj_dstate2 = 0.0d0
 
-        ! ln(nj) = dot(A_g, pi) - h_g + s_g - log(P/n) [+ A_g(i, ne)*pi_e if ions]
-        ! pi_e is treated as constant in the total derivatives.
+        ! ln(nj_eff) = dot(A_g, pi) - h_g + s_g - log(P/n) [+ A_g(i, ne)*pi_e if ions]
+        ! Recover reported/raw ln(nj) derivatives from ln(nj_eff) using the same
+        ! smooth-gate chain rule inversion used in the Newton back-transform.
         do i = 1, ng
             temp_dT = ds_g_dT(i) - dh_g_dT(i)
 
-            dln_nj_dstate1(i) = dot_product(A_g(i, :), self%dudx(1:ne, 2)) &
+            dln_nj_eff_dstate1(i) = dot_product(A_g(i, :), self%dudx(1:ne, 2)) &
                 + temp_dT*self%dT_dstate1 - dlogP_over_n_state1
-            dln_nj_dstate2(i) = dot_product(A_g(i, :), self%dudx(1:ne, 1)) &
+            dln_nj_eff_dstate2(i) = dot_product(A_g(i, :), self%dudx(1:ne, 1)) &
                 + temp_dT*self%dT_dstate2 - dlogP_over_n_state2
 
             do j = 1, ne
-                dln_nj_db0(i, j) = dot_product(A_g(i, :), self%dudx(1:ne, j+2)) &
+                dln_nj_eff_db0(i, j) = dot_product(A_g(i, :), self%dudx(1:ne, j+2)) &
                     + temp_dT*dT_db0(j) - dlogP_over_n_db0(j)
             end do
         end do
 
-        dln_nj_dw0 = matmul(dln_nj_db0, db0_dw0)
+        dln_nj_eff_dw0 = matmul(dln_nj_eff_db0, db0_dw0)
         do i = 1, ng
-            dln_nj_eff_dstate1(i) = dln_nj_eff_dln_nj(i) * dln_nj_dstate1(i)
-            dln_nj_eff_dstate2(i) = dln_nj_eff_dln_nj(i) * dln_nj_dstate2(i)
-            dln_nj_eff_dw0(i, :) = dln_nj_eff_dln_nj(i) * dln_nj_dw0(i, :)
-            if (const_p) then
-                dln_nj_eff_dstate1(i) = dln_nj_eff_dstate1(i) + &
-                                        dln_nj_eff_dln_threshold(i) * self%dn_dstate1 / n
-                dln_nj_eff_dstate2(i) = dln_nj_eff_dstate2(i) + &
-                                        dln_nj_eff_dln_threshold(i) * self%dn_dstate2 / n
-                dln_nj_eff_dw0(i, :) = dln_nj_eff_dw0(i, :) + &
-                                       dln_nj_eff_dln_threshold(i) * self%dn_dw0 / n
+            if (dln_nj_eff_dln_nj(i) > tiny(1.0d0)) then
+                dln_nj_dstate1(i) = dln_nj_eff_dstate1(i) / dln_nj_eff_dln_nj(i)
+                dln_nj_dstate2(i) = dln_nj_eff_dstate2(i) / dln_nj_eff_dln_nj(i)
+                dln_nj_db0(i, :) = dln_nj_eff_db0(i, :) / dln_nj_eff_dln_nj(i)
+                if (const_p) then
+                    dln_nj_dstate1(i) = dln_nj_dstate1(i) - &
+                                        dln_nj_eff_dln_threshold(i) * self%dn_dstate1 / &
+                                        (n * dln_nj_eff_dln_nj(i))
+                    dln_nj_dstate2(i) = dln_nj_dstate2(i) - &
+                                        dln_nj_eff_dln_threshold(i) * self%dn_dstate2 / &
+                                        (n * dln_nj_eff_dln_nj(i))
+                    dln_nj_db0(i, :) = dln_nj_db0(i, :) - &
+                                       dln_nj_eff_dln_threshold(i) * dn_db0 / &
+                                       (n * dln_nj_eff_dln_nj(i))
+                end if
+            else
+                dln_nj_dstate1(i) = 0.0d0
+                dln_nj_dstate2(i) = 0.0d0
+                dln_nj_db0(i, :) = 0.0d0
             end if
+            dnj_eff_dstate1(i) = nj_g_eff(i) * dln_nj_eff_dstate1(i)
+            dnj_eff_dstate2(i) = nj_g_eff(i) * dln_nj_eff_dstate2(i)
+            dnj_eff_dw0(i, :) = nj_g_eff(i) * dln_nj_eff_dw0(i, :)
         end do
+        dln_nj_dw0 = matmul(dln_nj_db0, db0_dw0)
 
         do i = 1, ng
             ! Reported dnj derivatives must differentiate the final exposed nj,
@@ -3370,10 +3454,10 @@ contains
 
         ! For volume-constrained problems, n is the sum of gas species.
         if (.not. const_p) then
-            self%dn_dstate1 = sum(self%dnj_dstate1(:ng))
-            self%dn_dstate2 = sum(self%dnj_dstate2(:ng))
+            self%dn_dstate1 = sum(dnj_eff_dstate1)
+            self%dn_dstate2 = sum(dnj_eff_dstate2)
             do j = 1, nr
-                self%dn_dw0(j) = sum(self%dnj_dw0(:ng, j))
+                self%dn_dw0(j) = sum(dnj_eff_dw0(:, j))
             end do
         end if
 
@@ -3382,14 +3466,14 @@ contains
         ! ---------------------------------------------------------
 
         sum_h = dot_product(nj, solution%thermo%enthalpy)
-        sum_dh_dT = dot_product(nj_g_eff, dh_g_dT)
+        sum_dh_dT = dot_product(nj_g, dh_g_dT)
         if (nc > 0) sum_dh_dT = sum_dh_dT + dot_product(nj_c, dh_c_dT)
 
         do i = 1, ng
             s_g_minus(i) = s_g(i) - ln_nj_eff(i) - log_p_over_n
         end do
 
-        entropy_sum = dot_product(nj_g_eff, s_g_minus)
+        entropy_sum = dot_product(nj_g, s_g_minus)
         if (nc > 0) entropy_sum = entropy_sum + dot_product(nj_c, s_c)
         entropy_dim = fac*entropy_sum
 
@@ -3458,11 +3542,11 @@ contains
             dS_sum_state1 = 0.0d0
             do i = 1, ng
                 dS_sum_state1 = dS_sum_state1 + self%dnj_dstate1(i)*s_g_minus(i)
-                dS_sum_state1 = dS_sum_state1 + nj_g_eff(i)* &
+                dS_sum_state1 = dS_sum_state1 + nj_g(i)* &
                     (ds_g_dT(i)*self%dT_dstate1 - dln_nj_eff_dstate1(i))
             end do
             ! Add the log(P/n) derivative terms once (not once per species)
-            dS_sum_state1 = dS_sum_state1 - n*dlogP_over_n_state1
+            dS_sum_state1 = dS_sum_state1 - sum(nj_g)*dlogP_over_n_state1
             do idx_c = 1, na
                 i = active_cond_idx(idx_c)
                 dS_sum_state1 = dS_sum_state1 + self%dnj_dstate1(ng+idx_c)*s_c(i)
@@ -3478,11 +3562,11 @@ contains
             dS_sum_state2 = 0.0d0
             do i = 1, ng
                 dS_sum_state2 = dS_sum_state2 + self%dnj_dstate2(i)*s_g_minus(i)
-                dS_sum_state2 = dS_sum_state2 + nj_g_eff(i)* &
+                dS_sum_state2 = dS_sum_state2 + nj_g(i)* &
                     (ds_g_dT(i)*self%dT_dstate2 - dln_nj_eff_dstate2(i))
             end do
             ! Add the log(P/n) derivative terms once (not once per species)
-            dS_sum_state2 = dS_sum_state2 - n*dlogP_over_n_state2
+            dS_sum_state2 = dS_sum_state2 - sum(nj_g)*dlogP_over_n_state2
             do idx_c = 1, na
                 i = active_cond_idx(idx_c)
                 dS_sum_state2 = dS_sum_state2 + self%dnj_dstate2(ng+idx_c)*s_c(i)
@@ -3499,11 +3583,11 @@ contains
                 dS_sum_dw0(j) = 0.0d0
                 do i = 1, ng
                     dS_sum_dw0(j) = dS_sum_dw0(j) + self%dnj_dw0(i, j)*s_g_minus(i)
-                    dS_sum_dw0(j) = dS_sum_dw0(j) + nj_g_eff(i)* &
+                    dS_sum_dw0(j) = dS_sum_dw0(j) + nj_g(i)* &
                         (ds_g_dT(i)*self%dT_dw0(j) - dln_nj_eff_dw0(i, j))
                 end do
                 ! Add the log(P/n) derivative terms once (not once per species)
-                dS_sum_dw0(j) = dS_sum_dw0(j) - n*dlogP_over_n_dw0(j)
+                dS_sum_dw0(j) = dS_sum_dw0(j) - sum(nj_g)*dlogP_over_n_dw0(j)
                 do idx_c = 1, na
                     i = active_cond_idx(idx_c)
                     dS_sum_dw0(j) = dS_sum_dw0(j) + self%dnj_dw0(ng+idx_c, j)*s_c(i)
@@ -3542,7 +3626,7 @@ contains
         ! Add temperature derivative terms: sum_j(nj * dCp_j/dT) * dT/dstate1
         sum_dcp_dT_term = 0.0d0
         do i = 1, ng
-            sum_dcp_dT_term = sum_dcp_dT_term + nj_g_eff(i) * dcp_g_dT(i)
+            sum_dcp_dT_term = sum_dcp_dT_term + nj_g(i) * dcp_g_dT(i)
         end do
         do idx_c = 1, na
             i = active_cond_idx(idx_c)
@@ -3559,7 +3643,7 @@ contains
         ! Add temperature derivative terms: sum_j(nj * dCp_j/dT) * dT/dstate2
         sum_dcp_dT_term = 0.0d0
         do i = 1, ng
-            sum_dcp_dT_term = sum_dcp_dT_term + nj_g_eff(i) * dcp_g_dT(i)
+            sum_dcp_dT_term = sum_dcp_dT_term + nj_g(i) * dcp_g_dT(i)
         end do
         do idx_c = 1, na
             i = active_cond_idx(idx_c)
@@ -3577,7 +3661,7 @@ contains
             ! Add temperature derivative terms: sum_j(nj * dCp_j/dT) * dT/dw0
             sum_dcp_dT_term = 0.0d0
             do i = 1, ng
-                sum_dcp_dT_term = sum_dcp_dT_term + nj_g_eff(i) * dcp_g_dT(i)
+                sum_dcp_dT_term = sum_dcp_dT_term + nj_g(i) * dcp_g_dT(i)
             end do
             do idx_c = 1, na
                 i = active_cond_idx(idx_c)
