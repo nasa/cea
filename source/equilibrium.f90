@@ -487,7 +487,6 @@ module cea_equilibrium
 
         procedure :: assemble_jacobian => EqDerivatives_assemble_jacobian
         procedure :: assemble_Rx => EqDerivatives_assemble_Rx
-        procedure :: compute_residual => EqDerivatives_compute_residual
         procedure :: check_closure_defect => EqDerivatives_check_closure_defect
         procedure :: unpack_values => EqDerivatives_unpack_values
         procedure :: compute_derivatives => EqDerivatives_compute_derivatives
@@ -2937,112 +2936,6 @@ contains
 
             ! dR/dx3...n (x3...n: element amounts) are 0
 
-        end if
-
-    end subroutine
-
-    subroutine EqDerivatives_compute_residual(self, solver, solution)
-
-        ! Arguments
-        class(EqDerivatives), intent(inout), target :: self
-        type(EqSolver), intent(in), target :: solver
-        type(EqSolution), intent(in), target :: solution
-
-        ! Locals
-        integer  :: ng                          ! Number of gas species
-        integer  :: nc                          ! Number of condensed species
-        integer  :: ne                          ! Number of elements
-        integer  :: r                           ! Residual vector row index
-        real(dp) :: b_delta(solver%num_elements)  ! Residual for element constraints
-        real(dp) :: n_delta                     ! Residual for total moles / pressure constraint
-        real(dp) :: hsu_delta                   ! Residual for enthalpy / entropy constraint
-        real(dp), pointer :: nj(:)              ! Total species concentrations [kmol-per-kg]
-        real(dp) :: nj_g_eff(solver%num_gas)    ! Effective gas concentrations [kmol-per-kg]
-        real(dp) :: nj_eval(solver%num_products)! Internal residual composition
-        real(dp) :: ln_nj_eff(solver%num_gas)   ! Effective log gas concentrations
-        real(dp) :: ln_threshold
-        real(dp) :: P
-        real(dp), pointer :: h_c(:)             ! Condensed enthalpies [unitless]
-        real(dp), pointer :: s_g(:)
-        real(dp), pointer :: s_c(:)             ! Condensed entropies [unitless]
-        real(dp), pointer :: A_c(:,:)           ! Condensed stoichiometric matrix
-        real(dp), pointer :: pi(:)              ! Modified Lagrange multipliers
-        integer :: i
-        logical :: ion_species
-        logical :: const_p, const_t, const_s, const_h, const_u
-        type(EqConstraints), pointer :: cons
-
-        ! Define shorthand
-        ng = solver%num_gas
-        nc = solver%num_condensed
-        ne = solver%num_elements
-        cons => solution%constraints
-        const_p = cons%is_constant_pressure()
-        const_t = cons%is_constant_temperature()
-        const_s = cons%is_constant_entropy()
-        const_h = cons%is_constant_enthalpy()
-        const_u = cons%is_constant_energy()
-
-        ! Associate subarray pointers
-        A_c => solver%products%stoich_matrix(ng+1:, :)
-        nj => solution%nj
-        h_c => solution%thermo%enthalpy(ng+1:)
-        s_g => solution%thermo%entropy(:ng)
-        s_c => solution%thermo%entropy(ng+1:)
-        pi => solution%pi
-        P = solution%calc_pressure()
-
-        do i = 1, ng
-            ion_species = solver%ions .and. solver%active_ions .and. ne > 0 .and. &
-                          solver%products%stoich_matrix(i, ne) /= 0.0d0
-            ln_threshold = gas_amount_ln_threshold(log(solution%n), solver%tsize, solver%esize, ion_species)
-            call compute_nj_effective(solution%ln_nj(i), ln_threshold, solver%smooth_truncation, &
-                                      solver%truncation_width, nj_eff=nj_g_eff(i), ln_nj_eff=ln_nj_eff(i))
-        end do
-        nj_eval = nj
-        nj_eval(:ng) = nj_g_eff
-
-        ! Evaluate constraint residuals
-        b_delta = cons%b0 - solver%products%elements_from_species(nj_eval)
-        n_delta = solution%n - sum(nj_g_eff)
-        if (const_s) then
-            hsu_delta = cons%state1 - dot_product(nj_g_eff, s_g - ln_nj_eff - log(P/solution%n)) - &
-                        dot_product(nj(ng+1:), s_c)
-        else if (const_h) then
-            hsu_delta = cons%state1/solution%T - dot_product(nj_eval, solution%thermo%enthalpy)
-        else if (const_u) then
-            hsu_delta = cons%state1/solution%T - dot_product(nj_eval, solution%thermo%energy)
-        else
-            hsu_delta = 0.0d0
-        end if
-
-        ! Assemble the residual vector
-        self%R = 0.0d0
-        r = 0
-
-        ! Element residuals
-        do i = 1, ne
-            r = r + 1
-            self%R(r) = b_delta(i)
-        end do
-
-        ! Condensed species residuals
-        do i = 1, nc
-            if (.not. solution%is_active(i)) cycle
-            r = r + 1
-            self%R(r) = h_c(i) - s_c(i) - dot_product(A_c(i, :), pi)
-        end do
-
-        ! Total moles residual
-        if (const_p) then
-            r = r + 1
-            self%R(r) = n_delta
-        end if
-
-        ! Energy residual
-        if (.not. const_t) then
-            r = r + 1
-            self%R(r) = hsu_delta
         end if
 
     end subroutine
