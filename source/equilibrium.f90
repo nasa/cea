@@ -3607,6 +3607,8 @@ contains
 
         ! dH/dstate1:
         if (const_h) then
+            ! Keep the prescribed enthalpy identity on state1, including the
+            ! existing unit conversion from state1 = H/R to reported kJ/kg.
             self%dH_dstate1 = fac
         else
             sum_h_dnj = dot_product(h_g, self%dnj_dstate1(:ng))
@@ -3618,29 +3620,28 @@ contains
         end if
 
         ! dH/dstate2:
-        if (const_h) then
-            self%dH_dstate2 = 0.0d0
-        else
-            sum_h_dnj = dot_product(h_g, self%dnj_dstate2(:ng))
-            do idx_c = 1, na
-                i = active_cond_idx(idx_c)
-                sum_h_dnj = sum_h_dnj + h_c(i)*self%dnj_dstate2(ng+idx_c)
-            end do
-            self%dH_dstate2 = fac*(T*sum_h_dnj + (sum_h + T*sum_dh_dT)*self%dT_dstate2)
-        end if
+        sum_h_dnj = dot_product(h_g, self%dnj_dstate2(:ng))
+        do idx_c = 1, na
+            i = active_cond_idx(idx_c)
+            sum_h_dnj = sum_h_dnj + h_c(i)*self%dnj_dstate2(ng+idx_c)
+        end do
+        self%dH_dstate2 = fac*(T*sum_h_dnj + (sum_h + T*sum_dh_dT)*self%dT_dstate2)
 
         ! dH/dw0:
-        if (const_h) then
-            self%dH_dw0 = 0.0d0
-        else
-            do j = 1, nr
-                sum_h_dnj = dot_product(h_g, self%dnj_dw0(:ng, j))
-                do idx_c = 1, na
-                    i = active_cond_idx(idx_c)
-                    sum_h_dnj = sum_h_dnj + h_c(i)*self%dnj_dw0(ng+idx_c, j)
-                end do
-                self%dH_dw0(j) = fac*(T*sum_h_dnj + (sum_h + T*sum_dh_dT)*self%dT_dw0(j))
+        do j = 1, nr
+            sum_h_dnj = dot_product(h_g, self%dnj_dw0(:ng, j))
+            do idx_c = 1, na
+                i = active_cond_idx(idx_c)
+                sum_h_dnj = sum_h_dnj + h_c(i)*self%dnj_dw0(ng+idx_c, j)
             end do
+            self%dH_dw0(j) = fac*(T*sum_h_dnj + (sum_h + T*sum_dh_dT)*self%dT_dw0(j))
+        end do
+        if (const_h) then
+            ! The reported enthalpy is the prescribed state for HP problems, so
+            ! its total derivative on the constrained solve manifold reduces to
+            ! the direct state1 identity and zero for the remaining inputs.
+            self%dH_dstate2 = 0.0d0
+            self%dH_dw0 = 0.0d0
         end if
 
         ! ---------------------------------------------------------
@@ -3657,6 +3658,14 @@ contains
         do j = 1, nr
             self%dU_dw0(j) = self%dH_dw0(j) - fac*(n*self%dT_dw0(j) + T*self%dn_dw0(j))
         end do
+        if (const_u) then
+            ! The reported internal energy is the prescribed state for UV
+            ! problems, so its total derivative collapses to the direct state1
+            ! identity and zero for the remaining inputs.
+            self%dU_dstate1 = fac
+            self%dU_dstate2 = 0.0d0
+            self%dU_dw0 = 0.0d0
+        end if
 
         ! ---------------------------------------------------------
         ! dS/dx
@@ -3664,7 +3673,8 @@ contains
 
         ! dS/dstate1:
         if (const_s) then
-            ! state1 is entropy/R; convert to dimensional entropy derivative
+            ! Keep the prescribed entropy identity on state1, including the
+            ! existing unit conversion from state1 = S/R to reported kJ/kg-K.
             self%dS_dstate1 = fac
         else
             dS_sum_state1 = 0.0d0
@@ -3683,43 +3693,42 @@ contains
         end if
 
         ! dS/dstate2:
-        if (const_s) then
-            self%dS_dstate2 = 0.0d0
-        else
-            dS_sum_state2 = 0.0d0
-            do i = 1, ng
-                dS_sum_state2 = dS_sum_state2 + self%dnj_dstate2(i) * (s_g_minus(i) - 1.0d0)
-                dS_sum_state2 = dS_sum_state2 + nj_g(i) * ds_g_dT(i) * self%dT_dstate2
-            end do
-            ! Add the log(P/n) derivative terms once (not once per species)
-            dS_sum_state2 = dS_sum_state2 - sum(nj_g)*dlogP_over_n_state2
-            do idx_c = 1, na
-                i = active_cond_idx(idx_c)
-                dS_sum_state2 = dS_sum_state2 + self%dnj_dstate2(ng+idx_c)*s_c(i)
-                dS_sum_state2 = dS_sum_state2 + nj_c(i)*ds_c_dT(i)*self%dT_dstate2
-            end do
-            self%dS_dstate2 = fac*dS_sum_state2
-        end if
+        dS_sum_state2 = 0.0d0
+        do i = 1, ng
+            dS_sum_state2 = dS_sum_state2 + self%dnj_dstate2(i) * (s_g_minus(i) - 1.0d0)
+            dS_sum_state2 = dS_sum_state2 + nj_g(i) * ds_g_dT(i) * self%dT_dstate2
+        end do
+        ! Add the log(P/n) derivative terms once (not once per species)
+        dS_sum_state2 = dS_sum_state2 - sum(nj_g)*dlogP_over_n_state2
+        do idx_c = 1, na
+            i = active_cond_idx(idx_c)
+            dS_sum_state2 = dS_sum_state2 + self%dnj_dstate2(ng+idx_c)*s_c(i)
+            dS_sum_state2 = dS_sum_state2 + nj_c(i)*ds_c_dT(i)*self%dT_dstate2
+        end do
+        self%dS_dstate2 = fac*dS_sum_state2
 
         ! dS/dw0:
-        if (const_s) then
-            self%dS_dw0 = 0.0d0
-        else
-            do j = 1, nr
-                dS_sum_dw0(j) = 0.0d0
-                do i = 1, ng
-                    dS_sum_dw0(j) = dS_sum_dw0(j) + self%dnj_dw0(i, j) * (s_g_minus(i) - 1.0d0)
-                    dS_sum_dw0(j) = dS_sum_dw0(j) + nj_g(i) * ds_g_dT(i) * self%dT_dw0(j)
-                end do
-                ! Add the log(P/n) derivative terms once (not once per species)
-                dS_sum_dw0(j) = dS_sum_dw0(j) - sum(nj_g)*dlogP_over_n_dw0(j)
-                do idx_c = 1, na
-                    i = active_cond_idx(idx_c)
-                    dS_sum_dw0(j) = dS_sum_dw0(j) + self%dnj_dw0(ng+idx_c, j)*s_c(i)
-                    dS_sum_dw0(j) = dS_sum_dw0(j) + nj_c(i)*ds_c_dT(i)*self%dT_dw0(j)
-                end do
-                self%dS_dw0(j) = fac*dS_sum_dw0(j)
+        do j = 1, nr
+            dS_sum_dw0(j) = 0.0d0
+            do i = 1, ng
+                dS_sum_dw0(j) = dS_sum_dw0(j) + self%dnj_dw0(i, j) * (s_g_minus(i) - 1.0d0)
+                dS_sum_dw0(j) = dS_sum_dw0(j) + nj_g(i) * ds_g_dT(i) * self%dT_dw0(j)
             end do
+            ! Add the log(P/n) derivative terms once (not once per species)
+            dS_sum_dw0(j) = dS_sum_dw0(j) - sum(nj_g)*dlogP_over_n_dw0(j)
+            do idx_c = 1, na
+                i = active_cond_idx(idx_c)
+                dS_sum_dw0(j) = dS_sum_dw0(j) + self%dnj_dw0(ng+idx_c, j)*s_c(i)
+                dS_sum_dw0(j) = dS_sum_dw0(j) + nj_c(i)*ds_c_dT(i)*self%dT_dw0(j)
+            end do
+            self%dS_dw0(j) = fac*dS_sum_dw0(j)
+        end do
+        if (const_s) then
+            ! The reported entropy is the prescribed state for SP/SV problems,
+            ! so its total derivative on the constrained solve manifold reduces
+            ! to the direct state1 identity and zero for the remaining inputs.
+            self%dS_dstate2 = 0.0d0
+            self%dS_dw0 = 0.0d0
         end if
 
         ! ---------------------------------------------------------

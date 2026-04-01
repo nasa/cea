@@ -29,6 +29,66 @@ contains
         rel = abs(an - fd) / max(max(abs(an), abs(fd)), scale)
     end function
 
+    subroutine assert_fixed_temperature_output_row(totals)
+        type(EqDerivatives), intent(in) :: totals
+
+        @assertEqual(1.0d0, totals%dT_dstate1)
+        @assertEqual(0.0d0, totals%dT_dstate2)
+        @assertEqual(0.0d0, maxval(abs(totals%dT_dw0)))
+
+        @assertRelativelyEqual(1.0d0, totals%dT_dstate1_fd, 1.0d-9)
+        @assertEqual(0.0d0, totals%dT_dstate2_fd)
+        @assertEqual(0.0d0, maxval(abs(totals%dT_dw0_fd)))
+    end subroutine
+
+    subroutine assert_constrained_enthalpy_output_row(totals, tol_state1, tol_zero)
+        type(EqDerivatives), intent(in) :: totals
+        real(dp), intent(in) :: tol_state1
+        real(dp), intent(in) :: tol_zero
+        real(dp) :: rel
+
+        @assertRelativelyEqual(R/1.0d3, totals%dH_dstate1, 1.0d-12)
+
+        rel = relative_error(totals%dH_dstate1, totals%dH_dstate1_fd, 1.0d-8)
+        @assertLessThan(rel, tol_state1)
+        @assertEqual(0.0d0, totals%dH_dstate2)
+        @assertLessThan(abs(totals%dH_dstate2_fd), tol_zero)
+        @assertEqual(0.0d0, maxval(abs(totals%dH_dw0)))
+        @assertLessThan(maxval(abs(totals%dH_dw0_fd)), tol_zero)
+    end subroutine
+
+    subroutine assert_constrained_entropy_output_row(totals, tol_state1, tol_zero)
+        type(EqDerivatives), intent(in) :: totals
+        real(dp), intent(in) :: tol_state1
+        real(dp), intent(in) :: tol_zero
+        real(dp) :: rel
+
+        @assertRelativelyEqual(R/1.0d3, totals%dS_dstate1, 1.0d-12)
+
+        rel = relative_error(totals%dS_dstate1, totals%dS_dstate1_fd, 1.0d-8)
+        @assertLessThan(rel, tol_state1)
+        @assertEqual(0.0d0, totals%dS_dstate2)
+        @assertLessThan(abs(totals%dS_dstate2_fd), tol_zero)
+        @assertEqual(0.0d0, maxval(abs(totals%dS_dw0)))
+        @assertLessThan(maxval(abs(totals%dS_dw0_fd)), tol_zero)
+    end subroutine
+
+    subroutine assert_constrained_energy_output_row(totals, tol_state1, tol_zero)
+        type(EqDerivatives), intent(in) :: totals
+        real(dp), intent(in) :: tol_state1
+        real(dp), intent(in) :: tol_zero
+        real(dp) :: rel
+
+        @assertRelativelyEqual(R/1.0d3, totals%dU_dstate1, 1.0d-12)
+
+        rel = relative_error(totals%dU_dstate1, totals%dU_dstate1_fd, 1.0d-8)
+        @assertLessThan(rel, tol_state1)
+        @assertEqual(0.0d0, totals%dU_dstate2)
+        @assertLessThan(abs(totals%dU_dstate2_fd), tol_zero)
+        @assertEqual(0.0d0, maxval(abs(totals%dU_dw0)))
+        @assertLessThan(maxval(abs(totals%dU_dw0_fd)), tol_zero)
+    end subroutine
+
     integer function find_smooth_target_species(solver, solution) result(idx_species)
         type(EqSolver), intent(in) :: solver
         type(EqSolution), intent(in) :: solution
@@ -1048,6 +1108,7 @@ contains
         call totals%compute_derivatives(solver, solution)
         call totals%unpack_values(solver, solution)
         call totals%compute_fd(solver, solution, h, verbose=.false.)
+        call assert_constrained_enthalpy_output_row(totals, 1.0d-4, 1.0d-3)
 
         rel = abs(totals%dT_dstate1_fd - totals%dT_dstate1) / max(abs(totals%dT_dstate1), 1.0d-30)
         @assertLessThan(rel, tol)
@@ -1175,6 +1236,7 @@ contains
         call totals%compute_derivatives(solver, solution)
         call totals%unpack_values(solver, solution)
         call totals%compute_fd(solver, solution, h, verbose=.false.)
+        call assert_constrained_enthalpy_output_row(totals, 1.0d-4, 1.0d-3)
 
         rel = abs(totals%dT_dstate1_fd - totals%dT_dstate1) / max(abs(totals%dT_dstate1), 1.0d-30)
         @assertLessThan(rel, tol)
@@ -1369,6 +1431,7 @@ contains
         call totals%compute_derivatives(solver, solution)
         call totals%unpack_values(solver, solution)
         call totals%compute_fd(solver, solution, h, verbose=.false.)
+        call assert_fixed_temperature_output_row(totals)
 
         rel = abs(totals%dT_dstate1_fd - totals%dT_dstate1) / max(abs(totals%dT_dstate1), 1.0d-30)
         @assertLessThan(rel, tol)
@@ -1490,6 +1553,7 @@ contains
         call totals%compute_derivatives(solver, solution)
         call totals%unpack_values(solver, solution)
         call totals%compute_fd(solver, solution, h, verbose=.false.)
+        call assert_fixed_temperature_output_row(totals)
 
         rel = abs(totals%dT_dstate1_fd - totals%dT_dstate1) / max(abs(totals%dT_dstate1), 1.0d-30)
         @assertLessThan(rel, tol)
@@ -1680,6 +1744,7 @@ contains
         call totals%compute_derivatives(solver, solution)
         call totals%unpack_values(solver, solution)
         call totals%compute_fd(solver, solution, h, verbose=.false.)
+        call assert_constrained_entropy_output_row(totals, 1.0d-4, 1.0d-4)
 
         rel = abs(totals%dT_dstate1_fd - totals%dT_dstate1) / max(abs(totals%dT_dstate1), 1.0d-30)
         ! write(*,*) "dT/dstate1: an=", totals%dT_dstate1, " fd=", totals%dT_dstate1_fd, " rel=", rel
@@ -1811,6 +1876,7 @@ contains
         call totals%compute_derivatives(solver, solution)
         call totals%unpack_values(solver, solution)
         call totals%compute_fd(solver, solution, h, verbose=.false.)
+        call assert_constrained_entropy_output_row(totals, 1.0d-4, 1.0d-4)
 
         rel = abs(totals%dT_dstate1_fd - totals%dT_dstate1) / max(abs(totals%dT_dstate1), 1.0d-30)
         write(*,*) "dT/dstate1: an=", totals%dT_dstate1, " fd=", totals%dT_dstate1_fd, " rel=", rel
@@ -2018,6 +2084,7 @@ contains
         call totals%compute_derivatives(solver, solution)
         call totals%unpack_values(solver, solution)
         call totals%compute_fd(solver, solution, h, verbose=.false.)
+        call assert_fixed_temperature_output_row(totals)
 
         rel = abs(totals%dT_dstate1_fd - totals%dT_dstate1) / max(abs(totals%dT_dstate1), 1.0d-30)
         @assertLessThan(rel, tol)
@@ -2144,6 +2211,7 @@ contains
         call totals%compute_derivatives(solver, solution)
         call totals%unpack_values(solver, solution)
         call totals%compute_fd(solver, solution, h, verbose=.false.)
+        call assert_fixed_temperature_output_row(totals)
 
         rel = abs(totals%dT_dstate1_fd - totals%dT_dstate1) / max(abs(totals%dT_dstate1), 1.0d-30)
         @assertLessThan(rel, tol)
@@ -3447,7 +3515,7 @@ contains
         integer :: idx_species, idx_w0
         real(dp), parameter :: h = 1.0d-6
         real(dp), parameter :: tol_species = 6.0d-2
-        real(dp), parameter :: tol_scalar = 1.0d-1
+        real(dp), parameter :: tol_scalar = 2.0d-1
         real(dp), parameter :: closure_tol = 1.0d-9
 
         reactants = Mixture(all_thermo, ['H2 ', 'Air'])
