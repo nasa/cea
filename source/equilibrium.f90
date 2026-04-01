@@ -2723,19 +2723,18 @@ contains
         type(EqSolver), intent(in) :: solver
         type(EqSolution), intent(inout) :: solution
 
-        if (solver%smooth_truncation .and. solution%constraints%is_constant_pressure() .and. &
-            solution%constraints%is_constant_temperature()) then
-            call EqDerivatives_assemble_effective_jacobian_tp(self, solver, solution)
+        if (solver%smooth_truncation) then
+            call EqDerivatives_assemble_effective_jacobian(self, solver, solution)
         else
             call solver%assemble_matrix(solution)
             self%J = solution%G(:self%m, :self%m)
         end if
     end subroutine
 
-    subroutine EqDerivatives_assemble_effective_jacobian_tp(self, solver, solution)
-        ! Assemble the derivative-only Jacobian for smooth TP problems using
-        ! the converged effective gas amounts rather than the forward solve's
-        ! transformed Newton linearization.
+    subroutine EqDerivatives_assemble_effective_jacobian(self, solver, solution)
+        ! Assemble the derivative-only Jacobian for smooth problems using the
+        ! converged effective residual linearization rather than the forward
+        ! Newton update matrix.
 
         ! Arguments
         class(EqDerivatives), intent(inout) :: self
@@ -2743,30 +2742,59 @@ contains
         type(EqSolution), intent(in), target :: solution
 
         ! Locals
-        integer :: ng, nc, ne, ne_full, na
+        integer :: ng, nc, ne, ne_full, na, num_eqn
         integer :: r, c, i, j
         integer, allocatable :: active_idx(:)
         real(dp) :: n
+        real(dp) :: P
         real(dp) :: ln_n
         real(dp) :: ln_threshold
         real(dp) :: n_delta
-        real(dp) :: nj_g_eff(solver%num_gas)
         real(dp) :: tmp(solver%num_gas)
+        real(dp) :: mu_g(solver%num_gas)
+        real(dp) :: ln_nj_eff(solver%num_gas)
+        real(dp) :: nj_eff_g(solver%num_gas)
+        real(dp) :: nj_eval(solver%num_products)
         real(dp), pointer :: A_g(:,:), A_c(:,:)
+        real(dp), pointer :: cp(:), cv(:)
+        real(dp), pointer :: h_g(:), h_c(:)
+        real(dp), pointer :: s_g(:), s_c(:)
+        real(dp), pointer :: u_g(:), u_c(:)
+        real(dp), pointer :: h_or_s_or_u(:)
         logical :: ion_species
+        logical :: const_p, const_t, const_s, const_h, const_u
 
         allocate(active_idx(0))
 
         ng = solver%num_gas
         nc = solver%num_condensed
-        ne = solver%num_active_elements()
         ne_full = solver%num_elements
-        na = count(solution%is_active)
+        num_eqn = self%m
+        const_p = solution%constraints%is_constant_pressure()
+        const_t = solution%constraints%is_constant_temperature()
+        const_s = solution%constraints%is_constant_entropy()
+        const_h = solution%constraints%is_constant_enthalpy()
+        const_u = solution%constraints%is_constant_energy()
+        ne = solver%num_active_elements()
+        na = num_eqn - ne
+        if (const_p) na = na - 1
+        if (.not. const_t) na = na - 1
+        na = max(0, min(na, count(solution%is_active)))
         active_idx = solution%active_condensed_indices()
+        if (size(active_idx) /= na) active_idx = active_idx(:na)
 
         A_g => solver%products%stoich_matrix(:ng,:)
         A_c => solver%products%stoich_matrix(ng+1:,:)
+        cp => solution%thermo%cp
+        cv => solution%thermo%cv
+        h_g => solution%thermo%enthalpy(:ng)
+        h_c => solution%thermo%enthalpy(ng+1:)
+        s_g => solution%thermo%entropy(:ng)
+        s_c => solution%thermo%entropy(ng+1:)
+        u_g => solution%thermo%energy(:ng)
+        u_c => solution%thermo%energy(ng+1:)
         n = solution%n
+        P = solution%calc_pressure()
         ln_n = log(n)
 
         do i = 1, ng
@@ -2774,15 +2802,19 @@ contains
                           A_g(i, ne_full) /= 0.0d0
             ln_threshold = gas_amount_ln_threshold(ln_n, solver%tsize, solver%esize, ion_species)
             call compute_nj_effective(solution%ln_nj(i), ln_threshold, solver%smooth_truncation, &
-                                      solver%truncation_width, nj_eff=nj_g_eff(i))
+                                      solver%truncation_width, nj_eff=nj_eff_g(i), &
+                                      ln_nj_eff=ln_nj_eff(i))
         end do
-        n_delta = n - sum(nj_g_eff)
+        mu_g = h_g - s_g + ln_nj_eff + log(P/n)
+        nj_eval = solution%nj
+        nj_eval(:ng) = nj_eff_g
+        n_delta = n - sum(nj_eff_g)
 
         self%J = 0.0d0
         r = 0
 
         do i = 1, ne
-            tmp = nj_g_eff*A_g(:, i)
+            tmp = nj_eff_g*A_g(:, i)
             r = r + 1
             c = 0
 
@@ -2797,62 +2829,199 @@ contains
                 self%J(c, r) = self%J(r, c)
             end do
 
-            c = c + 1
-            self%J(r, c) = sum(tmp)
-            self%J(c, r) = self%J(r, c)
+            if (const_p) then
+                c = c + 1
+                self%J(r, c) = sum(tmp)
+                self%J(c, r) = self%J(r, c)
+            end if
+
+            if (.not. const_t) then
+                c = c + 1
+                if (const_p) then
+                    self%J(r, c) = dot_product(tmp, h_g)
+                else
+                    self%J(r, c) = dot_product(tmp, u_g)
+                end if
+            end if
         end do
 
         if (nc > 0) then
             do j = 1, na
                 r = r + 1
+
+                self%J(r, :ne) = A_c(active_idx(j), :ne)
+                self%J(:ne, r) = A_c(active_idx(j), :ne)
+
+                c = ne + na
+                if (const_p) c = c + 1
+                if (.not. const_t) then
+                    c = c + 1
+                    if (const_p) then
+                        self%J(r, c) = h_c(active_idx(j))
+                    else
+                        self%J(r, c) = u_c(active_idx(j))
+                    end if
+                end if
             end do
         end if
 
-        r = r + 1
-        c = ne + na + 1
-        self%J(r, c) = -n_delta
+        if (const_p) then
+            r = r + 1
+            c = ne + na + 1
+            self%J(r, c) = -n_delta
+
+            if (.not. const_t) then
+                c = c + 1
+                self%J(r, c) = dot_product(nj_eff_g, h_g)
+            end if
+        end if
+
+        if (.not. const_t) then
+            r = r + 1
+            c = 0
+
+            if (const_s) then
+                tmp = nj_eff_g*(h_g - mu_g)
+                h_or_s_or_u => s_c
+            else if (const_h) then
+                tmp = nj_eff_g*h_g
+                h_or_s_or_u => h_c
+            else if (const_u) then
+                tmp = nj_eff_g*u_g
+                h_or_s_or_u => u_c
+            end if
+
+            do j = 1, ne
+                c = c + 1
+                self%J(r, c) = dot_product(tmp, A_g(:, j))
+                if (.not. const_p .and. const_s) then
+                    self%J(r, c) = self%J(r, c) - dot_product(nj_eff_g, A_g(:, j))
+                end if
+            end do
+
+            do j = 1, na
+                c = c + 1
+                self%J(r, c) = h_or_s_or_u(active_idx(j))
+            end do
+
+            if (const_p) then
+                c = c + 1
+                self%J(r, c) = sum(tmp)
+            end if
+
+            c = c + 1
+            if (const_p) then
+                self%J(r, c) = dot_product(nj_eval, cp) + dot_product(tmp, h_g)
+            else
+                self%J(r, c) = dot_product(nj_eval, cv) + dot_product(tmp, u_g)
+                if (const_s) then
+                    self%J(r, c) = self%J(r, c) - dot_product(nj_eff_g, u_g)
+                end if
+            end if
+        end if
+
+        if (r /= num_eqn) then
+            call abort("EqDerivatives_assemble_effective_jacobian: row count mismatch.")
+        end if
+
     end subroutine
 
-    subroutine EqDerivatives_override_smooth_tp_state2_gas(self, solver, solution, dln_nj_dstate2)
+    subroutine EqDerivatives_stabilize_smooth_reported_gas_derivatives(self, solver, solution, dln_nj_dstate1, &
+                                                                       dln_nj_dstate2, dln_nj_dw0)
+        ! For very small reported gas species, stabilize the final exposed
+        ! dnj/dx and dln(nj)/dx against the solve-level sensitivity of the
+        ! reported post-processing map.
 
-        ! Override smooth TP gas-species pressure derivatives using the final
-        ! exposed post-processed nj values. This keeps the forward solve
-        ! unchanged while making dnj/dstate2 consistent with the reported nj.
-
-        ! Arguments
         class(EqDerivatives), intent(inout) :: self
-        class(EqSolver), intent(in) :: solver
-        class(EqSolution), intent(in), target :: solution
+        type(EqSolver), intent(in) :: solver
+        type(EqSolution), intent(in) :: solution
+        real(dp), intent(inout) :: dln_nj_dstate1(:)
         real(dp), intent(inout) :: dln_nj_dstate2(:)
+        real(dp), intent(inout) :: dln_nj_dw0(:,:)
 
-        ! Locals
+        type(EqSolver) :: solver_fd
         type(EqSolution) :: sol_plus, sol_minus
-        real(dp) :: h_state2
+        real(dp), allocatable :: w0(:)
         real(dp) :: state1, state2
-        integer :: i
+        real(dp) :: h_state1, h_state2, h_w
+        integer :: i, j
+        logical :: needs_stabilization
+        real(dp), parameter :: h_rel = 1.0d-6
+        real(dp), parameter :: reported_floor = 1.0d-8
 
+        needs_stabilization = any(solution%nj(:solver%num_gas) > 0.0d0 .and. &
+                                  solution%nj(:solver%num_gas) <= reported_floor)
+        if (.not. needs_stabilization) return
+
+        solver_fd = solver
         state1 = solution%constraints%state1
         state2 = solution%constraints%state2
-        h_state2 = 1.0d-6*max(1.0d0, abs(state2))
+        h_state1 = h_rel*max(1.0d0, abs(state1))
+        h_state2 = h_rel*max(1.0d0, abs(state2))
+
+        allocate(w0(size(solution%w0)))
+        w0 = solution%w0
 
         sol_plus = solution
         sol_minus = solution
         sol_plus%cp_fr = 0.0d0
         sol_minus%cp_fr = 0.0d0
 
-        call solver%solve(sol_plus, solution%constraints%type, state1, state2 + h_state2, solution%w0)
-        call solver%solve(sol_minus, solution%constraints%type, state1, state2 - h_state2, solution%w0)
-
-        self%dnj_dstate2(:solver%num_gas) = (sol_plus%nj(:solver%num_gas) - sol_minus%nj(:solver%num_gas)) / &
-                                            (2.0d0*h_state2)
-
+        call solver_fd%solve(sol_plus, solution%constraints%type, state1 + h_state1, state2, w0)
+        call solver_fd%solve(sol_minus, solution%constraints%type, state1 - h_state1, state2, w0)
         do i = 1, solver%num_gas
+            if (solution%nj(i) > reported_floor .or. solution%nj(i) <= 0.0d0) cycle
+            self%dnj_dstate1(i) = (sol_plus%nj(i) - sol_minus%nj(i)) / (2.0d0*h_state1)
+            if (solution%nj(i) > 0.0d0 .and. sol_plus%nj(i) > 0.0d0 .and. sol_minus%nj(i) > 0.0d0) then
+                dln_nj_dstate1(i) = (sol_plus%ln_nj(i) - sol_minus%ln_nj(i)) / (2.0d0*h_state1)
+            else
+                dln_nj_dstate1(i) = 0.0d0
+                self%dnj_dstate1(i) = 0.0d0
+            end if
+        end do
+
+        sol_plus = solution
+        sol_minus = solution
+        sol_plus%cp_fr = 0.0d0
+        sol_minus%cp_fr = 0.0d0
+
+        call solver_fd%solve(sol_plus, solution%constraints%type, state1, state2 + h_state2, w0)
+        call solver_fd%solve(sol_minus, solution%constraints%type, state1, state2 - h_state2, w0)
+        do i = 1, solver%num_gas
+            if (solution%nj(i) > reported_floor .or. solution%nj(i) <= 0.0d0) cycle
+            self%dnj_dstate2(i) = (sol_plus%nj(i) - sol_minus%nj(i)) / (2.0d0*h_state2)
             if (solution%nj(i) > 0.0d0 .and. sol_plus%nj(i) > 0.0d0 .and. sol_minus%nj(i) > 0.0d0) then
                 dln_nj_dstate2(i) = (sol_plus%ln_nj(i) - sol_minus%ln_nj(i)) / (2.0d0*h_state2)
             else
                 dln_nj_dstate2(i) = 0.0d0
                 self%dnj_dstate2(i) = 0.0d0
             end if
+        end do
+
+        do j = 1, size(w0)
+            h_w = h_rel*max(1.0d0, abs(w0(j)))
+
+            w0(j) = solution%w0(j) + h_w
+            sol_plus = solution
+            sol_plus%cp_fr = 0.0d0
+            call solver_fd%solve(sol_plus, solution%constraints%type, state1, state2, w0)
+
+            w0(j) = solution%w0(j) - h_w
+            sol_minus = solution
+            sol_minus%cp_fr = 0.0d0
+            call solver_fd%solve(sol_minus, solution%constraints%type, state1, state2, w0)
+
+            w0(j) = solution%w0(j)
+            do i = 1, solver%num_gas
+                if (solution%nj(i) > reported_floor .or. solution%nj(i) <= 0.0d0) cycle
+                self%dnj_dw0(i, j) = (sol_plus%nj(i) - sol_minus%nj(i)) / (2.0d0*h_w)
+                if (solution%nj(i) > 0.0d0 .and. sol_plus%nj(i) > 0.0d0 .and. sol_minus%nj(i) > 0.0d0) then
+                    dln_nj_dw0(i, j) = (sol_plus%ln_nj(i) - sol_minus%ln_nj(i)) / (2.0d0*h_w)
+                else
+                    dln_nj_dw0(i, j) = 0.0d0
+                    self%dnj_dw0(i, j) = 0.0d0
+                end if
+            end do
         end do
 
     end subroutine
@@ -3158,6 +3327,7 @@ contains
         real(dp), allocatable :: nj_g_eff(:)
         real(dp), allocatable :: dln_nj_eff_dln_nj(:)
         real(dp), allocatable :: dln_nj_eff_dln_threshold(:)
+        real(dp), allocatable :: dn_eff_dw0(:)
         real(dp) :: sum_h
         real(dp) :: sum_dh_dT
         real(dp) :: sum_h_dnj
@@ -3171,6 +3341,10 @@ contains
         real(dp) :: dnj_reported_dln_nj
         real(dp) :: nj_tmp
         real(dp) :: fac
+        real(dp) :: a_smooth
+        real(dp) :: b_smooth
+        real(dp) :: dn_eff_state1
+        real(dp) :: dn_eff_state2
         logical :: ion_species
         logical :: const_p, const_t, const_s, const_h, const_u  ! Flags enabling/disabling matrix equations
         type(EqConstraints), pointer :: cons    ! Abbreviation for soln%constraints
@@ -3339,6 +3513,7 @@ contains
         allocate(dln_nj_eff_dw0(ng, nr))
         allocate(dnj_eff_dstate1(ng), dnj_eff_dstate2(ng), dnj_eff_dw0(ng, nr))
         allocate(dnj_db0(ng+na, ne))
+        allocate(dn_eff_dw0(nr))
         allocate(dS_sum_dw0(nr))
 
         if (const_t) then
@@ -3376,12 +3551,14 @@ contains
         dnj_eff_dstate2 = 0.0d0
         dnj_eff_dw0 = 0.0d0
         dnj_db0 = 0.0d0
+        dn_eff_dw0 = 0.0d0
         self%dnj_dstate1 = 0.0d0
         self%dnj_dstate2 = 0.0d0
+        self%dnj_dw0 = 0.0d0
 
         ! ln(nj_eff) = dot(A_g, pi) - h_g + s_g - log(P/n) [+ A_g(i, ne)*pi_e if ions]
-        ! Recover reported/raw ln(nj) derivatives from ln(nj_eff) using the same
-        ! smooth-gate chain rule inversion used in the Newton back-transform.
+        ! The derivative solve uses ln(nj_eff), but exposed nj comes from the
+        ! final reported mapping applied to the raw internal ln(nj).
         do i = 1, ng
             temp_dT = ds_g_dT(i) - dh_g_dT(i)
 
@@ -3422,16 +3599,34 @@ contains
             dnj_eff_dstate2(i) = nj_g_eff(i) * dln_nj_eff_dstate2(i)
             dnj_eff_dw0(i, :) = nj_g_eff(i) * dln_nj_eff_dw0(i, :)
         end do
-        dln_nj_dw0 = matmul(dln_nj_db0, db0_dw0)
+
+        if (const_p) then
+            dn_eff_state1 = self%dn_dstate1
+            dn_eff_state2 = self%dn_dstate2
+            dn_eff_dw0 = self%dn_dw0
+        else
+            dn_eff_state1 = sum(dnj_eff_dstate1)
+            dn_eff_state2 = sum(dnj_eff_dstate2)
+            do j = 1, nr
+                dn_eff_dw0(j) = sum(dnj_eff_dw0(:, j))
+            end do
+            self%dn_dstate1 = dn_eff_state1
+            self%dn_dstate2 = dn_eff_state2
+            self%dn_dw0 = dn_eff_dw0
+        end if
 
         do i = 1, ng
-            ! Reported dnj derivatives must differentiate the final exposed nj,
-            ! not the internal solve-path activity mask. The solve-path still
-            ! uses nj_g_eff/ln_nj_eff above for thermo and closure derivatives.
+            ! Recover raw ln(nj) first, then differentiate the final reported nj.
+            a_smooth = max(dln_nj_eff_dln_nj(i), tiny(1.0d0))
+            b_smooth = dln_nj_eff_dln_threshold(i)
+            dln_nj_dstate1(i) = (dln_nj_eff_dstate1(i) - b_smooth*dn_eff_state1/n) / a_smooth
+            dln_nj_dstate2(i) = (dln_nj_eff_dstate2(i) - b_smooth*dn_eff_state2/n) / a_smooth
+            dln_nj_dw0(i, :) = (dln_nj_eff_dw0(i, :) - b_smooth*dn_eff_dw0/n) / a_smooth
+
             call compute_reported_nj(ln_nj(i), solver%log_min, nj_tmp, dnj_dln_nj=dnj_reported_dln_nj)
             self%dnj_dstate1(i) = dnj_reported_dln_nj*dln_nj_dstate1(i)
             self%dnj_dstate2(i) = dnj_reported_dln_nj*dln_nj_dstate2(i)
-            dnj_db0(i, :) = dnj_reported_dln_nj*dln_nj_db0(i, :)
+            self%dnj_dw0(i, :) = dnj_reported_dln_nj*dln_nj_dw0(i, :)
         end do
 
         do idx_c = 1, na
@@ -3439,21 +3634,12 @@ contains
             self%dnj_dstate1(ng+idx_c) = self%dudx(ne+idx_c, 2)
             self%dnj_dstate2(ng+idx_c) = self%dudx(ne+idx_c, 1)
             dnj_db0(ng+idx_c, :) = self%dudx(ne+idx_c, 3:ne+2)
+            self%dnj_dw0(ng+idx_c, :) = matmul(dnj_db0(ng+idx_c, :), db0_dw0)
         end do
 
-        if (solver%smooth_truncation .and. const_p .and. const_t) then
-            call EqDerivatives_override_smooth_tp_state2_gas(self, solver, solution, dln_nj_dstate2)
-        end if
-
-        self%dnj_dw0 = matmul(dnj_db0, db0_dw0)
-
-        ! For volume-constrained problems, n is the sum of gas species.
-        if (.not. const_p) then
-            self%dn_dstate1 = sum(dnj_eff_dstate1)
-            self%dn_dstate2 = sum(dnj_eff_dstate2)
-            do j = 1, nr
-                self%dn_dw0(j) = sum(dnj_eff_dw0(:, j))
-            end do
+        if (solver%smooth_truncation) then
+            call EqDerivatives_stabilize_smooth_reported_gas_derivatives(self, solver, solution, dln_nj_dstate1, &
+                                                                         dln_nj_dstate2, dln_nj_dw0)
         end if
 
         ! ---------------------------------------------------------
