@@ -2926,18 +2926,14 @@ contains
 
     end subroutine
 
-    subroutine EqDerivatives_stabilize_smooth_reported_gas_derivatives(self, solver, solution, dln_nj_dstate1, &
-                                                                       dln_nj_dstate2, dln_nj_dw0)
+    subroutine EqDerivatives_stabilize_smooth_reported_gas_derivatives(self, solver, solution)
         ! For very small reported gas species, stabilize the final exposed
-        ! dnj/dx and dln(nj)/dx against the solve-level sensitivity of the
-        ! reported post-processing map.
+        ! dnj/dx against the solve-level sensitivity of the reported
+        ! post-processing map.
 
         class(EqDerivatives), intent(inout) :: self
         type(EqSolver), intent(in) :: solver
         type(EqSolution), intent(in) :: solution
-        real(dp), intent(inout) :: dln_nj_dstate1(:)
-        real(dp), intent(inout) :: dln_nj_dstate2(:)
-        real(dp), intent(inout) :: dln_nj_dw0(:,:)
 
         type(EqSolver) :: solver_fd
         type(EqSolution) :: sol_plus, sol_minus
@@ -2956,8 +2952,8 @@ contains
         solver_fd = solver
         state1 = solution%constraints%state1
         state2 = solution%constraints%state2
-        h_state1 = h_rel*max(1.0d0, abs(state1))
-        h_state2 = h_rel*max(1.0d0, abs(state2))
+        h_state1 = h_rel * max(1.0d0, abs(state1))
+        h_state2 = h_rel * max(1.0d0, abs(state2))
 
         allocate(w0(size(solution%w0)))
         w0 = solution%w0
@@ -2971,13 +2967,7 @@ contains
         call solver_fd%solve(sol_minus, solution%constraints%type, state1 - h_state1, state2, w0)
         do i = 1, solver%num_gas
             if (solution%nj(i) > reported_floor .or. solution%nj(i) <= 0.0d0) cycle
-            self%dnj_dstate1(i) = (sol_plus%nj(i) - sol_minus%nj(i)) / (2.0d0*h_state1)
-            if (solution%nj(i) > 0.0d0 .and. sol_plus%nj(i) > 0.0d0 .and. sol_minus%nj(i) > 0.0d0) then
-                dln_nj_dstate1(i) = (sol_plus%ln_nj(i) - sol_minus%ln_nj(i)) / (2.0d0*h_state1)
-            else
-                dln_nj_dstate1(i) = 0.0d0
-                self%dnj_dstate1(i) = 0.0d0
-            end if
+            self%dnj_dstate1(i) = (sol_plus%nj(i) - sol_minus%nj(i)) / (2.0d0 * h_state1)
         end do
 
         sol_plus = solution
@@ -2989,17 +2979,11 @@ contains
         call solver_fd%solve(sol_minus, solution%constraints%type, state1, state2 - h_state2, w0)
         do i = 1, solver%num_gas
             if (solution%nj(i) > reported_floor .or. solution%nj(i) <= 0.0d0) cycle
-            self%dnj_dstate2(i) = (sol_plus%nj(i) - sol_minus%nj(i)) / (2.0d0*h_state2)
-            if (solution%nj(i) > 0.0d0 .and. sol_plus%nj(i) > 0.0d0 .and. sol_minus%nj(i) > 0.0d0) then
-                dln_nj_dstate2(i) = (sol_plus%ln_nj(i) - sol_minus%ln_nj(i)) / (2.0d0*h_state2)
-            else
-                dln_nj_dstate2(i) = 0.0d0
-                self%dnj_dstate2(i) = 0.0d0
-            end if
+            self%dnj_dstate2(i) = (sol_plus%nj(i) - sol_minus%nj(i)) / (2.0d0 * h_state2)
         end do
 
         do j = 1, size(w0)
-            h_w = h_rel*max(1.0d0, abs(w0(j)))
+            h_w = h_rel * max(1.0d0, abs(w0(j)))
 
             w0(j) = solution%w0(j) + h_w
             sol_plus = solution
@@ -3014,13 +2998,7 @@ contains
             w0(j) = solution%w0(j)
             do i = 1, solver%num_gas
                 if (solution%nj(i) > reported_floor .or. solution%nj(i) <= 0.0d0) cycle
-                self%dnj_dw0(i, j) = (sol_plus%nj(i) - sol_minus%nj(i)) / (2.0d0*h_w)
-                if (solution%nj(i) > 0.0d0 .and. sol_plus%nj(i) > 0.0d0 .and. sol_minus%nj(i) > 0.0d0) then
-                    dln_nj_dw0(i, j) = (sol_plus%ln_nj(i) - sol_minus%ln_nj(i)) / (2.0d0*h_w)
-                else
-                    dln_nj_dw0(i, j) = 0.0d0
-                    self%dnj_dw0(i, j) = 0.0d0
-                end if
+                self%dnj_dw0(i, j) = (sol_plus%nj(i) - sol_minus%nj(i)) / (2.0d0 * h_w)
             end do
         end do
 
@@ -3310,13 +3288,9 @@ contains
         real(dp), allocatable :: dlogP_over_n_dw0(:)
         real(dp), allocatable :: dT_db0(:)
         real(dp), allocatable :: dn_db0(:)
-        real(dp), allocatable :: dln_nj_dstate1(:)
-        real(dp), allocatable :: dln_nj_dstate2(:)
         real(dp), allocatable :: dln_nj_eff_db0(:,:)
         real(dp), allocatable :: dln_nj_eff_dstate1(:)
         real(dp), allocatable :: dln_nj_eff_dstate2(:)
-        real(dp), allocatable :: dln_nj_db0(:,:)
-        real(dp), allocatable :: dln_nj_dw0(:,:)
         real(dp), allocatable :: dln_nj_eff_dw0(:,:)
         real(dp), allocatable :: dnj_eff_dstate1(:)
         real(dp), allocatable :: dnj_eff_dstate2(:)
@@ -3338,11 +3312,10 @@ contains
         real(dp) :: entropy_sum
         real(dp) :: entropy_dim
         real(dp) :: temp_dT
-        real(dp) :: dnj_reported_dln_nj
         real(dp) :: nj_tmp
         real(dp) :: fac
         real(dp) :: a_smooth
-        real(dp) :: b_smooth
+        real(dp) :: c_smooth
         real(dp) :: dn_eff_state1
         real(dp) :: dn_eff_state2
         logical :: ion_species
@@ -3506,10 +3479,8 @@ contains
 
         allocate(dT_db0(ne), dn_db0(ne))
         allocate(dlogP_over_n_db0(ne), dlogP_over_n_dw0(nr))
-        allocate(dln_nj_dstate1(ng), dln_nj_dstate2(ng))
         allocate(dln_nj_eff_db0(ng, ne))
         allocate(dln_nj_eff_dstate1(ng), dln_nj_eff_dstate2(ng))
-        allocate(dln_nj_db0(ng, ne), dln_nj_dw0(ng, nr))
         allocate(dln_nj_eff_dw0(ng, nr))
         allocate(dnj_eff_dstate1(ng), dnj_eff_dstate2(ng), dnj_eff_dw0(ng, nr))
         allocate(dnj_db0(ng+na, ne))
@@ -3540,12 +3511,9 @@ contains
             dlogP_over_n_dw0 = self%dT_dw0 / T
         end if
 
-        dln_nj_dstate1 = 0.0d0
-        dln_nj_dstate2 = 0.0d0
         dln_nj_eff_db0 = 0.0d0
         dln_nj_eff_dstate1 = 0.0d0
         dln_nj_eff_dstate2 = 0.0d0
-        dln_nj_db0 = 0.0d0
         dln_nj_eff_dw0 = 0.0d0
         dnj_eff_dstate1 = 0.0d0
         dnj_eff_dstate2 = 0.0d0
@@ -3575,26 +3543,6 @@ contains
 
         dln_nj_eff_dw0 = matmul(dln_nj_eff_db0, db0_dw0)
         do i = 1, ng
-            if (dln_nj_eff_dln_nj(i) > tiny(1.0d0)) then
-                dln_nj_dstate1(i) = dln_nj_eff_dstate1(i) / dln_nj_eff_dln_nj(i)
-                dln_nj_dstate2(i) = dln_nj_eff_dstate2(i) / dln_nj_eff_dln_nj(i)
-                dln_nj_db0(i, :) = dln_nj_eff_db0(i, :) / dln_nj_eff_dln_nj(i)
-                if (const_p) then
-                    dln_nj_dstate1(i) = dln_nj_dstate1(i) - &
-                                        dln_nj_eff_dln_threshold(i) * self%dn_dstate1 / &
-                                        (n * dln_nj_eff_dln_nj(i))
-                    dln_nj_dstate2(i) = dln_nj_dstate2(i) - &
-                                        dln_nj_eff_dln_threshold(i) * self%dn_dstate2 / &
-                                        (n * dln_nj_eff_dln_nj(i))
-                    dln_nj_db0(i, :) = dln_nj_db0(i, :) - &
-                                       dln_nj_eff_dln_threshold(i) * dn_db0 / &
-                                       (n * dln_nj_eff_dln_nj(i))
-                end if
-            else
-                dln_nj_dstate1(i) = 0.0d0
-                dln_nj_dstate2(i) = 0.0d0
-                dln_nj_db0(i, :) = 0.0d0
-            end if
             dnj_eff_dstate1(i) = nj_g_eff(i) * dln_nj_eff_dstate1(i)
             dnj_eff_dstate2(i) = nj_g_eff(i) * dln_nj_eff_dstate2(i)
             dnj_eff_dw0(i, :) = nj_g_eff(i) * dln_nj_eff_dw0(i, :)
@@ -3616,17 +3564,17 @@ contains
         end if
 
         do i = 1, ng
-            ! Recover raw ln(nj) first, then differentiate the final reported nj.
+            ! Differentiate the final reported nj directly from the effective
+            ! linearization to avoid magnifying raw-log sensitivities in the
+            ! smooth tail. With ln(nj_eff) = a*ln(nj) - c*ln(threshold),
+            ! dnj = nj_reported*(dln(nj_eff) + c*dln(threshold))/a.
             a_smooth = max(dln_nj_eff_dln_nj(i), tiny(1.0d0))
-            b_smooth = dln_nj_eff_dln_threshold(i)
-            dln_nj_dstate1(i) = (dln_nj_eff_dstate1(i) - b_smooth*dn_eff_state1/n) / a_smooth
-            dln_nj_dstate2(i) = (dln_nj_eff_dstate2(i) - b_smooth*dn_eff_state2/n) / a_smooth
-            dln_nj_dw0(i, :) = (dln_nj_eff_dw0(i, :) - b_smooth*dn_eff_dw0/n) / a_smooth
+            c_smooth = -dln_nj_eff_dln_threshold(i)
 
-            call compute_reported_nj(ln_nj(i), solver%log_min, nj_tmp, dnj_dln_nj=dnj_reported_dln_nj)
-            self%dnj_dstate1(i) = dnj_reported_dln_nj*dln_nj_dstate1(i)
-            self%dnj_dstate2(i) = dnj_reported_dln_nj*dln_nj_dstate2(i)
-            self%dnj_dw0(i, :) = dnj_reported_dln_nj*dln_nj_dw0(i, :)
+            call compute_reported_nj(ln_nj(i), solver%log_min, nj_tmp)
+            self%dnj_dstate1(i) = nj_tmp * (dln_nj_eff_dstate1(i) + c_smooth*dn_eff_state1/n) / a_smooth
+            self%dnj_dstate2(i) = nj_tmp * (dln_nj_eff_dstate2(i) + c_smooth*dn_eff_state2/n) / a_smooth
+            self%dnj_dw0(i, :) = nj_tmp * (dln_nj_eff_dw0(i, :) + c_smooth*dn_eff_dw0/n) / a_smooth
         end do
 
         do idx_c = 1, na
@@ -3638,8 +3586,7 @@ contains
         end do
 
         if (solver%smooth_truncation) then
-            call EqDerivatives_stabilize_smooth_reported_gas_derivatives(self, solver, solution, dln_nj_dstate1, &
-                                                                         dln_nj_dstate2, dln_nj_dw0)
+            call EqDerivatives_stabilize_smooth_reported_gas_derivatives(self, solver, solution)
         end if
 
         ! ---------------------------------------------------------
@@ -3722,9 +3669,8 @@ contains
         else
             dS_sum_state1 = 0.0d0
             do i = 1, ng
-                dS_sum_state1 = dS_sum_state1 + self%dnj_dstate1(i)*s_g_minus(i)
-                dS_sum_state1 = dS_sum_state1 + nj_g(i)* &
-                    (ds_g_dT(i)*self%dT_dstate1 - dln_nj_dstate1(i))
+                dS_sum_state1 = dS_sum_state1 + self%dnj_dstate1(i) * (s_g_minus(i) - 1.0d0)
+                dS_sum_state1 = dS_sum_state1 + nj_g(i) * ds_g_dT(i) * self%dT_dstate1
             end do
             ! Add the log(P/n) derivative terms once (not once per species)
             dS_sum_state1 = dS_sum_state1 - sum(nj_g)*dlogP_over_n_state1
@@ -3742,9 +3688,8 @@ contains
         else
             dS_sum_state2 = 0.0d0
             do i = 1, ng
-                dS_sum_state2 = dS_sum_state2 + self%dnj_dstate2(i)*s_g_minus(i)
-                dS_sum_state2 = dS_sum_state2 + nj_g(i)* &
-                    (ds_g_dT(i)*self%dT_dstate2 - dln_nj_dstate2(i))
+                dS_sum_state2 = dS_sum_state2 + self%dnj_dstate2(i) * (s_g_minus(i) - 1.0d0)
+                dS_sum_state2 = dS_sum_state2 + nj_g(i) * ds_g_dT(i) * self%dT_dstate2
             end do
             ! Add the log(P/n) derivative terms once (not once per species)
             dS_sum_state2 = dS_sum_state2 - sum(nj_g)*dlogP_over_n_state2
@@ -3763,9 +3708,8 @@ contains
             do j = 1, nr
                 dS_sum_dw0(j) = 0.0d0
                 do i = 1, ng
-                    dS_sum_dw0(j) = dS_sum_dw0(j) + self%dnj_dw0(i, j)*s_g_minus(i)
-                    dS_sum_dw0(j) = dS_sum_dw0(j) + nj_g(i)* &
-                        (ds_g_dT(i)*self%dT_dw0(j) - dln_nj_dw0(i, j))
+                    dS_sum_dw0(j) = dS_sum_dw0(j) + self%dnj_dw0(i, j) * (s_g_minus(i) - 1.0d0)
+                    dS_sum_dw0(j) = dS_sum_dw0(j) + nj_g(i) * ds_g_dT(i) * self%dT_dw0(j)
                 end do
                 ! Add the log(P/n) derivative terms once (not once per species)
                 dS_sum_dw0(j) = dS_sum_dw0(j) - sum(nj_g)*dlogP_over_n_dw0(j)
