@@ -13,6 +13,8 @@ This repository is a scientific computing library (CEA). Follow these rules:
 - If numerical behavior might change, call it out and add validation or tests when possible.
 - Respect layer boundaries: Fortran core in `source/`, C bindings in `source/bind/c/`,
   Python bindings in `source/bind/python/`.
+- If the public-facing Python API in `source/bind/python/CEA.pyx` changes, update the
+  corresponding type-hinting files in `source/bind/python/cea/` (for example `.pyi` stubs).
 - Run minimal validation for touched areas:
   - Core/CMake/Fortran/C changes: run relevant `ctest` targets from the build directory.
   - Python binding changes: run `make py-rebuild` then `pytest source/bind/python/tests`.
