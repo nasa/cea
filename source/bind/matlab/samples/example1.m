@@ -79,4 +79,4 @@ for r_eq = chem_eq_ratios
     end
 end
 
-printf('Done: %d/%d\n', i-1, n);
+fprintf('Done: %d/%d\n', i-1, n);
