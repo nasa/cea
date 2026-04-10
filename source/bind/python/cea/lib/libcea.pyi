@@ -51,6 +51,13 @@ TV: int
 UV: int
 SV: int
 
+NUM_REACTANTS: int
+NUM_PRODUCTS: int
+NUM_GAS: int
+NUM_CONDENSED: int
+NUM_ELEMENTS: int
+MAX_EQUATIONS: int
+
 TEMPERATURE: int
 PRESSURE: int
 VOLUME: int
@@ -69,6 +76,101 @@ FROZEN_CONDUCTIVITY: int
 EQUILIBRIUM_CONDUCTIVITY: int
 FROZEN_PRANDTL: int
 EQUILIBRIUM_PRANDTL: int
+
+ROCKET_TEMPERATURE: int
+ROCKET_PRESSURE: int
+ROCKET_VOLUME: int
+ROCKET_DENSITY: int
+ROCKET_M: int
+ROCKET_MW: int
+ROCKET_ENTHALPY: int
+ROCKET_ENERGY: int
+ROCKET_ENTROPY: int
+ROCKET_GIBBS_ENERGY: int
+ROCKET_GAMMA_S: int
+ROCKET_FROZEN_CP: int
+ROCKET_FROZEN_CV: int
+ROCKET_EQUILIBRIUM_CP: int
+ROCKET_EQUILIBRIUM_CV: int
+MACH: int
+SONIC_VELOCITY: int
+AE_AT: int
+C_STAR: int
+COEFFICIENT_OF_THRUST: int
+ISP: int
+ISP_VACUUM: int
+ROCKET_VISCOSITY: int
+ROCKET_FROZEN_CONDUCTIVITY: int
+ROCKET_EQUILIBRIUM_CONDUCTIVITY: int
+ROCKET_FROZEN_PRANDTL: int
+ROCKET_EQUILIBRIUM_PRANDTL: int
+
+SHOCK_TEMPERATURE: int
+SHOCK_PRESSURE: int
+SHOCK_VELOCITY: int
+SHOCK_MACH: int
+SHOCK_SONIC_VELOCITY: int
+SHOCK_RHO12: int
+SHOCK_RHO52: int
+SHOCK_P21: int
+SHOCK_P52: int
+SHOCK_T21: int
+SHOCK_T52: int
+SHOCK_M21: int
+SHOCK_M52: int
+SHOCK_V2: int
+SHOCK_U5_P_V2: int
+SHOCK_VOLUME: int
+SHOCK_DENSITY: int
+SHOCK_M: int
+SHOCK_MW: int
+SHOCK_ENTHALPY: int
+SHOCK_ENERGY: int
+SHOCK_ENTROPY: int
+SHOCK_GIBBS_ENERGY: int
+SHOCK_GAMMA_S: int
+SHOCK_FROZEN_CP: int
+SHOCK_FROZEN_CV: int
+SHOCK_EQUILIBRIUM_CP: int
+SHOCK_EQUILIBRIUM_CV: int
+SHOCK_VISCOSITY: int
+SHOCK_FROZEN_CONDUCTIVITY: int
+SHOCK_EQUILIBRIUM_CONDUCTIVITY: int
+SHOCK_FROZEN_PRANDTL: int
+SHOCK_EQUILIBRIUM_PRANDTL: int
+
+DETONATION_P1: int
+DETONATION_T1: int
+DETONATION_H1: int
+DETONATION_M1: int
+DETONATION_GAMMA1: int
+DETONATION_V_SONIC1: int
+DETONATION_PRESSURE: int
+DETONATION_TEMPERATURE: int
+DETONATION_DENSITY: int
+DETONATION_ENTHALPY: int
+DETONATION_ENERGY: int
+DETONATION_GIBBS_ENERGY: int
+DETONATION_ENTROPY: int
+DETONATION_MACH: int
+DETONATION_VELOCITY: int
+DETONATION_SONIC_VELOCITY: int
+DETONATION_GAMMA: int
+DETONATION_P_P1: int
+DETONATION_T_T1: int
+DETONATION_M_M1: int
+DETONATION_RHO_RHO1: int
+DETONATION_FROZEN_CP: int
+DETONATION_FROZEN_CV: int
+DETONATION_EQUILIBRIUM_CP: int
+DETONATION_EQUILIBRIUM_CV: int
+DETONATION_M: int
+DETONATION_MW: int
+DETONATION_VISCOSITY: int
+DETONATION_FROZEN_CONDUCTIVITY: int
+DETONATION_EQUILIBRIUM_CONDUCTIVITY: int
+DETONATION_FROZEN_PRANDTL: int
+DETONATION_EQUILIBRIUM_PRANDTL: int
 
 def _version() -> str: ...
 def _version_major() -> int: ...
@@ -202,6 +304,7 @@ class EqSolver:
 
 
 class EqSolution:
+    last_error: int
     @overload
     def __init__(self, solver: EqSolver) -> None: ...
     @overload
@@ -270,9 +373,94 @@ class EqSolution:
 
 
 class EqDerivatives:
+    last_error: int
     def __init__(self, solver: EqSolver, solution: EqSolution) -> None: ...
     def compute_derivatives(self, check_closure_defect: bool = False) -> None: ...
     def compute_fd(self, h: float, verbose: bool = False, central: bool = False) -> None: ...
+    @property
+    def dT_dstate1(self) -> float: ...
+    @property
+    def dT_dstate1_fd(self) -> float: ...
+    @property
+    def dT_dstate2(self) -> float: ...
+    @property
+    def dT_dstate2_fd(self) -> float: ...
+    @property
+    def dn_dstate1(self) -> float: ...
+    @property
+    def dn_dstate1_fd(self) -> float: ...
+    @property
+    def dn_dstate2(self) -> float: ...
+    @property
+    def dn_dstate2_fd(self) -> float: ...
+    @property
+    def dH_dstate1(self) -> float: ...
+    @property
+    def dH_dstate1_fd(self) -> float: ...
+    @property
+    def dH_dstate2(self) -> float: ...
+    @property
+    def dH_dstate2_fd(self) -> float: ...
+    @property
+    def dU_dstate1(self) -> float: ...
+    @property
+    def dU_dstate1_fd(self) -> float: ...
+    @property
+    def dU_dstate2(self) -> float: ...
+    @property
+    def dU_dstate2_fd(self) -> float: ...
+    @property
+    def dG_dstate1(self) -> float: ...
+    @property
+    def dG_dstate1_fd(self) -> float: ...
+    @property
+    def dG_dstate2(self) -> float: ...
+    @property
+    def dG_dstate2_fd(self) -> float: ...
+    @property
+    def dS_dstate1(self) -> float: ...
+    @property
+    def dS_dstate1_fd(self) -> float: ...
+    @property
+    def dS_dstate2(self) -> float: ...
+    @property
+    def dS_dstate2_fd(self) -> float: ...
+    @property
+    def dT_dw0(self) -> FloatArray: ...
+    @property
+    def dT_dw0_fd(self) -> FloatArray: ...
+    @property
+    def dn_dw0(self) -> FloatArray: ...
+    @property
+    def dn_dw0_fd(self) -> FloatArray: ...
+    @property
+    def dnj_dstate1(self) -> FloatArray: ...
+    @property
+    def dnj_dstate1_fd(self) -> FloatArray: ...
+    @property
+    def dnj_dstate2(self) -> FloatArray: ...
+    @property
+    def dnj_dstate2_fd(self) -> FloatArray: ...
+    @property
+    def dH_dw0(self) -> FloatArray: ...
+    @property
+    def dH_dw0_fd(self) -> FloatArray: ...
+    @property
+    def dU_dw0(self) -> FloatArray: ...
+    @property
+    def dU_dw0_fd(self) -> FloatArray: ...
+    @property
+    def dG_dw0(self) -> FloatArray: ...
+    @property
+    def dG_dw0_fd(self) -> FloatArray: ...
+    @property
+    def dS_dw0(self) -> FloatArray: ...
+    @property
+    def dS_dw0_fd(self) -> FloatArray: ...
+    @property
+    def dnj_dw0(self) -> FloatArray: ...
+    @property
+    def dnj_dw0_fd(self) -> FloatArray: ...
 
 
 class RocketSolver:
@@ -301,6 +489,16 @@ class RocketSolver:
         smooth_truncation: bool = False,
         truncation_width: float = -1.0,
     ) -> None: ...
+    @property
+    def num_reactants(self) -> int: ...
+    @property
+    def num_products(self) -> int: ...
+    @property
+    def num_gas(self) -> int: ...
+    @property
+    def num_condensed(self) -> int: ...
+    @property
+    def num_elements(self) -> int: ...
     def solve(
         self,
         soln: RocketSolution,
@@ -320,6 +518,7 @@ class RocketSolver:
 
 
 class RocketSolution:
+    last_error: int
     def __init__(self, solver: RocketSolver) -> None: ...
     @property
     def num_pts(self) -> int: ...
@@ -421,6 +620,16 @@ class ShockSolver:
         smooth_truncation: bool = False,
         truncation_width: float = -1.0,
     ) -> None: ...
+    @property
+    def num_reactants(self) -> int: ...
+    @property
+    def num_products(self) -> int: ...
+    @property
+    def num_gas(self) -> int: ...
+    @property
+    def num_condensed(self) -> int: ...
+    @property
+    def num_elements(self) -> int: ...
     def solve(
         self,
         soln: ShockSolution,
@@ -436,6 +645,7 @@ class ShockSolver:
 
 
 class ShockSolution:
+    last_error: int
     def __init__(self, solver: ShockSolver, reflected: bool = True) -> None: ...
     @property
     def T(self) -> ScalarOrArray: ...
@@ -547,6 +757,16 @@ class DetonationSolver:
         smooth_truncation: bool = False,
         truncation_width: float = -1.0,
     ) -> None: ...
+    @property
+    def num_reactants(self) -> int: ...
+    @property
+    def num_products(self) -> int: ...
+    @property
+    def num_gas(self) -> int: ...
+    @property
+    def num_condensed(self) -> int: ...
+    @property
+    def num_elements(self) -> int: ...
     def solve(
         self,
         soln: DetonationSolution,
@@ -558,6 +778,7 @@ class DetonationSolver:
 
 
 class DetonationSolution:
+    last_error: int
     def __init__(self, solver: DetonationSolver) -> None: ...
     @property
     def P1(self) -> float: ...
