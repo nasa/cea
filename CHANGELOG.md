@@ -10,11 +10,14 @@ All notable user-visible changes to this project are documented here.
 - Weight-based enthalpy units (`*/kg`) now require `Reactant.molecular_weight` for conversion, while molar units (`*/mol`) do not require molecular weight for enthalpy interpretation.
 - Python docs and examples were updated to pass explicit `enthalpy_units` for custom reactants (including RP-1311 Example 5) instead of relying on implicit defaults.
 - **Compatibility notice:** a future **minor** version increment will require `enthalpy_units` whenever `Reactant.enthalpy` is defined. Code that currently relies on implicit enthalpy units may break until updated.
+- Smooth-truncation derivative assembly in the equilibrium solver now uses an effective Jacobian/chain-rule formulation across TP/HP/SP/TV/UV/SV solves so reported sensitivities track the smoothed species-activity model more consistently near truncation thresholds.
 
 ### Fixed
+- Smooth-truncation total derivatives for reported gas species and derived thermodynamic outputs were aligned with the final reported-species mapping, improving behavior for trace-species sensitivities near truncation cutoffs.
 
 ### Added
 - Added Python regression coverage for `Reactant` enthalpy-unit handling, including omitted-units warning behavior, explicit molar/weight units, molecular-weight requirements for weight units, and accepted unit spellings.
+- Added pfunit regression coverage for smooth-truncation derivative chain-rule behavior, targeted finite-difference agreement across TP/HP/SP/TV/UV/SV constraints, and reported-entropy consistency checks.
 
 ## [3.1.2] - 2026-03-23
 
