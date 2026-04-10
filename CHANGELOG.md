@@ -14,6 +14,7 @@ All notable user-visible changes to this project are documented here.
 
 ### Fixed
 - Smooth-truncation total derivatives for reported gas species and derived thermodynamic outputs were aligned with the final reported-species mapping, improving behavior for trace-species sensitivities near truncation cutoffs.
+- Corrected user-facing viscosity unit labels in the equilibrium core comments and Python bindings to report millipoise consistently.
 
 ### Added
 - Added Python regression coverage for `Reactant` enthalpy-unit handling, including omitted-units warning behavior, explicit molar/weight units, molecular-weight requirements for weight units, and accepted unit spellings.

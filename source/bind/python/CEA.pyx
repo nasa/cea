@@ -1716,7 +1716,7 @@ cdef class EqSolution:
 
     property viscosity:
         """
-        Viscosity in micropoise (\mu P).
+        Viscosity in millipoise (mP).
 
         Returns
         -------
@@ -2897,7 +2897,7 @@ cdef class RocketSolution:
 
     property viscosity:
         """
-        Viscosity in millipoise (\mu P).
+        Viscosity in millipoise (mP).
 
         Returns
         -------
@@ -3773,7 +3773,7 @@ cdef class ShockSolution:
 
     property viscosity:
         """
-        Viscosity at each shock state in micropoise (\mu P).
+        Viscosity at each shock state in millipoise (mP).
 
         Returns
         -------
@@ -4575,7 +4575,7 @@ cdef class DetonationSolution:
 
     property viscosity:
         """
-        Viscosity in micropoise (\mu P).
+        Viscosity in millipoise (mP).
 
         Returns
         -------

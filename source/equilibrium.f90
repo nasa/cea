@@ -266,7 +266,7 @@ module cea_equilibrium
         real(dp) :: gamma_s = 0.0d0
             !! Isentropic exponent (Eq. 2.71/2.73)
         real(dp) :: viscosity = 0.0d0
-            !! Viscosity (millipose)
+            !! Viscosity (millipoise)
         real(dp) :: cp_fr = 0.0d0
             !! Heat capacity at constant pressure, frozen (kJ/kg-K)
         real(dp) :: cp_eq = 0.0d0
