@@ -7,6 +7,7 @@ module cea_bindc
     use cea_param, only: empty_dp, gas_constant, get_data_search_dirs
     use cea_input, only: ReactantInput
     use cea_mixture, only: names_match
+    use cea_shock, only: SHOCK_SOLVE_STATUS_LAST_VALID
     use iso_c_binding
     use fb_logging
     use fb_utils, only: assert, locate, is_empty, to_str
@@ -203,6 +204,7 @@ module cea_bindc
         enumerator :: CEA_INVALID_INDEX = 6
         enumerator :: CEA_INVALID_SIZE = 7
         enumerator :: CEA_NOT_CONVERGED = 8
+        enumerator :: CEA_LAST_VALID_SOLUTION = 9
     end enum
 
     !-----------------------------------------------------------------
@@ -2495,7 +2497,16 @@ contains
             solution = solver%solve(weights(:nr), T0, p0, u1=mach1_or_u1, &
                 reflected=reflected, incident_frozen=incident_frozen, reflected_frozen=reflected_frozen)
         end if
-        if (.not. solution%converged) ierr = CEA_NOT_CONVERGED
+        if (.not. solution%converged) then
+            ! A retained last-valid incident state is intentionally exposed as a
+            ! descriptive soft failure, but it remains a non-converged shock
+            ! solution and callers must check the converged flag separately.
+            if (solution%solve_status == SHOCK_SOLVE_STATUS_LAST_VALID) then
+                ierr = CEA_LAST_VALID_SOLUTION
+            else
+                ierr = CEA_NOT_CONVERGED
+            end if
+        end if
     end function
 
 

@@ -112,6 +112,9 @@ Initialize arrays for storing the solution variables:
     mole_fractions_refl = {}
 
 Loop over the initial shock velocities and solve the shock problem, noting again that we set `reflected=True` to compute the equilibrium reflected shock solution.
+This example still gates downstream use on ``solution.converged``. If a solve
+returns ``solution.last_error == cea.LAST_VALID_SOLUTION``, the retained state
+is still not a converged shock point.
 
 .. code-block:: python
     :emphasize-lines: 4

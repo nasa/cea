@@ -11,6 +11,9 @@ Notes:
 - ``cea_rocket_solver_get_eqsolver`` is no longer exposed; use ``cea_rocket_solver_get_size`` and other RocketSolver APIs.
 - Rocket, shock, and detonation solution property getters now require a ``len`` argument and will return
   ``CEA_INVALID_SIZE`` if ``len`` is smaller than the internal number of points.
+- ``cea_shock_solver_solve`` may return ``CEA_LAST_VALID_SOLUTION`` when the incident-equilibrium solver retains
+  a last valid state for inspection without converging the shock iteration. In that case the returned properties
+  remain readable, but ``cea_shock_solution_get_converged`` still reports false.
 
 .. doxygenfile:: cea.h
    :project: cea

@@ -49,6 +49,12 @@ RocketSolution
 ShockSolver
 -----------
 
+Shock solves can emit a ``RuntimeWarning`` with ``LAST_VALID_SOLUTION`` when the
+incident-equilibrium path retains a last valid state without converging the
+shock iteration. In that case ``ShockSolution.last_error`` records the soft
+failure, while ``ShockSolution.converged`` remains the authoritative strict
+convergence signal.
+
 .. autoclass:: cea.ShockSolver
    :members:
 

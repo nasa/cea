@@ -189,4 +189,5 @@
     CEA_INVALID_EQUILIBRIUM_SIZE_TYPE = 5, \
     CEA_INVALID_INDEX            = 6, \
     CEA_INVALID_SIZE             = 7, \
-    CEA_NOT_CONVERGED            = 8
+    CEA_NOT_CONVERGED            = 8, \
+    CEA_LAST_VALID_SOLUTION      = 9

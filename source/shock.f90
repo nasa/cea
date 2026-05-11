@@ -9,6 +9,10 @@ module cea_shock
     use fb_utils
     implicit none
 
+    integer, parameter :: SHOCK_SOLVE_STATUS_NOT_CONVERGED = 0
+    integer, parameter :: SHOCK_SOLVE_STATUS_CONVERGED = 1
+    integer, parameter :: SHOCK_SOLVE_STATUS_LAST_VALID = 2
+
     type :: ShockSolver
         !! Shock solver object
 
@@ -68,6 +72,9 @@ module cea_shock
         ! Convergence variables
         logical :: converged = .false.
             !! Convergence flag
+        integer :: solve_status = SHOCK_SOLVE_STATUS_NOT_CONVERGED
+            !! Internal solve outcome used by bindings to distinguish strict
+            !! non-convergence from a retained last-valid incident state.
 
     end type
     interface ShockSolution
@@ -140,6 +147,7 @@ contains
             t21 = EXP(log(t21) + X2)
         else  ! Converged
             soln%converged = .true.
+            soln%solve_status = SHOCK_SOLVE_STATUS_CONVERGED
         end if
 
     end subroutine
@@ -167,6 +175,7 @@ contains
         call log_warning("Shock calculation stopped after the last valid point.")
 
         soln%converged = .false.
+        soln%solve_status = SHOCK_SOLVE_STATUS_NOT_CONVERGED
         soln%pressure(idx) = 0.0d0
         soln%mach(idx) = 0.0d0
         soln%u(idx) = 0.0d0
@@ -405,6 +414,7 @@ contains
         idx = 2
         G = 0.d0
         soln%converged = .false.
+        soln%solve_status = SHOCK_SOLVE_STATUS_NOT_CONVERGED
         have_last_valid = .false.
         u1 = soln%u(1)
         mach1 = soln%mach(1)
@@ -537,6 +547,11 @@ contains
         ! singular-recovery exits and continue with warning semantics.
         if (.not. soln%converged) then
             if (ShockSolver_state_valid(soln, idx)) then
+                ! Preserve the retained incident state for inspection, but do
+                ! not mark it as converged; callers must check converged before
+                ! treating this point as a successful shock solve.
+                soln%solve_status = SHOCK_SOLVE_STATUS_LAST_VALID
+                soln%pressure(idx) = p21*P0
                 soln%rho12 = rho12
                 soln%p21 = p21
                 soln%t21 = t21
@@ -584,6 +599,8 @@ contains
         ! Initialize
         idx = 2
         G = 0.d0
+        soln%converged = .false.
+        soln%solve_status = SHOCK_SOLVE_STATUS_NOT_CONVERGED
         u1 = soln%u(1)
         mach1 = soln%mach(1)
         soln%eq_soln(idx) = EqSolution(self%eq_solver, T_init=T0)
@@ -736,6 +753,7 @@ contains
         idx = 3
         G = 0.0d0  ! Reset the matrix
         soln%converged = .false.
+        soln%solve_status = SHOCK_SOLVE_STATUS_NOT_CONVERGED
         soln%eq_soln(idx) = EqSolution(self%eq_solver, T_init=soln%eq_soln(2)%T, nj_init=soln%eq_soln(2)%nj)
 
         ! Retrieve values from the incident solution
@@ -875,6 +893,7 @@ contains
         soln%eq_partials(idx)%dlnV_dlnP = -1.0d0
         soln%eq_partials(idx)%dlnV_dlnT = 1.0d0
         soln%converged = .false.
+        soln%solve_status = SHOCK_SOLVE_STATUS_NOT_CONVERGED
 
         ! Set the reactant weights as the species amount
         soln%eq_soln(idx)%converged = .true.
@@ -1056,6 +1075,7 @@ contains
 
         ! Initialize the solution
         soln = ShockSolution_init(npts)
+        soln%solve_status = SHOCK_SOLVE_STATUS_NOT_CONVERGED
 
         ! Solve the problem
         ! --------------------------------------------------------------------
@@ -1152,6 +1172,7 @@ contains
         integer, intent(in) :: num_pts
 
         self%num_pts = num_pts
+        self%solve_status = SHOCK_SOLVE_STATUS_NOT_CONVERGED
 
         ! Allocate data structures
         allocate(self%eq_soln(num_pts))

@@ -62,10 +62,19 @@ def _err_name(cea_err ierr):
         return "CEA_INVALID_SIZE"
     if ierr == CEA_NOT_CONVERGED:
         return "CEA_NOT_CONVERGED"
+    if ierr == CEA_LAST_VALID_SOLUTION:
+        return "CEA_LAST_VALID_SOLUTION"
     return f"CEA_ERR_{int(ierr)}"
 
 
 def _check_ierr(cea_err ierr, str context, bint allow_not_converged=True):
+    if ierr == CEA_LAST_VALID_SOLUTION and allow_not_converged:
+        warnings.warn(
+            f"{context}: CEA_LAST_VALID_SOLUTION "
+            f"(last valid shock state retained; solution.converged is False)",
+            RuntimeWarning,
+        )
+        return
     if ierr == CEA_NOT_CONVERGED and allow_not_converged:
         warnings.warn(f"{context}: { _err_name(ierr) }", RuntimeWarning)
         return
@@ -77,6 +86,8 @@ SUCCESS                  = CEA_SUCCESS
 INVALID_FILENAME         = CEA_INVALID_FILENAME
 INVALID_PROPERTY_TYPE    = CEA_INVALID_PROPERTY_TYPE
 INVALID_EQUILIBRIUM_TYPE = CEA_INVALID_EQUILIBRIUM_TYPE
+NOT_CONVERGED           = CEA_NOT_CONVERGED
+LAST_VALID_SOLUTION     = CEA_LAST_VALID_SOLUTION
 
 # Alias the log levels
 LOG_CRITICAL = CEA_LOG_CRITICAL
@@ -3335,6 +3346,12 @@ cdef class ShockSolver:
         reflected_frozen : bool, default False
             Use frozen chemistry for reflected shock
 
+        Notes
+        -----
+        A retained incident last-valid state emits ``RuntimeWarning`` and sets
+        ``soln.last_error`` to ``LAST_VALID_SOLUTION`` while leaving
+        ``soln.converged`` as ``False``.
+
         Raises
         ------
         ValueError
@@ -3921,7 +3938,7 @@ cdef class ShockSolution:
         Returns
         -------
         bool
-            True if solution converged, False otherwise
+            True if the shock iteration converged, False otherwise
         """
         def __get__(self):
             cdef cea_err ierr

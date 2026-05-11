@@ -249,4 +249,35 @@ contains
 
     end subroutine
 
+    @test
+    subroutine test_shock_eq_last_valid_incident_status
+
+        type(Mixture) :: products
+        type(Mixture) :: reactants
+        type(ShockSolver) :: solver
+        type(ShockSolution) :: soln
+        character(:), allocatable :: product_names(:)
+        real(dp) :: p_reac, t_reac, weights(2)
+
+        reactants = Mixture(all_thermo, ['N2 ', 'CH4'], ions=.true.)
+        product_names = reactants%get_products(all_thermo)
+        products = Mixture(all_thermo, product_names, ions=.true.)
+
+        weights = reactants%weights_from_moles([0.985d0, 0.015d0])
+        p_reac = mmhg_to_bar(0.224d0)
+        t_reac = 291.0d0
+
+        solver = ShockSolver(products, reactants, trace=1.d-10, ions=.true., all_transport=all_transport)
+        soln = solver%solve(weights, t_reac, p_reac, u1=1900.0d0, reflected=.false., &
+                            incident_frozen=.false., reflected_frozen=.false.)
+
+        @assertFalse(soln%converged)
+        @assertEqual(SHOCK_SOLVE_STATUS_LAST_VALID, soln%solve_status)
+        @assertTrue(soln%p21 > 0.0d0)
+        @assertTrue(soln%eq_soln(2)%T > 0.0d0)
+        @assertTrue(soln%u(2) > 0.0d0)
+        @assertTrue(soln%v_sonic(2) > 0.0d0)
+
+    end subroutine
+
 end module

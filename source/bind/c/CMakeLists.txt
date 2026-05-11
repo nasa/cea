@@ -97,4 +97,12 @@ if (CEA_BUILD_TESTING)
         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
     )
 
+    add_executable(cea_bindc_shock_last_valid samples/shock_last_valid.c)
+    target_link_libraries(cea_bindc_shock_last_valid PRIVATE cea::bindc)
+    add_test(
+        NAME cea_bindc_shock_last_valid
+        COMMAND cea_bindc_shock_last_valid
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+    )
+
 endif()

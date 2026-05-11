@@ -13,6 +13,7 @@ cdef extern from "cea.h":
         CEA_INVALID_INDEX
         CEA_INVALID_SIZE
         CEA_NOT_CONVERGED
+        CEA_LAST_VALID_SOLUTION
 
     ctypedef enum cea_log_level:
         CEA_LOG_CRITICAL

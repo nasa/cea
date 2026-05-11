@@ -639,6 +639,9 @@ extern "C"
       cea_int *value);
 
   // Solve
+  // Returns CEA_LAST_VALID_SOLUTION when the incident-equilibrium shock path
+  // retains a last valid state for inspection without converging the shock
+  // iteration. In that case, cea_shock_solution_get_converged still reports 0.
   cea_err cea_shock_solver_solve(
       const cea_shock_solver solver,
       cea_shock_solution soln,
