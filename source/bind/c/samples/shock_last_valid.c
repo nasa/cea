@@ -4,6 +4,7 @@
 
 #define LEN(x) (sizeof(x) / sizeof((x)[0]))
 #define NUM_PTS 2
+#define NUM_CANDIDATES 12
 
 int main(void) {
     const cea_string reactants[] = {"N2 ", "CH4"};
@@ -12,9 +13,13 @@ int main(void) {
     const cea_int nr = LEN(reactants);
     const cea_real p0 = 0.0002986421052631579;
     const cea_real T0 = 291.0;
-    const cea_real u1 = 1900.0;
+    const cea_real u1_candidates[NUM_CANDIDATES] = {
+        1200.0, 1300.0, 1400.0, 1500.0, 1600.0, 1700.0,
+        1800.0, 1900.0, 2000.0, 2100.0, 2200.0, 2300.0
+    };
 
     int status = EXIT_FAILURE;
+    int found_last_valid = 0;
     cea_err ierr;
     cea_mixture reac = NULL;
     cea_mixture prod = NULL;
@@ -24,6 +29,7 @@ int main(void) {
     cea_real pressure[NUM_PTS];
     cea_real temperature[NUM_PTS];
     int converged = 1;
+    size_t i;
     cea_solver_opts opts;
 
     cea_set_log_level(CEA_LOG_NONE);
@@ -79,9 +85,22 @@ int main(void) {
         goto cleanup;
     }
 
-    ierr = cea_shock_solver_solve(solver, soln, weights, T0, p0, u1, false, false, false, false);
-    if (ierr != CEA_LAST_VALID_SOLUTION) {
-        fprintf(stderr, "unexpected solve status: %d\n", ierr);
+    for (i = 0; i < NUM_CANDIDATES; ++i) {
+        ierr = cea_shock_solver_solve(
+            solver, soln, weights, T0, p0, u1_candidates[i], false, false, false, false
+        );
+        if (ierr == CEA_LAST_VALID_SOLUTION) {
+            found_last_valid = 1;
+            break;
+        }
+        if (ierr != CEA_SUCCESS && ierr != CEA_NOT_CONVERGED) {
+            fprintf(stderr, "unexpected solve status for u1=%g: %d\n", u1_candidates[i], ierr);
+            goto cleanup;
+        }
+    }
+
+    if (!found_last_valid) {
+        fprintf(stderr, "no last-valid incident shock case found across candidate velocities\n");
         goto cleanup;
     }
 

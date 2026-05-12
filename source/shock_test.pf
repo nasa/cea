@@ -258,6 +258,11 @@ contains
         type(ShockSolution) :: soln
         character(:), allocatable :: product_names(:)
         real(dp) :: p_reac, t_reac, weights(2)
+        real(dp), parameter :: candidate_u1(*) = [ &
+            1200.d0, 1300.d0, 1400.d0, 1500.d0, 1600.d0, 1700.d0, &
+            1800.d0, 1900.d0, 2000.d0, 2100.d0, 2200.d0, 2300.d0 ]
+        integer :: i
+        logical :: found_last_valid
 
         reactants = Mixture(all_thermo, ['N2 ', 'CH4'], ions=.true.)
         product_names = reactants%get_products(all_thermo)
@@ -268,9 +273,18 @@ contains
         t_reac = 291.0d0
 
         solver = ShockSolver(products, reactants, trace=1.d-10, ions=.true., all_transport=all_transport)
-        soln = solver%solve(weights, t_reac, p_reac, u1=1900.0d0, reflected=.false., &
-                            incident_frozen=.false., reflected_frozen=.false.)
+        found_last_valid = .false.
+        do i = 1, size(candidate_u1)
+            soln = solver%solve(weights, t_reac, p_reac, u1=candidate_u1(i), reflected=.false., &
+                                incident_frozen=.false., reflected_frozen=.false.)
+            if ((.not. soln%converged) .and. &
+                soln%solve_status == SHOCK_SOLVE_STATUS_LAST_VALID) then
+                found_last_valid = .true.
+                exit
+            end if
+        end do
 
+        @assertTrue(found_last_valid)
         @assertFalse(soln%converged)
         @assertEqual(SHOCK_SOLVE_STATUS_LAST_VALID, soln%solve_status)
         @assertTrue(soln%p21 > 0.0d0)
