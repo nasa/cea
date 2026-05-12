@@ -8,9 +8,17 @@ Recommended approach:
   ``py.importlib.import_module('cea')``
 - Import the MATLAB-oriented wrapper module for solve entry points:
   ``py.importlib.import_module('cea.matlab')``
-- Use ``cea.matlab.eq_solve(...)`` for MATLAB-facing equilibrium solves; it
-  returns a flat Python namespace of scalars, arrays, and dictionaries rather
-  than a raw ``EqSolution`` object.
+- Use the MATLAB-facing wrapper entry points:
+  ``cea.matlab.eq_solve(...)``
+  ``cea.matlab.rocket_solve(...)``
+  ``cea.matlab.shock_solve(...)``
+  ``cea.matlab.detonation_solve(...)``
+- Each wrapper returns a flat Python namespace of scalars, arrays, and
+  dictionaries rather than a raw ``EqSolution`` / ``RocketSolution`` /
+  ``ShockSolution`` / ``DetonationSolution`` object.
+- Example scripts live in ``source/bind/matlab/samples/``:
+  ``example1.m``, ``rocket_example.m``, ``shock_example.m``,
+  ``detonation_example.m``.
 
 Legacy note:
 - ``source/bind/matlab/ceam.pyx`` is an old experimental artifact and is not the

@@ -17,6 +17,9 @@ All notable user-visible changes to this project are documented here.
 - Added a pure-Python `cea.matlab` module with a Matlab-oriented `eq_solve`
   entry point that returns a flat Python namespace of scalars, arrays, and
   dictionaries.
+- Added Matlab-oriented `cea.matlab.rocket_solve`, `shock_solve`, and
+  `detonation_solve` wrapper entry points, plus MATLAB sample scripts and
+  docs for those problem types.
 
 ## [3.2.0] - 2026-05-12
 
