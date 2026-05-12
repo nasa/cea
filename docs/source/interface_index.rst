@@ -5,7 +5,10 @@ CEA offers several interfaces to interact with the software, allowing users to c
 
 Python API
 ----------
-A modern interface that allows users to interact with CEA using Python, making it easier to integrate into Python-based workflows and scripts.
+A modern interface that allows users to interact with CEA using Python, making
+it easier to integrate into Python-based workflows and scripts. This interface
+also includes the ``cea.matlab`` compatibility wrappers used from MATLAB via
+its Python bridge.
 
 .. toctree::
    :maxdepth: 1

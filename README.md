@@ -124,6 +124,12 @@ with:
 The Python binding to CEA has been successfully compiled and executed on macOS,
 Linux, and Windows systems.
 
+MATLAB callers should use MATLAB's Python bridge with the installed Python
+package namespace rather than a separate compiled MATLAB extension. Import
+`cea` for constants/units and `cea.matlab` for the MATLAB-oriented wrapper
+entry points `eq_solve`, `rocket_solve`, `shock_solve`, and
+`detonation_solve`. Sample scripts live under `source/bind/matlab/samples/`.
+
 ## Examples
 
 Legacy CLI (classic `.inp` deck - run this from the `build/source` directory):

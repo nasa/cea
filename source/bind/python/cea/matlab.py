@@ -1,3 +1,5 @@
+"""MATLAB-oriented compatibility wrappers built on top of the Python binding."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -432,7 +434,7 @@ def eq_solve(
     ions: bool = False,
 ) -> SimpleNamespace:
     """
-    Solve equilibrium problem using CEA methodology (Matlab-style interface).
+    Solve an equilibrium problem and return a flat MATLAB-friendly namespace.
     """
     soln = _compiled_eq_solve(
         eq_type,
@@ -489,6 +491,9 @@ def rocket_solve(
     ac_at: Optional[SupportsFloat] = None,
     tc_est: Optional[SupportsFloat] = None,
 ) -> SimpleNamespace:
+    """
+    Solve a rocket-performance problem and return flat array/scalar outputs.
+    """
     reactants_mix, products_mix = _build_reactant_and_product_mixtures(
         reactants,
         only=only,
@@ -562,6 +567,9 @@ def shock_solve(
     incident_frozen: bool = False,
     reflected_frozen: bool = False,
 ) -> SimpleNamespace:
+    """
+    Solve an incident/reflected shock problem with MATLAB-friendly outputs.
+    """
     reactants_mix, products_mix = _build_reactant_and_product_mixtures(
         reactants,
         only=only,
@@ -622,6 +630,9 @@ def detonation_solve(
     ions: bool = False,
     frozen: bool = False,
 ) -> SimpleNamespace:
+    """
+    Solve a detonation problem and return a flat MATLAB-friendly namespace.
+    """
     reactants_mix, products_mix = _build_reactant_and_product_mixtures(
         reactants,
         only=only,

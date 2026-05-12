@@ -9,4 +9,7 @@ Build/install:
 
 Usage:
 - See `docs/source/interfaces/python_api.rst`.
+- MATLAB callers should use MATLAB's Python bridge with `import cea` and
+  `import cea.matlab`; the MATLAB-oriented wrappers are documented in
+  `source/bind/matlab/README.md`.
 - Sample scripts live under `source/bind/python/cea/samples`.

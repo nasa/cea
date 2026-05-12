@@ -30,8 +30,8 @@ Project Layout
      - Fortran 2008 implementation of the equilibrium, rocket, shock, and
        detonation solvers plus the command-line driver.
    * - ``source/bind/``
-     - Language bindings (Python, C, and planned MATLAB) that wrap the Fortran
-       core via Cython/C-APIs.
+     - Language bindings (Python and C) plus MATLAB-via-Python compatibility
+       docs/helpers that wrap the Fortran core via Cython/C-APIs.
    * - ``extern/fbasics/``
      - Helper functions vendored in-tree (no top-level git submodules).
    * - ``data/`` & ``samples/``

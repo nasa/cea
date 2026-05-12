@@ -1,7 +1,9 @@
 CEA MATLAB Binding
 ==================
-MATLAB support is provided through the Python package namespace.
-The supported entry points for MATLAB callers live in ``cea.matlab``.
+MATLAB support is provided through the Python package namespace rather than a
+separate compiled MATLAB extension. Point MATLAB at a Python interpreter with
+the installed ``cea`` package, then import the supported wrapper entry points
+from ``cea.matlab``.
 
 Recommended approach:
 - Import the root package for constants and units:
@@ -16,8 +18,11 @@ Recommended approach:
 - Each wrapper returns a flat Python namespace of scalars, arrays, and
   dictionaries rather than a raw ``EqSolution`` / ``RocketSolution`` /
   ``ShockSolution`` / ``DetonationSolution`` object.
+- The wrapper module is pure Python. The ``CEA_ENABLE_BIND_MATLAB`` CMake
+  option is a compatibility knob for MATLAB-via-Python workflows; it does not
+  build a separate supported ``ceam`` extension.
 - Example scripts live in ``source/bind/matlab/samples/``:
-  ``example1.m``, ``rocket_example.m``, ``shock_example.m``,
+  ``equilibrium_example.m``, ``rocket_example.m``, ``shock_example.m``,
   ``detonation_example.m``.
 
 Legacy note:
