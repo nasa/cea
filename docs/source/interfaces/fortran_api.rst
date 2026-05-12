@@ -1,5 +1,5 @@
-Fortran API
-===========
+Fortran
+*******
 
 The Fortran API provides a subroutine interface to the functionality of the
 library. This serves as the basis for all other language bindings, such as C

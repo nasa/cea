@@ -1,5 +1,5 @@
-CEA Legacy Interface
-********************
+Legacy Interface
+****************
 
 The CEA legacy interface is designed for backward compatibility with older versions of the software (ie CEA2). The CEA2 interface uses the text-based file format for input and output described in RP-1311 Part 2 [1]_.
 

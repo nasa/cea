@@ -110,28 +110,6 @@ The ``EqSolver`` and its siblings ``RocketSolver``, ``ShockSolver``, and
 ``DetonationSolver`` expose the same properties as the Fortran core.  See
 :doc:`interfaces/python_api` for the full API reference.
 
-Quick MATLAB Example
---------------------
-
-MATLAB support is provided through the Python package namespace. Install the
-Python package, point MATLAB at that Python interpreter with ``pyenv(...)``,
-then import both ``cea`` and ``cea.matlab``::
-
-    cea = py.importlib.import_module('cea');
-    ceam = py.importlib.import_module('cea.matlab');
-
-    reactants = py.list({'H2', 'O2'});
-    fuel = py.numpy.array([2.0, 0.0]);
-    oxid = py.numpy.array([0.0, 1.0]);
-    soln = ceam.detonation_solve(reactants, 298.15, 1.0, ...
-        pyargs('fuel_amounts', fuel, 'oxid_amounts', oxid, 'r_eq', 1.0));
-
-The MATLAB-oriented wrappers are ``ceam.eq_solve(...)``,
-``ceam.rocket_solve(...)``, ``ceam.shock_solve(...)``, and
-``ceam.detonation_solve(...)``. They return flat namespace-style objects with
-scalars, arrays, and dictionaries. For complete scripts, see
-``source/bind/matlab/samples/``.
-
 Reporting Issues
 ----------------
 
