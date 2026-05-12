@@ -26,14 +26,14 @@ from . import units as units
 
 
 def eq_solve(*args, **kwargs):
-    from .matlab import eq_solve as _matlab_eq_solve
+    from .lib.libcea import eq_solve as _libcea_eq_solve
 
     _warnings.warn(
         "cea.eq_solve is deprecated; use cea.matlab.eq_solve instead.",
         DeprecationWarning,
         stacklevel=2,
     )
-    return _matlab_eq_solve(*args, **kwargs)
+    return _libcea_eq_solve(*args, **kwargs)
 
 __all__ = list(_libcea_all)
 __all__.extend([
@@ -43,7 +43,6 @@ __all__.extend([
     "lib_version_minor",
     "lib_version_patch",
     "R",
-    "eq_solve",
     "units",
 ])
 
