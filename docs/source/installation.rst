@@ -98,8 +98,8 @@ Fortran + C (no Python bindings)::
     cmake --install build-core-c
 
 If you are not using presets, set ``-DCEA_ENABLE_BIND_PYTHON=OFF`` and also
-disable the MATLAB wrapper (it forces Python on). For Fortran-only,
-add ``-DCEA_ENABLE_BIND_C=OFF``.
+disable the MATLAB compatibility option (``CEA_ENABLE_BIND_MATLAB``, which
+forces Python on). For Fortran-only, add ``-DCEA_ENABLE_BIND_C=OFF``.
 
 
 Selecting Compilers and Generators

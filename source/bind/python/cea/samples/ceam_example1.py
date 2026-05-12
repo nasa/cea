@@ -1,5 +1,6 @@
 import numpy as np
 import cea
+import cea.matlab
 import os
 
 R = cea.R
@@ -43,9 +44,17 @@ i = 0
 for r_eq in chem_eq_ratios:
     for p in pressures:
         for t in temperatures:
-            solution = cea.eq_solve(cea.TP, reac_names, T=t, P=p,
-                                    fuel_amounts=fuel_moles, oxid_amounts=oxidant_moles, moles=True,
-                                    r_eq=r_eq, only=prod_names)
+            solution = cea.matlab.eq_solve(
+                cea.TP,
+                reac_names,
+                T=t,
+                P=p,
+                fuel_amounts=fuel_moles,
+                oxid_amounts=oxidant_moles,
+                moles=True,
+                r_eq=r_eq,
+                only=prod_names,
+            )
 
             # Store the output
             T_out[i] = t

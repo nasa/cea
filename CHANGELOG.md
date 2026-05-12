@@ -5,10 +5,15 @@ All notable user-visible changes to this project are documented here.
 ## [Unreleased]
 
 ### Changed
+- Python `cea.eq_solve` is now a deprecated compatibility shim that forwards to
+  `cea.matlab.eq_solve`, and MATLAB-facing docs now point to the Python package
+  namespace instead of an active separate MATLAB extension.
 
 ### Fixed
 
 ### Added
+- Added a pure-Python `cea.matlab` module with the Matlab-oriented `eq_solve`
+  entry point.
 
 ## [3.2.0] - 2026-05-12
 

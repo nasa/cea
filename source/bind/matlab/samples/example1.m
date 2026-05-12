@@ -5,6 +5,7 @@ pyenv('Version', pythonExe);
 clear; clc;
 
 cea = py.importlib.import_module('cea');
+ceam = py.importlib.import_module('cea.matlab');
 
 atm_to_bar = 1.01325;
 J_to_cal = 1./4.184;
@@ -50,7 +51,7 @@ i = 1;
 for r_eq = chem_eq_ratios
     for p = pressures
         for t = temperatures
-            solution = cea.eq_solve(cea.TP, reac_names, T=t, P=p, ...
+            solution = ceam.eq_solve(cea.TP, reac_names, T=t, P=p, ...
                                     fuel_amounts=py.numpy.array(fuel_moles), ...
                                     oxid_amounts=py.numpy.array(oxidant_moles), ...
                                     moles=true, ...

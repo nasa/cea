@@ -1,7 +1,10 @@
 option(CEA_ENABLE_BIND_C      "Enable C language bindings"       ON)
 option(CEA_ENABLE_BIND_CXX    "Enable C++ language bindings"     OFF)
 option(CEA_ENABLE_BIND_PYTHON "Enable Python language bindings"  ON)
-option(CEA_ENABLE_BIND_MATLAB "Enable MatLab language bindings"  ON)
+option(CEA_ENABLE_BIND_MATLAB
+    "Enable MATLAB compatibility mode (forces Python bindings ON)"
+    ON
+)
 option(CEA_ENABLE_BIND_EXCEL  "Enable Excel language bindings"   ON)
 
 if (CEA_ENABLE_BIND_MATLAB)
@@ -90,7 +93,7 @@ if (CEA_ENABLE_BIND_PYTHON)
 endif()
 
 #=====================================================================
-# Matlab Bindings
+# Legacy MATLAB Bindings
 #=====================================================================
 # if (CEA_ENABLE_BIND_MATLAB)
 
