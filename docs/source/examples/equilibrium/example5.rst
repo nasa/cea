@@ -22,8 +22,7 @@ Define the pressure schedule and reactant composition by weight fraction:
     T_reac = np.array([298.15, 298.15, 298.15, 298.15, 298.15], dtype=np.float64)
 
 Create a :class:`~cea.Reactant` for ``CHOS-Binder`` using explicit enthalpy units.
-For backward compatibility, omitting ``enthalpy_units`` still defaults to ``J/kg`` for now,
-but that implicit behavior is deprecated and emits a warning.
+When ``enthalpy`` is provided, ``enthalpy_units`` is required.
 
 .. code-block:: python
 

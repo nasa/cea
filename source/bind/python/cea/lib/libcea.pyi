@@ -198,9 +198,20 @@ class Reactant:
         self,
         name: str,
         formula: Mapping[str, SupportsFloat] | None = None,
-        molecular_weight: SupportsFloat = ...,
-        enthalpy: SupportsFloat = ...,
-        enthalpy_units: WeightEnthalpyUnits = ...,
+        molecular_weight: SupportsFloat | None = None,
+        enthalpy: None = None,
+        enthalpy_units: None = None,
+        temperature: SupportsFloat | None = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self,
+        name: str,
+        formula: Mapping[str, SupportsFloat] | None = None,
+        molecular_weight: SupportsFloat,
+        enthalpy: SupportsFloat,
+        enthalpy_units: WeightEnthalpyUnits,
         temperature: SupportsFloat | None = None,
     ) -> None: ...
 
@@ -210,8 +221,8 @@ class Reactant:
         name: str,
         formula: Mapping[str, SupportsFloat] | None = None,
         molecular_weight: SupportsFloat | None = None,
-        enthalpy: SupportsFloat | None = None,
-        enthalpy_units: MolarEnthalpyUnits | None = None,
+        enthalpy: SupportsFloat,
+        enthalpy_units: MolarEnthalpyUnits,
         temperature: SupportsFloat | None = None,
     ) -> None: ...
 

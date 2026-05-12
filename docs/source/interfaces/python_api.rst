@@ -11,10 +11,8 @@ The :class:`~cea.Mixture` class is used to define a mixture of product or reacta
 The instances of this class are then passed as inputs to the available solver classes (e.g., :class:`~cea.EqSolver`, :class:`~cea.RocketSolver`, :class:`~cea.ShockSolver`, or :class:`~cea.DetonationSolver`).
 Custom reactants can be provided through :class:`~cea.Reactant` objects (including mixed lists of strings and Reactant objects).
 For :class:`~cea.Reactant`, ``temperature`` is in K, and ``enthalpy`` must be paired with explicit
-``enthalpy_units`` (for example ``"J/kg"`` or ``"kJ/mol"``). Omitting ``enthalpy_units`` while
-providing ``enthalpy`` preserves the legacy default (``J/kg``) for backward compatibility, but this
-is deprecated and emits a ``FutureWarning``. A future minor version will require explicit
-``enthalpy_units``.
+``enthalpy_units`` (for example ``"J/kg"`` or ``"kJ/mol"``). Weight-based enthalpy units require
+``molecular_weight`` for conversion, while molar enthalpy units do not.
 
 .. autoclass:: cea.Reactant
    :members:

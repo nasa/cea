@@ -6,10 +6,9 @@ All notable user-visible changes to this project are documented here.
 
 ### Changed
 - Python `cea.Reactant` now supports explicit `enthalpy_units` for custom reactant enthalpy input (`J/kg`, `kJ/kg`, `cal/kg`, `kcal/kg`, `J/mol`, `kJ/mol`, `cal/mol`, `kcal/mol`; `/mol` and `/mole` spellings accepted).
-- Backward-compatible behavior is preserved when `Reactant.enthalpy` is provided without `enthalpy_units`: the legacy default (`J/kg`) is still used, but this now emits a `FutureWarning` directing users to pass `enthalpy_units` explicitly.
+- Python `cea.Reactant` now requires explicit `enthalpy_units` whenever `enthalpy` is provided; omitting the units now raises `ValueError` instead of falling back to the legacy implicit `J/kg` default.
 - Weight-based enthalpy units (`*/kg`) now require `Reactant.molecular_weight` for conversion, while molar units (`*/mol`) do not require molecular weight for enthalpy interpretation.
 - Python docs and examples were updated to pass explicit `enthalpy_units` for custom reactants (including RP-1311 Example 5) instead of relying on implicit defaults.
-- **Compatibility notice:** a future **minor** version increment will require `enthalpy_units` whenever `Reactant.enthalpy` is defined. Code that currently relies on implicit enthalpy units may break until updated.
 - Smooth-truncation derivative assembly in the equilibrium solver now uses an effective Jacobian/chain-rule formulation across TP/HP/SP/TV/UV/SV solves so reported sensitivities track the smoothed species-activity model more consistently near truncation thresholds.
 
 ### Fixed
@@ -17,7 +16,7 @@ All notable user-visible changes to this project are documented here.
 - Corrected user-facing viscosity unit labels in the equilibrium core comments and Python bindings to report millipoise consistently.
 
 ### Added
-- Added Python regression coverage for `Reactant` enthalpy-unit handling, including omitted-units warning behavior, explicit molar/weight units, molecular-weight requirements for weight units, and accepted unit spellings.
+- Added Python regression coverage for `Reactant` enthalpy-unit handling, including required explicit units, explicit molar/weight units, molecular-weight requirements for weight units, and accepted unit spellings.
 - Added pfunit regression coverage for smooth-truncation derivative chain-rule behavior, targeted finite-difference agreement across TP/HP/SP/TV/UV/SV constraints, and reported-entropy consistency checks.
 
 ## [3.1.2] - 2026-03-23

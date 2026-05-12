@@ -546,9 +546,7 @@ cdef class Reactant:
         Units for ``enthalpy``. Supported values (case-insensitive):
         ``J/kg``, ``kJ/kg``, ``cal/kg``, ``kcal/kg``, ``J/mol``, ``kJ/mol``,
         ``cal/mol``, ``kcal/mol`` (``/mole`` spellings are also accepted).
-        If omitted while ``enthalpy`` is provided, the legacy default ``J/kg``
-        is used for backward compatibility and a ``FutureWarning`` is emitted.
-        Future minor versions will require explicit ``enthalpy_units``.
+        Required whenever ``enthalpy`` is provided.
     temperature : float, optional
         Reference temperature in SI units (K).
 
@@ -612,16 +610,10 @@ cdef class Reactant:
 
         if enthalpy is not None:
             if enthalpy_units is None:
-                warnings.warn(
-                    "Reactant enthalpy without explicit enthalpy_units is deprecated; "
-                    "using legacy default J/kg for backward compatibility. "
-                    "Future minor versions will require explicit enthalpy_units. "
-                    "Pass enthalpy_units='J/kg' or enthalpy_units='kJ/mol'.",
-                    FutureWarning,
+                raise ValueError(
+                    "Reactant enthalpy requires explicit enthalpy_units; "
+                    "pass enthalpy_units='J/kg' or enthalpy_units='kJ/mol'"
                 )
-                normalized_enthalpy_units = "j/kg"
-                enthalpy_core_units = "j/mole"
-                enthalpy_is_weight_units = True
             else:
                 (
                     normalized_enthalpy_units,

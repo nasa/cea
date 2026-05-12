@@ -240,40 +240,21 @@ def test_example5_hp_custom_reactant(cea_module):
     assert soln.mole_fractions["CO"] == pytest.approx(0.25896, rel=1e-4)
 
 
-def test_reactant_enthalpy_implicit_units_warn_and_match_explicit(cea_module):
+def test_reactant_enthalpy_requires_explicit_units(cea_module):
     cea = cea_module
     mw = 14.6652984484
     h_cal_per_mol = -2999.082
     h_j_per_kg = cea.units.cal_to_joule(h_cal_per_mol) / (mw * 1.0e-3)
     formula = {"C": 1.0, "H": 1.86955, "O": 0.031256, "S": 0.008415}
 
-    with pytest.warns(FutureWarning, match="legacy default J/kg"):
-        legacy = cea.Reactant(
+    with pytest.raises(ValueError, match="requires explicit enthalpy_units"):
+        cea.Reactant(
             name="CHOS-Binder",
             formula=formula,
             molecular_weight=mw,
             enthalpy=h_j_per_kg,
             temperature=298.15,
         )
-    explicit = cea.Reactant(
-        name="CHOS-Binder",
-        formula=formula,
-        molecular_weight=mw,
-        enthalpy=h_j_per_kg,
-        enthalpy_units="J/kg",
-        temperature=298.15,
-    )
-
-    assert legacy.enthalpy_units == "j/kg"
-    assert explicit.enthalpy_units == "j/kg"
-
-    mix_legacy = cea.Mixture([legacy])
-    mix_explicit = cea.Mixture([explicit])
-    weights = np.array([1.0], dtype=np.float64)
-    T_reac = np.array([298.15], dtype=np.float64)
-    h_legacy = mix_legacy.calc_property(cea.ENTHALPY, weights, T_reac)
-    h_explicit = mix_explicit.calc_property(cea.ENTHALPY, weights, T_reac)
-    assert h_legacy == pytest.approx(h_explicit, rel=1e-12)
 
 
 def test_reactant_molar_enthalpy_units_do_not_require_molecular_weight(cea_module):
