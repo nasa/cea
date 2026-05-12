@@ -1,4 +1,4 @@
-__version__ = "3.1.2"
+__version__ = "3.2.0"
 
 # initialize libcea, loading in the default data files
 from cea.lib.libcea import init as libcea_init
