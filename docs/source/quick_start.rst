@@ -85,22 +85,59 @@ Quick Python Example
 The editable install emitted by ``cmake --build`` exposes the Python API.  From
 the repository root::
 
-    pip install -e .
-    python - <<'PY'
-    import numpy as np
-    from cea import EqSolver, TP, TEMPERATURE, PRESSURE
 
-    solver = EqSolver()
-    solver.set_problem_type(TP)
-    solver.set_state_property(TEMPERATURE, 3500.0)  # Kelvin
-    solver.set_state_property(PRESSURE, 1.0e6)      # Pa
-    solver.set_reactant_fraction("H2", 2.0)
-    solver.set_reactant_fraction("O2", 1.0)
-    solution = solver.solve()
-    print("Equilibrium temperature:", solution.temperature, "K")
-    print("Major species:", dict(zip(solution.species_names,
-                                     np.round(solution.mass_fractions, 3))))
-    PY
+    import cea
+    import numpy as np
+    
+    atmospheric_pressure = cea.units.atm_to_bar(1)
+    chamber_pressure = cea.units.psi_to_bar(250)
+    oxidizer_to_fuel_ratio = 1
+    
+    reactant_names = ["C3H8O,2propanol", "O2(L)",]
+    reactant_temperatures = np.array([300.0, 90.17,])
+    
+    fuel_weights = np.array([1, 0])
+    oxidizer_weights = np.array([0, 1])
+    
+    reactants = cea.Mixture(reactant_names = reactant_names)
+    products = cea.Mixture(reactant_names = reactant_names, products_from_reactants = True)
+    
+    reactant_weights = reactants.of_ratio_to_weights(
+        oxidizer_weights,
+        fuel_weights,
+        oxidizer_to_fuel_ratio,
+    )
+    
+    # needed to solve rocket problem
+    chamber_enthalpy = (
+        reactants.calc_property(
+            cea.ENTHALPY,
+            reactant_weights,
+            reactant_temperatures,
+        ) / cea.R) # divided by universal gas constant
+    
+    chamber_to_exit_pressure_ratio = chamber_pressure / atmospheric_pressure
+    
+    solver = cea.RocketSolver(products = products, reactants = reactants)
+    solution = cea.RocketSolution(solver = solver)
+    
+    solver.solve(
+        soln = solution,
+        weights = reactant_weights,
+        pc = chamber_pressure,
+        pi_p = chamber_to_exit_pressure_ratio,
+        hc = chamber_enthalpy,
+        iac = True, # infinite area combustor
+    )
+    
+    standard_gravity = 9.80665
+    # [-1] give the last station which is the exit nozzle
+    exit_specific_impulse = solution.Isp[-1] / standard_gravity
+    exit_pressure = solution.P[-1]
+    
+    print(f"Nozzle Exit Specific Impulse: {exit_specific_impulse:.2f} seconds")
+    print(f"Nozzle Exit Pressure: {exit_pressure:.3f} bar")
+
 
 CEA does not perform unit conversions by default; inputs and outputs are in the
 documented CEA units, and users must convert as needed. Use the conversion
