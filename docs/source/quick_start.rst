@@ -99,8 +99,8 @@ the repository root::
     fuel_weights = np.array([1, 0])
     oxidizer_weights = np.array([0, 1])
     
-    reactants = cea.Mixture(reactant_names = reactant_names)
-    products = cea.Mixture(reactant_names = reactant_names, products_from_reactants = True)
+    reactants = cea.Mixture(reactant_names)
+    products = cea.Mixture(reactant_names, products_from_reactants = True)
     
     reactant_weights = reactants.of_ratio_to_weights(
         oxidizer_weights,
