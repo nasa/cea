@@ -5,7 +5,7 @@ option(CEA_ENABLE_BIND_MATLAB
     "Enable MATLAB compatibility mode (forces Python bindings ON)"
     ON
 )
-option(CEA_ENABLE_BIND_EXCEL  "Enable Excel language bindings"   ON)
+option(CEA_ENABLE_BIND_EXCEL  "Enable Excel language bindings"   OFF)
 
 if (CEA_ENABLE_BIND_MATLAB)
     set(CEA_ENABLE_BIND_PYTHON ON CACHE BOOL "Enable Python language bindings" FORCE)
@@ -14,13 +14,21 @@ endif()
 if (CEA_ENABLE_BIND_CXX OR
     CEA_ENABLE_BIND_PYTHON OR
     CEA_ENABLE_BIND_MATLAB OR
-    CEA_ENABLE_BIND_EXCEL)
+    (WIN32 AND CEA_ENABLE_BIND_EXCEL))
     set(CEA_ENABLE_BIND_C ON CACHE BOOL "Enable C language bindings" FORCE)
 endif()
 
 if (CEA_ENABLE_BIND_C)
     enable_language(C)
     add_subdirectory(c)
+endif()
+
+if (CEA_ENABLE_BIND_EXCEL)
+    if (WIN32)
+        add_subdirectory(excel)
+    else()
+        message(WARNING "CEA Excel wrapper is supported on 64-bit Windows only; skipping Excel binding.")
+    endif()
 endif()
 
 #=====================================================================

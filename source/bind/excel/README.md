@@ -1,3 +1,87 @@
-The Excel interface is not currently supported or distributed. This folder
-contains experimental artifacts and is a priority upgrade area. Contributions
-and feedback are welcome.
+CEA Excel/VBA Wrapper (First Pass)
+==================================
+This directory contains a minimal native wrapper that lets Excel/VBA verify the
+native bridge by calling exported C functions from 64-bit Windows Excel/VBA.
+
+What this first pass does
+-------------------------
+- Builds a small shared library named `cea_excel`.
+- Exports `int cea_excel_version(char *version, int version_len)`.
+- Exports `int cea_excel_test_add(int a, int b)` for trivial smoke testing.
+- Returns the existing CEA library version as `major.minor.patch`.
+- Provides starter VBA modules for 64-bit Windows smoke testing.
+
+What this first pass does not do
+--------------------------------
+- It does not build an XLL.
+- It does not build an Office.js add-in.
+- It does not expose the full CEA C API to VBA.
+- It does not install or register the library for Excel automatically.
+- It does not embed VBA into `cea_template.xlsm`.
+
+Build option
+------------
+- CMake option: `CEA_ENABLE_BIND_EXCEL`
+- Default: `OFF`
+- Current repository presets leave it disabled.
+
+Build commands
+--------------
+Explicit configure/build:
+
+```bash
+cmake -S . -B build-excel -DCEA_ENABLE_BIND_EXCEL=ON
+cmake --build build-excel --target cea_excel --config Release
+```
+
+Native library output
+---------------------
+- Single-config generators place the wrapper in `source/bind/excel/lib/`.
+- Multi-config generators may place it in a configuration subdirectory such as
+  `source/bind/excel/lib/Release/`.
+
+Expected filenames
+------------------
+- Windows: `cea_excel.dll`
+
+Platform support
+----------------
+- Supported: 64-bit Windows Excel/VBA
+- Not supported: macOS Excel/VBA
+- Not supported: 32-bit Office
+
+VBA smoke test files
+--------------------
+- `vba/modCEADeclare.bas`
+- `vba/modCEATest.bas`
+
+Manual workbook setup
+---------------------
+This first pass does not modify `cea_template.xlsm`. To create a workbook for
+manual testing:
+
+1. Create or open a macro-enabled workbook in Excel.
+2. Add a sheet named `README`.
+3. Import `vba/modCEADeclare.bas`.
+4. Import `vba/modCEATest.bas`.
+5. Add a button on the `README` sheet and assign
+   `WriteCEAVersionToReadme`.
+6. Save the workbook as `cea_template.xlsm` if desired.
+
+Testing from Excel on Windows
+-----------------------------
+1. Build `cea_excel.dll`.
+2. Ensure `cea_excel.dll` is in a location Excel can load.
+3. If Excel cannot discover the DLL by filename alone, update the `Lib` string
+   in `modCEADeclare.bas` to a full path for local testing.
+4. In Excel, run `TestCEAAdd` first, then `TestCEAVersion` or
+   `WriteCEAVersionToReadme`.
+
+Known limitations
+-----------------
+- The native library must be discoverable by Excel/VBA.
+- The wrapper is intentionally kept minimal; this first pass only exposes a
+  trivial add function and the version string bridge.
+- On Windows, this first pass targets 64-bit Excel.
+- 32-bit Office is not supported or planned.
+- macOS direct dylib loading from VBA is not supported in this wrapper.
