@@ -1,103 +1,206 @@
-SHOCK WAVE PARAMETERS ASSUMING
-EQUILIBRIUM COMPOSITION FOR INCIDENT SHOCKED CONDITIONS
 
-INITIAL GAS (1)
-Mach1                3.353    3.658    3.810    3.962    4.115    4.267
-u1, m/s           1100.000 1200.000 1250.000 1300.000 1350.000 1400.000
-P, bar               0.013    0.013    0.013    0.013    0.013    0.013
-T, K               300.000  300.000  300.000  300.000  300.000  300.000
-rho1, kg/m^3      0.201E-1 0.201E-1 0.201E-1 0.201E-1 0.201E-1 0.201E-1
-H, kJ/kg              1.06     1.06     1.06     1.06     1.06     1.06
-U, kJ/kg            -65.18   -65.18   -65.18   -65.18   -65.18   -65.18
-G, kJ/kg           -1556.3  -1556.3  -1556.3  -1556.3  -1556.3  -1556.3
-S, kJ/(kg-K)          5.19     5.19     5.19     5.19     5.19     5.19
+ *******************************************************************************
 
-M, (1/n)            37.654   37.654   37.654   37.654   37.654   37.654
-Cp, kJ/(kg-K)        0.574    0.574    0.574    0.574    0.574    0.574
-Gamma_s              1.625    1.625    1.625    1.625    1.625    1.625
-Son. Vel., m/s     328.087  328.087  328.087  328.087  328.087  328.087
+         NASA-GLENN CHEMICAL EQUILIBRIUM PROGRAM CEA2, MAY 21, 2004
+                   BY  BONNIE MCBRIDE AND SANFORD GORDON
+      REFS: NASA RP-1311, PART I, 1994 AND NASA RP-1311, PART II, 1996
 
-SHOCKED GAS (2)--INCIDENT--EQUILIBRIUM
-u2, m/s            666.379  575.193  558.800  546.820  536.923  527.831
-P, bar               0.109    0.164    0.187    0.210    0.234    0.259
-T, K              1528.516 1816.425 1930.785 2040.819 2147.137 2249.058
-rho, kg/m^3       0.332E-1 0.420E-1 0.450E-1 0.478E-1 0.506E-1 0.534E-1
-H, kJ/kg            384.03   555.64   626.18   696.56   768.17   841.76
-U, kJ/kg             54.94   164.50   210.33   256.84   305.26   356.43
-G, kJ/kg           -8121.8  -9580.0 -10165.8 -10731.5 -11279.0 -11803.6
-S, kJ/(kg-K)          5.56     5.58     5.59     5.60     5.61     5.62
-
-M, (1/n)            38.618   38.612   38.603   38.589   38.566   38.530
-(dln(V)/dln(P))t    -1.000   -1.000   -1.000   -1.000   -1.001   -1.001
-(dln(V)/dln(T))p     1.000    1.003    1.005    1.010    1.017    1.028
-Cp, kJ/(kg-K)        0.588    0.610    0.629    0.659    0.703    0.765
-Gamma_s              1.578    1.550    1.529    1.499    1.463    1.422
-Son. Vel., m/s     720.739  778.702  797.278  811.952  822.928  830.819
-
-P2/P1              8.20040 12.31846 14.04268 15.78069 17.56982 19.43236
-T2/T1              5.09505  6.05475  6.43595  6.80273  7.15712  7.49686
-M2/M1              1.02562  1.02543  1.02522  1.02484  1.02422  1.02326
-rho2/rho1          1.65071  2.08626  2.23694  2.37738  2.51433  2.65236
-v2, m/s            433.621  624.807  691.200  753.180  813.077  872.169
-
- 
-MOLE FRACTIONS
- 
- Ar               0.923054 0.922890 0.922696 0.922356 0.921797 0.920935
- H                1.217E-7 7.122E-6 2.562E-5 7.642E-5 1.964E-4 4.425E-4
- H2               2.659E-6 4.928E-5 1.231E-4 2.682E-4 5.234E-4 9.260E-4
- H2O              0.051235 0.050930 0.050603 0.050071 0.049259 0.048095
- H2O2             6.68E-10 3.164E-9 5.150E-9 7.792E-9 1.111E-8 1.502E-8
- HO2              2.110E-8 1.221E-7 2.115E-7 3.374E-7 5.041E-7 7.109E-7
- O                2.871E-6 5.590E-5 1.420E-4 3.146E-4 6.252E-4 0.001130
- O2               0.025619 0.025490 0.025366 0.025185 0.024938 0.024629
- OH               8.642E-5 5.773E-4 0.001045 0.001728 0.002660 0.003840
- 
-PRODUCTS WHICH WERE CONSIDERED BUT WHOSE MOLE FRACTIONS
-WERE LESS THAN 5.000000E-09 FOR ALL ASSIGNED CONDITIONS
-
- O3              H2O(L)          H2O(cr)        
+ *******************************************************************************
 
 
-SHOCKED GAS (5)--REFLECTED--EQUILIBRIUM
-u5, m/s            605.695  591.085  581.283  572.168  564.144  557.505
-P, bar               0.259    0.483    0.583    0.688    0.801    0.925
-T, K              2108.374 2576.807 2712.186 2829.415 2936.791 3039.429
-rho, kg/m^3       0.570E-1 0.864E-1 0.985E-1 0.111E+0 0.124E+0 0.137E+0
-H, kJ/kg            740.71  1120.15  1266.85  1411.25  1557.42  1708.34
-U, kJ/kg            286.30   560.69   675.09   790.47   909.11  1032.84
-G, kJ/kg          -11016.0 -13317.3 -13968.5 -14527.8 -15037.2 -15522.9
-S, kJ/(kg-K)          5.58     5.60     5.62     5.63     5.65     5.67
 
-M, (1/n)            38.578   38.296   38.108   37.896   37.664   37.412
-(dln(V)/dln(P))t    -1.000   -1.004   -1.006   -1.009   -1.011   -1.014
-(dln(V)/dln(T))p     1.013    1.092    1.138    1.184    1.228    1.268
-Cp, kJ/(kg-K)        0.680    1.078    1.277    1.462    1.628    1.769
-Gamma_s              1.481    1.309    1.274    1.253    1.239    1.232
-Son. Vel., m/s     820.447  855.924  868.302  881.787  896.395  912.199
+ !  EXAMPLE 7:
+ !     (a)  Shock tube problem (shock).
+ !     (b)  Reactants are H2, O2, and Ar gases at 300 K.  Note that for shock
+ !          problems reactants must be gaseous species in the thermodynamic
+ !          data base.  The program calculates properties of the
+ !          reactants at the temperature given (300 K) using the thermo.lib
+ !          coefficients.
+ !     (c)  Reactants are given in moles (moles = ...).
+ !     (d)  Initial gas pressures are 10 and 20 mm Hg (p,mmhg=10,20,)
+ !     (e)  Seven initial gas velocities are assigned (u1=1000,1100,1200,
+ !          1250,1300,1350,1400,).  Note units of u1 are always m/s.
+ !     (f)  Equilibrium calculations are to be performed for incident shock
+ !          conditions (incd  eql).
+ !     (g)  Frozen calculations are to be performed for incident shock
+ !          conditions (incd  froz).
+ !     (h)  No 'outp' dataset is given since the default values of the
+ !          the parameters have the desired  values (e.g. SI units).
+  
+ reac   name= H2  moles= 0.050  t(k) 300.00
+        name= O2  moles= 0.050  t(k) 300.00
+        name= Ar  moles= 0.900  t(k) 300.00
+  
+ problem  case=7 p,bar=0.1, shock u1=1400,
+   incd refl eql
+  
+ output long
+  
+ end
 
-P5/P2              2.36933  2.94225  3.11501  3.27014  3.41904  3.56919
-T5/T2              1.37936  1.41861  1.40471  1.38641  1.36777  1.35142
-M5/M2              0.99895  0.99181  0.98717  0.98205  0.97661  0.97098
-rho5/rho2          1.71591  2.05705  2.18909  2.31636  2.44126  2.56441
-u5+v2, m/s        1039.316 1215.892 1272.483 1325.348 1377.221 1429.673
+ OPTIONS: TP=F  HP=F  SP=F  TV=F  UV=F  SV=F  DETN=F  SHOCK=T  REFL=T  INCD=T
+ RKT=F  FROZ=F  EQL=T  IONS=F  SIUNIT=T  DEBUGF=F  SHKDBG=F  DETDBG=F  TRNSPT=F
 
- 
-MOLE FRACTIONS
- 
- Ar               0.922089 0.915336 0.910855 0.905797 0.900240 0.894208
- H                1.270E-4 0.002906 0.005495 0.008807 0.012794 0.017443
- H2               3.864E-4 0.003340 0.004959 0.006472 0.007790 0.008855
- H2O              0.049672 0.041575 0.037080 0.032499 0.027955 0.023521
- H2O2             1.054E-8 3.678E-8 4.599E-8 5.285E-8 5.724E-8 5.902E-8
- HO2              4.539E-7 1.846E-6 2.438E-6 2.967E-6 3.420E-6 3.781E-6
- O                4.581E-4 0.004590 0.007465 0.010813 0.014631 0.018952
- O2               0.025057 0.023285 0.022512 0.021717 0.020847 0.019859
- OH               0.002210 0.008966 0.011632 0.013892 0.015740 0.017159
- 
-PRODUCTS WHICH WERE CONSIDERED BUT WHOSE MOLE FRACTIONS
-WERE LESS THAN 5.000000E-09 FOR ALL ASSIGNED CONDITIONS
+ TRACE= 0.00E+00  S/R= 0.000000E+00  H/R= 0.000000E+00  U/R= 0.000000E+00
 
- O3              H2O(L)          H2O(cr)        
+ P,BAR =     0.100000
+
+    REACTANT           MOLES    (ENERGY/R),K   TEMP,K  DENSITY
+        EXPLODED FORMULA
+ N: H2               0.050000   0.641759E+01   300.00  0.0000
+          H  2.00000
+ N: O2               0.050000   0.653777E+01   300.00  0.0000
+          O  2.00000
+ N: Ar               0.900000   0.462500E+01   300.00  0.0000
+          AR 1.00000
+
+  SPECIES BEING CONSIDERED IN THIS SYSTEM
+ (CONDENSED PHASE MAY HAVE NAME LISTED SEVERAL TIMES)
+  LAST thermo.inp UPDATE:    9/09/04
+
+  g 3/98  *Ar              g 6/97  *H               g 4/02  HO2            
+  tpis78  *H2              g 8/89  H2O              g 6/99  H2O2           
+  g 5/97  *O               g 4/02  *OH              tpis89  *O2            
+  g 8/01  O3               g11/99  H2O(cr)          g 8/01  H2O(L)         
+  g 8/01  H2O(L)         
+
+   *** INPUT FOR SHOCK PROBLEMS ***
+
+ INCDEQ = T   REFLEQ = T   INCDFZ = F    REFLFZ = F
+
+ U1 =    1.400000E+03
+
+ MACH1 = 0.000000E+00
+
+ O/F =   0.000000
+
+                       EFFECTIVE FUEL     EFFECTIVE OXIDANT        MIXTURE
+ ENTHALPY                  h(2)/R              h(1)/R               h0/R
+ (KG-MOL)(K)/KG        0.12774942E+00      0.00000000E+00      0.12774942E+00
+
+ KG-FORM.WT./KG             bi(2)               bi(1)               b0i
+  *H                   0.26557650E-02      0.00000000E+00      0.26557650E-02
+  *O                   0.26557650E-02      0.00000000E+00      0.26557650E-02
+  *Ar                  0.23901885E-01      0.00000000E+00      0.23901885E-01
+
+
+
+
+                         SHOCK WAVE PARAMETERS ASSUMING
+
+                 EQUILIBRIUM COMPOSITION FOR INCIDENT SHOCKED CONDITIONS
+
+
+ CASE = 7              
+
+             REACTANT                       MOLES         ENERGY      TEMP
+                                                         KJ/KG-MOL      K
+ NAME        H2               0.500000000000000E-01  0.533590999122645E+02  0.300000000000000E+03
+ NAME        O2               0.500000000000000E-01  0.543583825560021E+02  0.300000000000000E+03
+ NAME        Ar               0.900000000000000E+00  0.384546087500000E+02  0.300000000000000E+03
+
+ O/F=  0.000000000000000E+00  %FUEL=  0.000000000000000E+00  R,EQ.RATIO=  0.500000000000000E+00  PHI,EQ.RATIO=  0.000000000000000E+00
+
+ INITIAL GAS (1)
+ MACH NUMBER1     0.426715654966385E+01
+ U1, M/SEC        0.140000000000000E+04
+ P, BAR           0.100000000000000E+00
+ T, K             0.300000000000000E+03
+ RHO, KG/CU M      0.150956717032433E+00
+ H, KJ/KG         0.106217379566272E+01
+ U, KJ/KG        -0.651819801352386E+02
+ G, KJ/KG        -0.142278379630548E+04
+ S, KJ/(KG)(K)    0.474615323367047E+01
+
+ M, (1/n)         0.376539340000000E+02
+ Cp, KJ/(KG)(K)   0.574162546713278E+00
+ GAMMAs           0.162491766989173E+01
+ SON VEL,M/SEC    0.328087330217656E+03
+
+ SHOCKED GAS (2)--INCIDENT--EQUILIBRIUM
+ U2, M/SEC        0.537129571785348E+03
+ P, BAR           0.192358522798536E+01
+ T, K             0.226818398404650E+04
+ RHO, KG/CU M      0.393460749410876E+00
+ H, KJ/KG         0.836808100374360E+03
+ U, KJ/KG         0.347919378725373E+03
+ G, KJ/KG        -0.109304355036229E+05
+ S, KJ/(KG)(K)    0.518795815805217E+01
+
+ M, (1/n)         0.385749099582107E+02
+ (dLV/dLP)t      -0.100043238870357E+01
+ (dLV/dLT)p       0.101261186376503E+01
+ Cp, KJ/(KG)(K)   0.674022112158360E+00
+ GAMMAs           0.148692090850231E+01
+ SON VEL,M/SEC    0.852607097173630E+03
+
+ P2/P1            0.192358522798536E+02
+ T2/T1            0.756061328015499E+01
+ M2/M1            0.102445895714936E+01
+ RHO2/RHO1        0.260644744497419E+01
+ V2, M/SEC        0.862870428214652E+03
+
+ MOLE FRACTIONS
+
+ *Ar              0.922013061434422E+00
+ *H               0.116657933001448E-03
+ HO2              0.127766340355674E-05
+ *H2              0.389121788358003E-03
+ H2O              0.495019081036036E-01
+ H2O2             0.445949968451753E-07
+ *O               0.468702725285454E-03
+ *OH              0.254581114461325E-02
+ *O2              0.249634146123161E-01
+
+  * THERMODYNAMIC PROPERTIES FITTED TO 20000.K
+
+    PRODUCTS WHICH WERE CONSIDERED BUT WHOSE MOLE FRACTIONS
+    WERE LESS THAN 5.000000E-09 FOR ALL ASSIGNED CONDITIONS
+
+ O3              H2O(cr)         H2O(L)         
+
+ SHOCKED GAS (5)--REFLECTED--EQUILIBRIUM
+ U5, M/SEC        0.353461934123471E+03
+ P, BAR           0.688575880096002E+01
+ T, K             0.325328812229202E+04
+ RHO, KG/CU M      0.960515440429929E+00
+ H, KJ/KG         0.172569707921101E+04
+ U, KJ/KG         0.100881544346365E+04
+ G, KJ/KG        -0.152904010352186E+05
+ S, KJ/(KG)(K)    0.523043071341659E+01
+
+ M, (1/n)         0.377321656419317E+02
+ (dLV/dLP)t      -0.101015380362947E+01
+ (dLV/dLT)p       0.118737820096711E+01
+ Cp, KJ/(KG)(K)   0.136906486418611E+01
+ GAMMAs           0.127676330974167E+01
+ SON VEL,M/SEC    0.956706940473320E+03
+
+ P5/P2            0.357964840901369E+01
+ T5/T2            0.143431403500525E+01
+ M5/M2            0.978153045147947E+00
+ RHO5/RHO2        0.244119760832077E+01
+ U5+V2,M/SEC      0.509408494091181E+03
+
+ MOLE FRACTIONS
+
+ *Ar              0.901869883708218E+00
+ *H               0.107052676559523E-01
+ HO2              0.994419094318345E-05
+ *H2              0.750371707030685E-02
+ H2O              0.285366863365448E-01
+ H2O2             0.264932134388455E-06
+ *O               0.136866131553129E-01
+ *OH              0.174112163316822E-01
+ *O2              0.202763890699008E-01
+ O3               0.175490041885985E-07
+
+  * THERMODYNAMIC PROPERTIES FITTED TO 20000.K
+
+    PRODUCTS WHICH WERE CONSIDERED BUT WHOSE MOLE FRACTIONS
+    WERE LESS THAN 5.000000E-09 FOR ALL ASSIGNED CONDITIONS
+
+ H2O(cr)         H2O(L)         
+
 
 

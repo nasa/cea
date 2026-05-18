@@ -22,5 +22,6 @@ reac   name= H2  moles= 0.050  t(k) 300.00
 
 problem  case=7 p,mmhg=10, shock u1=1100,1200,1250,1300,1350,1400,
   incd refl eql
+output long
 
 end

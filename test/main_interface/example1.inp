@@ -20,6 +20,6 @@
    only  Ar    C   CO  CO2  H   H2   H2O  HNO   HO2   HNO2  HNO3  N   NH
       NO   N2   N2O3  O  O2  OH  O3
 # 'output' dataset:
-   output calories
+   output calories long
 # 'end' dataset
    end

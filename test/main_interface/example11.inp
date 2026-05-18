@@ -15,5 +15,5 @@ reac   fuel = Li(cr) moles=   1.    t(k)=298.15
        oxid = F2(L)  moles= .5556   t(k)=85.02
 prob   case=11 rocket  equilibrium  p,psia=1000 ions
         pi/p=68.0457, sub,ae/at=10, sup,ae/at=10,20,100
-output siunits transport
+output siunits transport long
 end

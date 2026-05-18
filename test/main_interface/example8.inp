@@ -15,5 +15,5 @@ case=8  p,bar=53.3172 subar=1.58,pi/p=10,100,1000,supar=25,50,75
       reactants
 fuel = H2(L)  wt% 100.   t(k) 20.27
 oxid = O2(L)  wt% 100.   t(k) 90.17
-      output  siunits
+      output  siunits long
       end

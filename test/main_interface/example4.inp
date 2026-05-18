@@ -16,7 +16,7 @@
 
  prob   case=Example-4, o/f=17   uv  u/r=-45.1343, rho,kg/m**3=14.428
 
-output  trace=1.e-15
+output  trace=1.e-15 long
 
 reac   oxid Air       wtfrac= 1    t(k)=700.0
        fuel C7H8(L)   wtfrac= .4   t(k)= 298.15

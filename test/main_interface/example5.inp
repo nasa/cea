@@ -24,7 +24,7 @@ reac
 
 prob    case=5, hp   p,psia=500,250,125,50,5,
 
-outp   calories
+outp   calories long
 
 omit COOH  C2 C2H CHCO,ketyl  C2H2,vinylidene  CH2CO,ketene  C2H3,vinyl
      CH3CO,acetyl  C2H4O,ethylen-o CH3CHO,ethanal  CH3COOH   (HCOOH)2
