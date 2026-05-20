@@ -1217,8 +1217,10 @@ contains
                 end if
                 if (write_incd_eql) then
                     if (prob%output%long) then
-                        write(ioout, '(A, *(1X, ES23.15E3))') "(dln(V)/dln(P))t ", (solutions(i, 1, k)%eq_partials(2)%dlnV_dlnP, i=1,m)
-                        write(ioout, '(A, *(1X, ES23.15E3))') "(dln(V)/dln(T))p ", (solutions(i, 1, k)%eq_partials(2)%dlnV_dlnT, i=1,m)
+                        write(ioout, '(A, *(1X, ES23.15E3))') "(dln(V)/dln(P))t ", &
+                            (solutions(i, 1, k)%eq_partials(2)%dlnV_dlnP, i=1,m)
+                        write(ioout, '(A, *(1X, ES23.15E3))') "(dln(V)/dln(T))p ", &
+                            (solutions(i, 1, k)%eq_partials(2)%dlnV_dlnT, i=1,m)
                     else
                         write(ioout, '(A, 14F9.3)') "(dln(V)/dln(P))t ", (solutions(i, 1, k)%eq_partials(2)%dlnV_dlnP, i=1,m)
                         write(ioout, '(A, 14F9.3)') "(dln(V)/dln(T))p ", (solutions(i, 1, k)%eq_partials(2)%dlnV_dlnT, i=1,m)
@@ -1353,8 +1355,10 @@ contains
                 end if
                 if (write_refl_eql) then
                     if (prob%output%long) then
-                        write(ioout, '(A, *(1X, ES23.15E3))') "(dln(V)/dln(P))t ", (solutions(i, 1, k)%eq_partials(3)%dlnV_dlnP, i=1,m)
-                        write(ioout, '(A, *(1X, ES23.15E3))') "(dln(V)/dln(T))p ", (solutions(i, 1, k)%eq_partials(3)%dlnV_dlnT, i=1,m)
+                        write(ioout, '(A, *(1X, ES23.15E3))') "(dln(V)/dln(P))t ", &
+                            (solutions(i, 1, k)%eq_partials(3)%dlnV_dlnP, i=1,m)
+                        write(ioout, '(A, *(1X, ES23.15E3))') "(dln(V)/dln(T))p ", &
+                            (solutions(i, 1, k)%eq_partials(3)%dlnV_dlnT, i=1,m)
                     else
                         write(ioout, '(A, 14F9.3)') "(dln(V)/dln(P))t ", (solutions(i, 1, k)%eq_partials(3)%dlnV_dlnP, i=1,m)
                         write(ioout, '(A, 14F9.3)') "(dln(V)/dln(T))p ", (solutions(i, 1, k)%eq_partials(3)%dlnV_dlnT, i=1,m)
@@ -1586,36 +1590,60 @@ contains
             if (prob%output%long) then
 
                 if (prob%output%siunit) then
-                    write(ioout, '(A, *(1X, ES23.15E3))') ' P, bar          ', ((solutions(i, j, k)%pressure,             j=1,n), i=1,m)
-                    write(ioout, '(A, *(1X, ES23.15E3))') ' T, K            ', ((solutions(i, j, k)%eq_soln%T,            j=1,n), i=1,m)
-                    write(ioout, '(A, *(1X, ES23.15E3))') ' Density, kg/m^3   ', ((solutions(i, j, k)%eq_soln%density,  j=1,n), i=1,m)
-                    write(ioout, '(A, *(1X, ES23.15E3))') ' H, kJ/kg        ', ((solutions(i, j, k)%eq_soln%enthalpy,     j=1,n), i=1,m)
-                    write(ioout, '(A, *(1X, ES23.15E3))') ' U, kJ/kg        ', ((solutions(i, j, k)%eq_soln%energy,       j=1,n), i=1,m)
-                    write(ioout, '(A, *(1X, ES23.15E3))') ' G, kJ/kg        ', ((solutions(i, j, k)%eq_soln%gibbs_energy, j=1,n), i=1,m)
-                    write(ioout, '(A, *(1X, ES23.15E3))') ' S, kJ/kg-K      ', ((solutions(i, j, k)%eq_soln%entropy,      j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' P, bar          ', &
+                        ((solutions(i, j, k)%pressure, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' T, K            ', &
+                        ((solutions(i, j, k)%eq_soln%T, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' Density, kg/m^3   ', &
+                        ((solutions(i, j, k)%eq_soln%density, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' H, kJ/kg        ', &
+                        ((solutions(i, j, k)%eq_soln%enthalpy, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' U, kJ/kg        ', &
+                        ((solutions(i, j, k)%eq_soln%energy, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' G, kJ/kg        ', &
+                        ((solutions(i, j, k)%eq_soln%gibbs_energy, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' S, kJ/kg-K      ', &
+                        ((solutions(i, j, k)%eq_soln%entropy, j=1,n), i=1,m)
                     write(ioout, *) ""
-                    write(ioout, '(A, *(1X, ES23.15E3))') ' M, (1/n)        ', ((1.0d0/solutions(i, j, k)%eq_soln%n,         j=1,n), i=1,m)
-                    write(ioout, '(A, *(1X, ES23.15E3))') ' (dln(V)/dln(P))t', ((solutions(i, j, k)%eq_partials%dlnV_dlnP, j=1,n), i=1,m)
-                    write(ioout, '(A, *(1X, ES23.15E3))') ' (dln(V)/dln(T))p', ((solutions(i, j, k)%eq_partials%dlnV_dlnT, j=1,n), i=1,m)
-                    write(ioout, '(A, *(1X, ES23.15E3))') ' Cp, kJ/kg-K     ', ((solutions(i, j, k)%eq_soln%cp_eq,         j=1,n), i=1,m)
-                    write(ioout, '(A, *(1X, ES23.15E3))') ' Gamma_s         ', ((solutions(i, j, k)%eq_partials%gamma_s,   j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' M, (1/n)        ', &
+                        ((1.0d0/solutions(i, j, k)%eq_soln%n, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' (dln(V)/dln(P))t', &
+                        ((solutions(i, j, k)%eq_partials%dlnV_dlnP, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' (dln(V)/dln(T))p', &
+                        ((solutions(i, j, k)%eq_partials%dlnV_dlnT, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' Cp, kJ/kg-K     ', &
+                        ((solutions(i, j, k)%eq_soln%cp_eq, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' Gamma_s         ', &
+                        ((solutions(i, j, k)%eq_partials%gamma_s, j=1,n), i=1,m)
                     write(ioout, '(A, *(1X, ES23.15E3))') ' Son. Vel., m/s  ', &
                         ((sqrt(solutions(i, j, k)%eq_soln%n*R*solutions(i, j, k)%eq_partials%gamma_s* &
                                solutions(i, j, k)%eq_soln%T), j=1,n), i=1,m)
                 else
-                    write(ioout, '(A, *(1X, ES23.15E3))') ' P, atm          ', ((solutions(i, j, k)%pressure/1.01325d0,   j=1,n), i=1,m)
-                    write(ioout, '(A, *(1X, ES23.15E3))') ' T, K            ', ((solutions(i, j, k)%eq_soln%T,                    j=1,n), i=1,m)
-                    write(ioout, '(A, *(1X, ES23.15E3))') ' Density, g/cc   ', ((solutions(i, j, k)%eq_soln%density/1.d3,       j=1,n), i=1,m)
-                    write(ioout, '(A, *(1X, ES23.15E3))') ' H, cal/g        ', ((solutions(i, j, k)%eq_soln%enthalpy/4.184d0,     j=1,n), i=1,m)
-                    write(ioout, '(A, *(1X, ES23.15E3))') ' U, cal/g        ', ((solutions(i, j, k)%eq_soln%energy/4.184d0,       j=1,n), i=1,m)
-                    write(ioout, '(A, *(1X, ES23.15E3))') ' G, cal/g        ', ((solutions(i, j, k)%eq_soln%gibbs_energy/4.184d0, j=1,n), i=1,m)
-                    write(ioout, '(A, *(1X, ES23.15E3))') ' S, cal/g-K      ', ((solutions(i, j, k)%eq_soln%entropy/4.184d0,      j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' P, atm          ', &
+                        ((solutions(i, j, k)%pressure/1.01325d0, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' T, K            ', &
+                        ((solutions(i, j, k)%eq_soln%T, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' Density, g/cc   ', &
+                        ((solutions(i, j, k)%eq_soln%density/1.d3, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' H, cal/g        ', &
+                        ((solutions(i, j, k)%eq_soln%enthalpy/4.184d0, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' U, cal/g        ', &
+                        ((solutions(i, j, k)%eq_soln%energy/4.184d0, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' G, cal/g        ', &
+                        ((solutions(i, j, k)%eq_soln%gibbs_energy/4.184d0, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' S, cal/g-K      ', &
+                        ((solutions(i, j, k)%eq_soln%entropy/4.184d0, j=1,n), i=1,m)
                     write(ioout, *) ""
-                    write(ioout, '(A, *(1X, ES23.15E3))') ' M, (1/n)        ', ((1.0d0/solutions(i, j, k)%eq_soln%n,         j=1,n), i=1,m)
-                    write(ioout, '(A, *(1X, ES23.15E3))') ' (dln(V)/dln(P))t', ((solutions(i, j, k)%eq_partials%dlnV_dlnP, j=1,n), i=1,m)
-                    write(ioout, '(A, *(1X, ES23.15E3))') ' (dln(V)/dln(T))p', ((solutions(i, j, k)%eq_partials%dlnV_dlnT, j=1,n), i=1,m)
-                    write(ioout, '(A, *(1X, ES23.15E3))') ' Cp, cal/g-K     ', ((solutions(i, j, k)%eq_soln%cp_eq/4.184d0, j=1,n), i=1,m)
-                    write(ioout, '(A, *(1X, ES23.15E3))') ' Gamma_s         ', ((solutions(i, j, k)%eq_partials%gamma_s,   j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' M, (1/n)        ', &
+                        ((1.0d0/solutions(i, j, k)%eq_soln%n, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' (dln(V)/dln(P))t', &
+                        ((solutions(i, j, k)%eq_partials%dlnV_dlnP, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' (dln(V)/dln(T))p', &
+                        ((solutions(i, j, k)%eq_partials%dlnV_dlnT, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' Cp, cal/g-K     ', &
+                        ((solutions(i, j, k)%eq_soln%cp_eq/4.184d0, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' Gamma_s         ', &
+                        ((solutions(i, j, k)%eq_partials%gamma_s, j=1,n), i=1,m)
                     write(ioout, '(A, *(1X, ES23.15E3))') ' Son. Vel., m/s  ', &
                         ((sqrt(solutions(i, j, k)%eq_soln%n*R*solutions(i, j, k)%eq_partials%gamma_s* &
                                solutions(i, j, k)%eq_soln%T), j=1,n), i=1,m)
@@ -1698,7 +1726,8 @@ contains
 
                 ! Viscosity
                 if (prob%output%long) then
-                    write(ioout, '(A, *(1X, ES23.15E3))') " Visc, Millipoise", ((solutions(i, j, k)%eq_soln%viscosity, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') " Visc, Millipoise", &
+                        ((solutions(i, j, k)%eq_soln%viscosity, j=1,n), i=1,m)
                 else
                     write(ioout, '(A, 14F9.4)') " Visc, Millipoise", ((solutions(i, j, k)%eq_soln%viscosity, j=1,n), i=1,m)
                 end if
@@ -1708,18 +1737,23 @@ contains
                 write(ioout, '(A)') " WITH EQUILIBRIUM REACTIONS"
                 if (prob%output%long) then
                     if (prob%output%siunit) then
-                        write(ioout, '(A, *(1X, ES23.15E3))') " Cp, kJ/kg-K     ", ((solutions(i, j, k)%eq_soln%cp_eq, j=1,n), i=1,m)
-                        write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", ((solutions(i, j, k)%eq_soln%conductivity_eq, j=1,n), i=1,m)
+                        write(ioout, '(A, *(1X, ES23.15E3))') " Cp, kJ/kg-K     ", &
+                            ((solutions(i, j, k)%eq_soln%cp_eq, j=1,n), i=1,m)
+                        write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
+                            ((solutions(i, j, k)%eq_soln%conductivity_eq, j=1,n), i=1,m)
                     else
-                        write(ioout, '(A, *(1X, ES23.15E3))') " Cp, cal/g-K     ", ((solutions(i, j, k)%eq_soln%cp_eq/4.184d0, j=1,n), i=1,m)
+                        write(ioout, '(A, *(1X, ES23.15E3))') " Cp, cal/g-K     ", &
+                            ((solutions(i, j, k)%eq_soln%cp_eq/4.184d0, j=1,n), i=1,m)
                         write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
                             ((solutions(i, j, k)%eq_soln%conductivity_eq/4.184d0, j=1,n), i=1,m)
                     end if
-                    write(ioout, '(A, *(1X, ES23.15E3))') " Prandtl Number  ", ((solutions(i, j, k)%eq_soln%Pr_eq, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') " Prandtl Number  ", &
+                        ((solutions(i, j, k)%eq_soln%Pr_eq, j=1,n), i=1,m)
                 else
                     if (prob%output%siunit) then
                         write(ioout, '(A, 14F9.4)') " Cp, kJ/kg-K     ", ((solutions(i, j, k)%eq_soln%cp_eq, j=1,n), i=1,m)
-                        write(ioout, '(A, 14F9.4)') " Conductivity    ", ((solutions(i, j, k)%eq_soln%conductivity_eq, j=1,n), i=1,m)
+                        write(ioout, '(A, 14F9.4)') " Conductivity    ", &
+                            ((solutions(i, j, k)%eq_soln%conductivity_eq, j=1,n), i=1,m)
                     else
                         write(ioout, '(A, 14F9.4)') " Cp, cal/g-K     ", ((solutions(i, j, k)%eq_soln%cp_eq/4.184d0, j=1,n), i=1,m)
                         write(ioout, '(A, 14F9.4)') " Conductivity    ", &
@@ -1733,18 +1767,23 @@ contains
                 write(ioout, '(A)') " WITH FROZEN REACTIONS"
                 if (prob%output%long) then
                     if (prob%output%siunit) then
-                        write(ioout, '(A, *(1X, ES23.15E3))') " Cp, kJ/kg-K     ", ((solutions(i, j, k)%eq_soln%cp_fr, j=1,n), i=1,m)
-                        write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", ((solutions(i, j, k)%eq_soln%conductivity_fr, j=1,n), i=1,m)
+                        write(ioout, '(A, *(1X, ES23.15E3))') " Cp, kJ/kg-K     ", &
+                            ((solutions(i, j, k)%eq_soln%cp_fr, j=1,n), i=1,m)
+                        write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
+                            ((solutions(i, j, k)%eq_soln%conductivity_fr, j=1,n), i=1,m)
                     else
-                        write(ioout, '(A, *(1X, ES23.15E3))') " Cp, cal/g-K     ", ((solutions(i, j, k)%eq_soln%cp_fr/4.184d0, j=1,n), i=1,m)
+                        write(ioout, '(A, *(1X, ES23.15E3))') " Cp, cal/g-K     ", &
+                            ((solutions(i, j, k)%eq_soln%cp_fr/4.184d0, j=1,n), i=1,m)
                         write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
                             ((solutions(i, j, k)%eq_soln%conductivity_fr/4.184d0, j=1,n), i=1,m)
                     end if
-                    write(ioout, '(A, *(1X, ES23.15E3))') " Prandtl Number  ", ((solutions(i, j, k)%eq_soln%Pr_fr, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') " Prandtl Number  ", &
+                        ((solutions(i, j, k)%eq_soln%Pr_fr, j=1,n), i=1,m)
                 else
                     if (prob%output%siunit) then
                         write(ioout, '(A, 14F9.4)') " Cp, kJ/kg-K     ", ((solutions(i, j, k)%eq_soln%cp_fr, j=1,n), i=1,m)
-                        write(ioout, '(A, 14F9.4)') " Conductivity    ", ((solutions(i, j, k)%eq_soln%conductivity_fr, j=1,n), i=1,m)
+                        write(ioout, '(A, 14F9.4)') " Conductivity    ", &
+                            ((solutions(i, j, k)%eq_soln%conductivity_fr, j=1,n), i=1,m)
                     else
                         write(ioout, '(A, 14F9.4)') " Cp, cal/g-K     ", ((solutions(i, j, k)%eq_soln%cp_fr/4.184d0, j=1,n), i=1,m)
                         write(ioout, '(A, 14F9.4)') " Conductivity    ", &
@@ -2349,7 +2388,8 @@ contains
                         write(ioout, '(A, 18F14.4)') " Conductivity    ", ((solutions(i, j, k)%conductivity_eq, i=1,m), j=1,n)
                     else
                         write(ioout, '(A, 18F14.4)') " Cp, cal/g-K     ", ((solutions(i, j, k)%cp_eq/4.184d0, i=1,m), j=1,n)
-                        write(ioout, '(A, 18F14.4)') " Conductivity    ", ((solutions(i, j, k)%conductivity_eq/4.184d0, i=1,m), j=1,n)
+                        write(ioout, '(A, 18F14.4)') " Conductivity    ", &
+                            ((solutions(i, j, k)%conductivity_eq/4.184d0, i=1,m), j=1,n)
                     end if
                     write(ioout, '(A, 18F14.4)') " Prandtl Number  ", ((solutions(i, j, k)%Pr_eq, i=1,m), j=1,n)
                 end if
@@ -2377,7 +2417,8 @@ contains
                         write(ioout, '(A, 18F14.4)') " Conductivity    ", ((solutions(i, j, k)%conductivity_fr, i=1,m), j=1,n)
                     else
                         write(ioout, '(A, 18F14.4)') " Cp, cal/g-K     ", ((solutions(i, j, k)%cp_fr/4.184d0, i=1,m), j=1,n)
-                        write(ioout, '(A, 18F14.4)') " Conductivity    ", ((solutions(i, j, k)%conductivity_fr/4.184d0, i=1,m), j=1,n)
+                        write(ioout, '(A, 18F14.4)') " Conductivity    ", &
+                            ((solutions(i, j, k)%conductivity_fr/4.184d0, i=1,m), j=1,n)
                     end if
                     write(ioout, '(A, 18F14.4)') " Prandtl Number  ", ((solutions(i, j, k)%Pr_fr, i=1,m), j=1,n)
                 end if
@@ -2719,7 +2760,9 @@ contains
                         call write_long_ratio_line(ioout, of_ratio, pct_fuel, r_eq, phi_eq)
                     else
                         write(ioout, '(A, F10.5, A, F9.5, A, F8.5, A, F8.5)') &
-                            'O/F = ', of_ratio, '    % Fuel = ', pct_fuel, '    r, Eq. Ratio = ', r_eq, '    phi, Eq. Ratio = ', phi_eq
+                            'O/F = ', of_ratio, '    % Fuel = ', pct_fuel, &
+                            '    r, Eq. Ratio = ', r_eq, '    phi, Eq. Ratio = ', &
+                            phi_eq
                     end if
                     write(ioout,*) ""
 
@@ -2866,7 +2909,8 @@ contains
                             write(ioout, '(A)') " WITH EQUILIBRIUM REACTIONS"
                             if (prob%output%long) then
                                 if (prob%output%siunit) then
-                                    write(ioout, '(A, *(1X, ES23.15E3))') " Cp, kJ/(kg-K)   ", (solutions(i, j, k)%eq_soln(idx)%cp_eq, idx=1,np)
+                                    write(ioout, '(A, *(1X, ES23.15E3))') " Cp, kJ/(kg-K)   ", &
+                                        (solutions(i, j, k)%eq_soln(idx)%cp_eq, idx=1,np)
                                     write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
                                         (solutions(i, j, k)%eq_soln(idx)%conductivity_eq, idx=1,np)
                                 else
@@ -2875,7 +2919,8 @@ contains
                                     write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
                                         (solutions(i, j, k)%eq_soln(idx)%conductivity_eq/4.184d0, idx=1,np)
                                 end if
-                                write(ioout, '(A, *(1X, ES23.15E3))') " Prandtl Number  ", (solutions(i, j, k)%eq_soln(idx)%Pr_eq, idx=1,np)
+                                write(ioout, '(A, *(1X, ES23.15E3))') " Prandtl Number  ", &
+                                    (solutions(i, j, k)%eq_soln(idx)%Pr_eq, idx=1,np)
                             else
                                 if (prob%output%siunit) then
                                     write(ioout, thermo_fmt) " Cp, kJ/(kg-K)   ", (solutions(i, j, k)%eq_soln(idx)%cp_eq, idx=1,np)
@@ -2895,22 +2940,26 @@ contains
                         write(ioout, '(A)') " WITH FROZEN REACTIONS"
                         if (prob%output%long) then
                             if (prob%output%siunit) then
-                                write(ioout, '(A, *(1X, ES23.15E3))') " Cp, kJ/(kg-K)   ", (solutions(i, j, k)%eq_soln(idx)%cp_fr, idx=1,np)
+                                write(ioout, '(A, *(1X, ES23.15E3))') " Cp, kJ/(kg-K)   ", &
+                                    (solutions(i, j, k)%eq_soln(idx)%cp_fr, idx=1,np)
                                 write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
                                     (solutions(i, j, k)%eq_soln(idx)%conductivity_fr, idx=1,np)
                             else
-                                write(ioout, '(A, *(1X, ES23.15E3))') " Cp, cal/(g-K)   ", (solutions(i, j, k)%eq_soln(idx)%cp_fr/4.184d0, idx=1,np)
+                                write(ioout, '(A, *(1X, ES23.15E3))') " Cp, cal/(g-K)   ", &
+                                    (solutions(i, j, k)%eq_soln(idx)%cp_fr/4.184d0, idx=1,np)
                                 write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
                                     (solutions(i, j, k)%eq_soln(idx)%conductivity_fr/4.184d0, idx=1,np)
                             end if
-                            write(ioout, '(A, *(1X, ES23.15E3))') " Prandtl Number  ", (solutions(i, j, k)%eq_soln(idx)%Pr_fr, idx=1,np)
+                            write(ioout, '(A, *(1X, ES23.15E3))') " Prandtl Number  ", &
+                                (solutions(i, j, k)%eq_soln(idx)%Pr_fr, idx=1,np)
                         else
                             if (prob%output%siunit) then
                                 write(ioout, thermo_fmt) " Cp, kJ/(kg-K)   ", (solutions(i, j, k)%eq_soln(idx)%cp_fr, idx=1,np)
                                 write(ioout, thermo_fmt) " Conductivity    ", &
                                     (solutions(i, j, k)%eq_soln(idx)%conductivity_fr, idx=1,np)
                             else
-                                write(ioout, thermo_fmt) " Cp, cal/(g-K)   ", (solutions(i, j, k)%eq_soln(idx)%cp_fr/4.184d0, idx=1,np)
+                                write(ioout, thermo_fmt) " Cp, cal/(g-K)   ", &
+                                    (solutions(i, j, k)%eq_soln(idx)%cp_fr/4.184d0, idx=1,np)
                                 write(ioout, thermo_fmt) " Conductivity    ", &
                                     (solutions(i, j, k)%eq_soln(idx)%conductivity_fr/4.184d0, idx=1,np)
                             end if
@@ -2931,15 +2980,18 @@ contains
                             if (prob%output%siunit) then
                                 write(ioout, '(A, *(1X, ES23.15E3))') 'C*, m/s         ', (solutions(i, j, k)%c_star(idx), idx=2,np)
                             else
-                                write(ioout, '(A, *(1X, ES23.15E3))') 'C*, ft/s        ', (solutions(i, j, k)%c_star(idx)*3.2808349d0, idx=2,np)
+                                write(ioout, '(A, *(1X, ES23.15E3))') 'C*, ft/s        ', &
+                                    (solutions(i, j, k)%c_star(idx)*3.2808349d0, idx=2,np)
                             end if
                             write(ioout, '(A, *(1X, ES23.15E3))') 'Cf              ', (solutions(i, j, k)%cf(idx), idx=2,np)
                             if (prob%output%siunit) then
                                 write(ioout, '(A, *(1X, ES23.15E3))') 'Ivac, m/s       ', (solutions(i, j, k)%i_vac(idx), idx=2,np)
                                 write(ioout, '(A, *(1X, ES23.15E3))') 'Isp, m/s        ', (solutions(i, j, k)%i_sp(idx), idx=2,np)
                             else
-                                write(ioout, '(A, *(1X, ES23.15E3))') 'Ivac, lb-s/lb   ', (solutions(i, j, k)%i_vac(idx)/9.80665d0, idx=2,np)
-                                write(ioout, '(A, *(1X, ES23.15E3))') 'Isp, lb-s/lb    ', (solutions(i, j, k)%i_sp(idx)/9.80665d0, idx=2,np)
+                                write(ioout, '(A, *(1X, ES23.15E3))') 'Ivac, lb-s/lb   ', &
+                                    (solutions(i, j, k)%i_vac(idx)/9.80665d0, idx=2,np)
+                                write(ioout, '(A, *(1X, ES23.15E3))') 'Isp, lb-s/lb    ', &
+                                    (solutions(i, j, k)%i_sp(idx)/9.80665d0, idx=2,np)
                             end if
                         else
                             perf_label = 'Ae/At           '
