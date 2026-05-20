@@ -15,5 +15,5 @@
       prob  case=Example-2  phi,eq.ratio=1, tv  t(k)=3000
             rho,g/cc=9.1864d-05,8.0877d-06,6.6054d-07
       only  Ar C CO CO2 H H2 H2O HNO HO2 HNO2 HNO3 N NH NO N2 N2O3 O O2 OH  O3
-      outp  transport calories
+      outp  transport calories long
       end
