@@ -10,7 +10,7 @@ module cea_bindc
     use cea_shock, only: SHOCK_SOLVE_STATUS_LAST_VALID
     use iso_c_binding
     use fb_logging
-    use fb_utils, only: assert, locate, is_empty, to_str
+    use fb_utils, only: abort, assert, locate, is_empty, to_str
     implicit none
 
 
@@ -205,6 +205,7 @@ module cea_bindc
         enumerator :: CEA_INVALID_SIZE = 7
         enumerator :: CEA_NOT_CONVERGED = 8
         enumerator :: CEA_LAST_VALID_SOLUTION = 9
+        enumerator :: CEA_FORTRAN_ABORT = 10
     end enum
 
     !-----------------------------------------------------------------
@@ -325,7 +326,7 @@ contains
     !-----------------------------------------------------------------
     ! Initialization (Not thread safe!)
     !-----------------------------------------------------------------
-    function cea_init() result(ierr) bind(c)
+    function cea_init() result(ierr) bind(c, name="cea_init_fortran")
         ! Load default thermo.lib and trans.lib into globals
         integer(c_int) :: ierr
         if (thermo_initialized) then
@@ -337,7 +338,7 @@ contains
         ierr = cea_init_trans('trans.lib'//c_null_char)
     end function
 
-    function cea_init_thermo(cthermofile) result(ierr) bind(c)
+    function cea_init_thermo(cthermofile) result(ierr) bind(c, name="cea_init_thermo_fortran")
         ! Initialize global ThermoDB using specified file
 
         integer(c_int) :: ierr
@@ -371,7 +372,7 @@ contains
 
     end function
 
-    function cea_init_trans(ctransfile) result(ierr) bind(c)
+    function cea_init_trans(ctransfile) result(ierr) bind(c, name="cea_init_trans_fortran")
         ! Initialize global TransDB using specified file
 
         integer(c_int) :: ierr
@@ -420,7 +421,7 @@ contains
     !-----------------------------------------------------------------
     ! Mixture
     !-----------------------------------------------------------------
-    function cea_mixture_create(mptr, nspecies, cspecies) result(ierr) bind(c)
+    function cea_mixture_create(mptr, nspecies, cspecies) result(ierr) bind(c, name="cea_mixture_create_fortran")
         integer(c_int) :: ierr
         type(c_ptr), intent(out) :: mptr
         integer(c_int), value :: nspecies
@@ -450,7 +451,7 @@ contains
 
     end function
 
-    function cea_mixture_create_w_ions(mptr, nspecies, cspecies) result(ierr) bind(c)
+    function cea_mixture_create_w_ions(mptr, nspecies, cspecies) result(ierr) bind(c, name="cea_mixture_create_w_ions_fortran")
         integer(c_int) :: ierr
         type(c_ptr), intent(out) :: mptr
         integer(c_int), value :: nspecies
@@ -480,7 +481,8 @@ contains
 
     end function
 
-    function cea_mixture_create_from_reactants(mptr, nreac, creac, nomit, comit) result(ierr) bind(c)
+    function cea_mixture_create_from_reactants(mptr, nreac, creac, nomit, comit) result(ierr) &
+        bind(c, name="cea_mixture_create_from_reactants_fortran")
         integer(c_int) :: ierr
         type(c_ptr), intent(out) :: mptr
         integer(c_int), value    :: nreac
@@ -524,7 +526,8 @@ contains
 
     end function
 
-    function cea_mixture_create_from_reactants_w_ions(mptr, nreac, creac, nomit, comit) result(ierr) bind(c)
+    function cea_mixture_create_from_reactants_w_ions(mptr, nreac, creac, nomit, comit) result(ierr) &
+        bind(c, name="cea_mixture_create_from_reactants_w_ions_fortran")
         integer(c_int) :: ierr
         type(c_ptr), intent(out) :: mptr
         integer(c_int), value    :: nreac
@@ -569,7 +572,8 @@ contains
 
     end function
 
-    function cea_mixture_create_from_input_reactants(mptr, nreac, creac) result(ierr) bind(c)
+    function cea_mixture_create_from_input_reactants(mptr, nreac, creac) result(ierr) &
+        bind(c, name="cea_mixture_create_from_input_reactants_fortran")
         integer(c_int) :: ierr
         type(c_ptr), intent(out) :: mptr
         integer(c_int), value :: nreac
@@ -588,7 +592,8 @@ contains
 
     end function
 
-    function cea_mixture_create_from_input_reactants_w_ions(mptr, nreac, creac) result(ierr) bind(c)
+    function cea_mixture_create_from_input_reactants_w_ions(mptr, nreac, creac) result(ierr) &
+        bind(c, name="cea_mixture_create_from_input_reactants_w_ions_fortran")
         integer(c_int) :: ierr
         type(c_ptr), intent(out) :: mptr
         integer(c_int), value :: nreac
@@ -607,7 +612,8 @@ contains
 
     end function
 
-    function cea_mixture_create_products_from_input_reactants(mptr, nreac, creac, nomit, comit) result(ierr) bind(c)
+    function cea_mixture_create_products_from_input_reactants(mptr, nreac, creac, nomit, comit) result(ierr) &
+        bind(c, name="cea_mixture_create_products_from_input_reactants_fortran")
         integer(c_int) :: ierr
         type(c_ptr), intent(out) :: mptr
         integer(c_int), value :: nreac
@@ -649,7 +655,8 @@ contains
         call log_info('BINDC: Created product Mixture object at '//to_str(mptr))
     end function
 
-    function cea_mixture_create_products_from_input_reactants_w_ions(mptr, nreac, creac, nomit, comit) result(ierr) bind(c)
+    function cea_mixture_create_products_from_input_reactants_w_ions(mptr, nreac, creac, nomit, comit) result(ierr) &
+        bind(c, name="cea_mixture_create_products_from_input_reactants_w_ions_fortran")
         integer(c_int) :: ierr
         type(c_ptr), intent(out) :: mptr
         integer(c_int), value :: nreac
@@ -1135,7 +1142,7 @@ contains
     !-----------------------------------------------------------------
     ! Equilibrium Solver
     !-----------------------------------------------------------------
-    function cea_eqsolver_create(sptr, mptr) result(ierr) bind(c)
+    function cea_eqsolver_create(sptr, mptr) result(ierr) bind(c, name="cea_eqsolver_create_fortran")
         integer(c_int) :: ierr
         type(c_ptr), intent(out) :: sptr
         type(c_ptr), intent(in), value :: mptr
@@ -1149,7 +1156,8 @@ contains
         call log_info('BINDC: Created EqSolver from product mixture at '//to_str(sptr))
     end function
 
-    function cea_eqsolver_create_with_reactants(sptr, mptr_prod, mptr_reac) result(ierr) bind(c)
+    function cea_eqsolver_create_with_reactants(sptr, mptr_prod, mptr_reac) result(ierr) &
+        bind(c, name="cea_eqsolver_create_with_reactants_fortran")
         integer(c_int) :: ierr
         type(c_ptr), intent(out) :: sptr
         type(c_ptr), intent(in), value :: mptr_prod
@@ -1166,7 +1174,8 @@ contains
         call log_info('BINDC: Created EqSolver from product/reactant mixtures at '//to_str(sptr))
     end function
 
-    function cea_eqsolver_create_with_options(sptr, mptr_prod, opts) result(ierr) bind(c)
+    function cea_eqsolver_create_with_options(sptr, mptr_prod, opts) result(ierr) &
+        bind(c, name="cea_eqsolver_create_with_options_fortran")
         integer(c_int) :: ierr
         type(c_ptr), intent(out) :: sptr
         type(c_ptr), intent(in), value :: mptr_prod
@@ -1310,7 +1319,8 @@ contains
         sptr = c_loc(solver)
         if (logical(opts%smooth_truncation)) then
             if (opts%truncation_width == 0.0d0) &
-                error stop 'cea_eqsolver_create_with_options: truncation_width must be > 0 when smooth_truncation is enabled.'
+                call abort('cea_eqsolver_create_with_options: truncation_width must be > 0 when ' // &
+                           'smooth_truncation is enabled.')
             solver%smooth_truncation = .true.
             if (opts%truncation_width > 0.0d0) solver%truncation_width = opts%truncation_width
         end if
@@ -1328,7 +1338,8 @@ contains
         sptr = c_null_ptr
     end function
 
-    function cea_eqsolver_solve(sptr, eq_type, state1, state2, amounts, slptr) result(ierr) bind(c)
+    function cea_eqsolver_solve(sptr, eq_type, state1, state2, amounts, slptr) result(ierr) &
+        bind(c, name="cea_eqsolver_solve_fortran")
         integer(c_int) :: ierr
         type(c_ptr),    intent(in), value :: sptr
         integer(kind=kind(CEA_TP)), intent(in), value :: eq_type
@@ -1359,7 +1370,8 @@ contains
         if (.not. solution%converged) ierr = CEA_NOT_CONVERGED
     end function
 
-    function cea_eqsolver_solve_with_partials(sptr, eq_type, state1, state2, amounts, slptr, pptr) result(ierr) bind(c)
+    function cea_eqsolver_solve_with_partials(sptr, eq_type, state1, state2, amounts, slptr, pptr) result(ierr) &
+        bind(c, name="cea_eqsolver_solve_with_partials_fortran")
         integer(c_int) :: ierr
         type(c_ptr),    intent(in), value :: sptr
         integer(kind=kind(CEA_TP)), intent(in), value :: eq_type
@@ -1418,7 +1430,7 @@ contains
     !-----------------------------------------------------------------
     ! Rocket Solver
     !-----------------------------------------------------------------
-    function cea_rocket_solver_create(sptr, mptr) result(ierr) bind(c)
+    function cea_rocket_solver_create(sptr, mptr) result(ierr) bind(c, name="cea_rocket_solver_create_fortran")
         integer(c_int) :: ierr
         type(c_ptr), intent(out) :: sptr
         type(c_ptr), intent(in), value :: mptr
@@ -1432,7 +1444,8 @@ contains
         call log_info('BINDC: Created RocketSolver from product mixture at '//to_str(sptr))
     end function
 
-    function cea_rocket_solver_create_with_reactants(sptr, mptr_prod, mptr_reac) result(ierr) bind(c)
+    function cea_rocket_solver_create_with_reactants(sptr, mptr_prod, mptr_reac) result(ierr) &
+        bind(c, name="cea_rocket_solver_create_with_reactants_fortran")
         integer(c_int) :: ierr
         type(c_ptr), intent(out) :: sptr
         type(c_ptr), intent(in), value :: mptr_prod
@@ -1449,7 +1462,8 @@ contains
         call log_info('BINDC: Created RocketSolver from product/reactant mixtures at '//to_str(sptr))
     end function
 
-    function cea_rocket_solver_create_with_options(sptr, mptr_prod, opts) result(ierr) bind(c)
+    function cea_rocket_solver_create_with_options(sptr, mptr_prod, opts) result(ierr) &
+        bind(c, name="cea_rocket_solver_create_with_options_fortran")
         integer(c_int) :: ierr
         type(c_ptr), intent(out) :: sptr
         type(c_ptr), intent(in), value :: mptr_prod
@@ -1592,7 +1606,8 @@ contains
         sptr = c_loc(solver)
         if (logical(opts%smooth_truncation)) then
             if (opts%truncation_width == 0.0d0) &
-                error stop 'cea_rocket_solver_create_with_options: truncation_width must be > 0 when smooth_truncation is enabled.'
+                call abort('cea_rocket_solver_create_with_options: truncation_width must be > 0 ' // &
+                           'when smooth_truncation is enabled.')
             solver%eq_solver%smooth_truncation = .true.
             if (opts%truncation_width > 0.0d0) solver%eq_solver%truncation_width = opts%truncation_width
         end if
@@ -1633,7 +1648,8 @@ contains
     end function
 
     function cea_rocket_solver_solve_iac(sptr, slptr, weights, pc, pi_p, n_pi_p, subar, nsubar, &
-        supar, nsupar, n_frz, hc_or_tc, use_hc, tc_est, use_tc_est) result(ierr) bind(c)
+        supar, nsupar, n_frz, hc_or_tc, use_hc, tc_est, use_tc_est) result(ierr) &
+        bind(c, name="cea_rocket_solver_solve_iac_fortran")
         integer(c_int) :: ierr
         type(c_ptr),     intent(in), value :: sptr
         type(c_ptr),     intent(in), value :: slptr
@@ -1824,7 +1840,8 @@ contains
     end function
 
     function cea_rocket_solver_solve_fac(sptr, slptr, weights, pc, pi_p, n_pi_p, subar, nsubar, &
-        supar, nsupar, n_frz, hc_or_tc, use_hc, mdot_or_acat, use_mdot, tc_est, use_tc_est) result(ierr) bind(c)
+        supar, nsupar, n_frz, hc_or_tc, use_hc, mdot_or_acat, use_mdot, tc_est, use_tc_est) result(ierr) &
+        bind(c, name="cea_rocket_solver_solve_fac_fortran")
         integer(c_int) :: ierr
         type(c_ptr),     intent(in), value :: sptr
         type(c_ptr),     intent(in), value :: slptr
@@ -2243,7 +2260,7 @@ contains
     !-----------------------------------------------------------------
     ! Shock Solver
     !-----------------------------------------------------------------
-    function cea_shock_solver_create(sptr, mptr) result(ierr) bind(c)
+    function cea_shock_solver_create(sptr, mptr) result(ierr) bind(c, name="cea_shock_solver_create_fortran")
         integer(c_int) :: ierr
         type(c_ptr), intent(out) :: sptr
         type(c_ptr), intent(in), value :: mptr
@@ -2257,7 +2274,8 @@ contains
         call log_info('BINDC: Created ShockSolver from product mixture at '//to_str(sptr))
     end function
 
-    function cea_shock_solver_create_with_reactants(sptr, mptr_prod, mptr_reac) result(ierr) bind(c)
+    function cea_shock_solver_create_with_reactants(sptr, mptr_prod, mptr_reac) result(ierr) &
+        bind(c, name="cea_shock_solver_create_with_reactants_fortran")
         integer(c_int) :: ierr
         type(c_ptr), intent(out) :: sptr
         type(c_ptr), intent(in), value :: mptr_prod
@@ -2274,7 +2292,8 @@ contains
         call log_info('BINDC: Created ShockSolver from product/reactant mixtures at '//to_str(sptr))
     end function
 
-    function cea_shock_solver_create_with_options(sptr, mptr_prod, opts) result(ierr) bind(c)
+    function cea_shock_solver_create_with_options(sptr, mptr_prod, opts) result(ierr) &
+        bind(c, name="cea_shock_solver_create_with_options_fortran")
         integer(c_int) :: ierr
         type(c_ptr), intent(out) :: sptr
         type(c_ptr), intent(in), value :: mptr_prod
@@ -2417,7 +2436,8 @@ contains
         sptr = c_loc(solver)
         if (logical(opts%smooth_truncation)) then
             if (opts%truncation_width == 0.0d0) &
-                error stop 'cea_shock_solver_create_with_options: truncation_width must be > 0 when smooth_truncation is enabled.'
+                call abort('cea_shock_solver_create_with_options: truncation_width must be > 0 ' // &
+                           'when smooth_truncation is enabled.')
             solver%eq_solver%smooth_truncation = .true.
             if (opts%truncation_width > 0.0d0) solver%eq_solver%truncation_width = opts%truncation_width
         end if
@@ -2458,7 +2478,7 @@ contains
     end function
 
     function cea_shock_solver_solve(sptr, slptr, weights, T0, p0, mach1_or_u1, use_mach, refl, incd_froz, refl_froz) &
-        result(ierr) bind(c)
+        result(ierr) bind(c, name="cea_shock_solver_solve_fortran")
         integer(c_int) :: ierr
         type(c_ptr),     intent(in), value :: sptr
         type(c_ptr),     intent(in), value :: slptr
@@ -2513,7 +2533,8 @@ contains
     !-----------------------------------------------------------------
     ! Detonation Solver
     !-----------------------------------------------------------------
-    function cea_detonation_solver_create(sptr, mptr) result(ierr) bind(c)
+    function cea_detonation_solver_create(sptr, mptr) result(ierr) &
+        bind(c, name="cea_detonation_solver_create_fortran")
         integer(c_int) :: ierr
         type(c_ptr), intent(out) :: sptr
         type(c_ptr), intent(in), value :: mptr
@@ -2527,7 +2548,8 @@ contains
         call log_info('BINDC: Created DetonSolver from product mixture at '//to_str(sptr))
     end function
 
-    function cea_detonation_solver_create_with_reactants(sptr, mptr_prod, mptr_reac) result(ierr) bind(c)
+    function cea_detonation_solver_create_with_reactants(sptr, mptr_prod, mptr_reac) result(ierr) &
+        bind(c, name="cea_detonation_solver_create_with_reactants_fortran")
         integer(c_int) :: ierr
         type(c_ptr), intent(out) :: sptr
         type(c_ptr), intent(in), value :: mptr_prod
@@ -2544,7 +2566,8 @@ contains
         call log_info('BINDC: Created DetonSolver from product/reactant mixtures at '//to_str(sptr))
     end function
 
-    function cea_detonation_solver_create_with_options(sptr, mptr_prod, opts) result(ierr) bind(c)
+    function cea_detonation_solver_create_with_options(sptr, mptr_prod, opts) result(ierr) &
+        bind(c, name="cea_detonation_solver_create_with_options_fortran")
         integer(c_int) :: ierr
         type(c_ptr), intent(out) :: sptr
         type(c_ptr), intent(in), value :: mptr_prod
@@ -2687,7 +2710,8 @@ contains
         sptr = c_loc(solver)
         if (logical(opts%smooth_truncation)) then
             if (opts%truncation_width == 0.0d0) &
-                error stop 'cea_detonation_solver_create_with_options: truncation_width must be > 0 when smooth_truncation is set.'
+                call abort('cea_detonation_solver_create_with_options: truncation_width must be > ' // &
+                           '0 when smooth_truncation is set.')
             solver%eq_solver%smooth_truncation = .true.
             if (opts%truncation_width > 0.0d0) solver%eq_solver%truncation_width = opts%truncation_width
         end if
@@ -2727,7 +2751,8 @@ contains
         end select
     end function
 
-    function cea_detonation_solver_solve(sptr, slptr, weights, T1, p1, frozen) result(ierr) bind(c)
+    function cea_detonation_solver_solve(sptr, slptr, weights, T1, p1, frozen) result(ierr) &
+        bind(c, name="cea_detonation_solver_solve_fortran")
         integer(c_int) :: ierr
         type(c_ptr),     intent(in), value :: sptr
         type(c_ptr),     intent(in), value :: slptr
@@ -2989,7 +3014,8 @@ contains
         call log_info('BINDC: Destroyed EqDerivatives object at '//to_str(dptr))
     end function
 
-    function cea_eqderivatives_compute_derivatives(dptr, sptr, slptr, check_closure_defect) result(ierr) bind(c)
+    function cea_eqderivatives_compute_derivatives(dptr, sptr, slptr, check_closure_defect) result(ierr) &
+        bind(c, name="cea_eqderivatives_compute_derivatives_fortran")
         integer(c_int) :: ierr
         type(c_ptr),     intent(in), value :: dptr
         type(c_ptr),     intent(in), value :: sptr
@@ -3009,7 +3035,8 @@ contains
         call derivs%unpack_values(solver, solution)
     end function
 
-    function cea_eqderivatives_compute_fd(dptr, sptr, slptr, h, verbose, central) result(ierr) bind(c)
+    function cea_eqderivatives_compute_fd(dptr, sptr, slptr, h, verbose, central) result(ierr) &
+        bind(c, name="cea_eqderivatives_compute_fd_fortran")
         integer(c_int) :: ierr
         type(c_ptr),     intent(in), value :: dptr
         type(c_ptr),     intent(in), value :: sptr

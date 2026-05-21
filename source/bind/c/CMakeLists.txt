@@ -1,10 +1,18 @@
 
-add_installed_library(cea_bindc SHARED bindc.F90)
+add_library(cea_abort_support STATIC cea_abort_support.c)
+target_include_directories(cea_abort_support PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+
+add_installed_library(cea_bindc SHARED bindc.F90 cea_recovery.c)
 #include(../cmake/CompilerFlags.cmake)
 project_enable_fortran_std(cea_bindc)
-target_link_libraries(cea_bindc PRIVATE cea::core fbasics::core)
+target_link_libraries(cea_bindc PRIVATE cea::core fbasics::core cea_abort_support)
 target_include_directories(cea_bindc PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 install(FILES cea.h cea_enum.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cea/bindc)
+
+target_link_libraries(cea PRIVATE cea_abort_support)
+if(TARGET cea_core_test)
+    target_link_libraries(cea_core_test cea_abort_support)
+endif()
 if(WIN32)
     # on windows, several dll either need to be installed on the target
     # machine, or they need to be statically linked. linking seemed easier than

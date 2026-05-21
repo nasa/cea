@@ -14,6 +14,7 @@ cdef extern from "cea.h":
         CEA_INVALID_SIZE
         CEA_NOT_CONVERGED
         CEA_LAST_VALID_SOLUTION
+        CEA_FORTRAN_ABORT
 
     ctypedef enum cea_log_level:
         CEA_LOG_CRITICAL
@@ -262,6 +263,8 @@ cdef extern from "cea.h":
     cpdef cea_err cea_version_minor(cea_int *minor)
     cpdef cea_err cea_version_patch(cea_int *patch)
     cpdef cea_err cea_set_log_level(const cea_log_level level)
+    cpdef cea_err cea_last_error_message_len(cea_int *message_len)
+    cpdef cea_err cea_last_error_message_buf(char *message, const cea_int buf_len)
 
     # Initialization
     cpdef cea_err cea_init()
