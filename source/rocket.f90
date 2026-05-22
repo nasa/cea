@@ -979,7 +979,9 @@ contains
 
         ! Save some chamber solution variables for later use
         state1 = soln%eq_soln(1)%calc_entropy_sum(self%eq_solver)  ! Combustor entropy
-        if (prob_type == "tp") h_inf = dot_product(soln%eq_soln(1)%nj, soln%eq_soln(1)%thermo%enthalpy)*soln%eq_soln(1)%T  ! Combustor enthalpy
+        if (prob_type == "tp") &
+            h_inf = dot_product(soln%eq_soln(1)%nj, soln%eq_soln(1)%thermo%enthalpy) * &
+                    soln%eq_soln(1)%T  ! Combustor enthalpy
 
         ! -----------------------------------------------
         ! Throat conditions
@@ -1071,7 +1073,8 @@ contains
         real(dp), intent(in), optional :: pi_p(:)    ! Ratio of chamber pressure to exit pressure [unitless]
         real(dp), intent(in), optional :: subar(:)   ! Subsonic area ratio [unitless]
         real(dp), intent(in), optional :: supar(:)   ! Supersonic area ratio [unitless]
-        real(dp), intent(in), optional :: ac_at      ! Contraction ratio: ratio of finite chamber area to throat area, Ac/At (FAC only) [unitless]
+        real(dp), intent(in), optional :: ac_at      ! FAC contraction ratio,
+                                                      ! Ac/At [unitless]
         real(dp), intent(in), optional :: mdot       ! Mass flow rate per chamber area (FAC only) [(kg/s)/m^2]
         integer,  intent(in), optional :: n_frz      ! Station where the composition should be frozen
         real(dp), intent(in), optional :: tc_est     ! Initial chamber temperature estimate [K]
@@ -1097,7 +1100,8 @@ contains
         real(dp) :: ln_pinf_pc               ! Temporary variable for ln(Pinf/Pc)
         real(dp) :: dln_pinf_pc_dln_acat     ! Partial derivative ∂ln(Pinf/Pc)/∂ln(Ac/At)
         real(dp) :: dln_pinf_pc              ! Update to ln(Pinf/Pc)
-        real(dp) :: ac_at_                   ! Contraction ratio: ratio of finite chamber area to throat area, Ac/At (FAC only) [unitless]
+        real(dp) :: ac_at_                   ! FAC contraction ratio,
+                                             ! Ac/At [unitless]
         real(dp) :: awt                      ! Mass flow per area in the throat
         real(dp) :: p_inf                    ! Pressure at infinity
         real(dp) :: p_inj_check              ! Computed value of injector pressure (used to check convergence)
@@ -1421,7 +1425,8 @@ contains
         real(dp), intent(in), optional :: subar(:)   ! Subsonic area ratio [unitless]
         real(dp), intent(in), optional :: supar(:)   ! Supersonic area ratio [unitless]
         real(dp), intent(in), optional :: mdot       ! Mass flow rate per chamber area (FAC only) [(kg/s)/m^2]
-        real(dp), intent(in), optional :: ac_at      ! Contraction ratio: ratio of finite chamber area to throat area, Ac/At (FAC only) [unitless]
+        real(dp), intent(in), optional :: ac_at      ! FAC contraction ratio,
+                                                      ! Ac/At [unitless]
         integer,  intent(in), optional :: n_frz      ! Station where the composition should be frozen
         real(dp), intent(in), optional :: tc_est     ! Initial chamber temperature estimate [K]
         real(dp), intent(in), optional :: hc         ! Assigned chamber enthalpy [unitless]

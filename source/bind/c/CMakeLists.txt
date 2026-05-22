@@ -5,7 +5,12 @@ target_include_directories(cea_abort_support PUBLIC $<BUILD_INTERFACE:${CMAKE_CU
 add_installed_library(cea_bindc SHARED bindc.F90 cea_recovery.c)
 #include(../cmake/CompilerFlags.cmake)
 project_enable_fortran_std(cea_bindc)
-target_link_libraries(cea_bindc PRIVATE cea::core fbasics::core cea_abort_support)
+target_link_libraries(cea_bindc
+    PRIVATE
+        cea::core
+        fbasics::core
+        cea_abort_support
+)
 target_include_directories(cea_bindc PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 install(FILES cea.h cea_enum.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cea/bindc)
 
@@ -22,7 +27,7 @@ if(WIN32)
 
     if (CMAKE_Fortran_COMPILER_ID STREQUAL "IntelLLVM" OR CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
         target_link_options(cea_bindc
-                            PUBLIC "-libs:static")
+                            PRIVATE "-libs:static")
         set_target_properties(cea_bindc PROPERTIES
             WINDOWS_EXPORT_ALL_SYMBOLS ON
             PREFIX ""
@@ -30,13 +35,13 @@ if(WIN32)
         )
     else()
         target_link_options(cea_bindc
-                            PUBLIC "-static-libgfortran"
-                            PUBLIC "-static-libgcc"
-                            PUBLIC "-static-libquadmath")
+                            PRIVATE "-static-libgfortran"
+                            PRIVATE "-static-libgcc"
+                            PRIVATE "-static-libquadmath")
     endif()
 elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "IntelLLVM" OR CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
     target_link_options(cea_bindc
-                        PUBLIC "-static-intel")
+                        PRIVATE "-static-intel")
 endif()
 
 if (CEA_BUILD_TESTING)

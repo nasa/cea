@@ -62,7 +62,6 @@ if (CEA_ENABLE_BIND_PYTHON)
         # default if using ifc
         if (CMAKE_C_COMPILER_ID STREQUAL "IntelLLVM" OR CMAKE_C_COMPILER_ID STREQUAL "Intel")
             target_compile_options(libcea PUBLIC "-D__INTEL_COMPILER")
-            target_link_options(libcea PUBLIC "/static")
         endif()
     endif()
 
@@ -73,7 +72,7 @@ if (CEA_ENABLE_BIND_PYTHON)
         set_target_properties(libcea PROPERTIES INSTALL_RPATH $ORIGIN)
     endif()
 
-    target_link_libraries(libcea cea::bindc)
+    target_link_libraries(libcea cea::bindc cea_abort_support)
     target_include_directories(libcea PUBLIC
         ${PYTHON_INCLUDE_DIRS}
         ${NumPy_INCLUDE_DIRS}
