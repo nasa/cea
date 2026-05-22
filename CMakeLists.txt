@@ -61,18 +61,24 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # change some build systems on windows
 if(WIN32)
-    # find and alternative to 'ar' archive utility
-    find_program(AR_EXECUTABLE NAMES ar)
-    if(AR_EXECUTABLE)
-        message(STATUS "Found archive utility: ${AR_EXECUTABLE}")
-        set(CMAKE_AR ${AR_EXECUTABLE} CACHE FILEPATH "Path to a program." FORCE)
-    else()
-        find_program(AR_EXECUTABLE NAMES gcc-ar)
+    # Intel's Windows toolchains use MSVC-style librarian flags for static
+    # libraries, so forcing GNU ar there produces invalid archive commands.
+    if(NOT (CMAKE_Fortran_COMPILER_ID STREQUAL "IntelLLVM" OR
+            CMAKE_Fortran_COMPILER_ID STREQUAL "Intel" OR
+            CMAKE_Fortran_SIMULATE_ID STREQUAL "MSVC"))
+        # find an alternative to 'ar' archive utility
+        find_program(AR_EXECUTABLE NAMES ar)
         if(AR_EXECUTABLE)
             message(STATUS "Found archive utility: ${AR_EXECUTABLE}")
             set(CMAKE_AR ${AR_EXECUTABLE} CACHE FILEPATH "Path to a program." FORCE)
         else()
-            message(WARNING "Archive utility not found.")
+            find_program(AR_EXECUTABLE NAMES gcc-ar)
+            if(AR_EXECUTABLE)
+                message(STATUS "Found archive utility: ${AR_EXECUTABLE}")
+                set(CMAKE_AR ${AR_EXECUTABLE} CACHE FILEPATH "Path to a program." FORCE)
+            else()
+                message(WARNING "Archive utility not found.")
+            endif()
         endif()
     endif()
 endif()
