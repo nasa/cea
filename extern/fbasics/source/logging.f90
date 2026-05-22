@@ -82,10 +82,12 @@ contains
     subroutine log(level, prefix, message)
         integer, intent(in) :: level
         character(len=*), intent(in) :: prefix, message
+        if (current_level == log_levels%none) then
+            return
+        end if
         if (level >= current_level) then
             write(lunit,'(a)') prefix // message
         end if
     end subroutine
 
 end module
-

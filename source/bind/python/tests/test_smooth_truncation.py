@@ -158,18 +158,19 @@ def test_smooth_truncation_detonation_solver_smoke():
 
 
 # ---------------------------------------------------------------------------
-# Validation: truncation_width=0.0 with smooth_truncation=True must abort
+# Validation: truncation_width=0.0 with smooth_truncation=True reports an error
 # ---------------------------------------------------------------------------
 
 @pytest.mark.smoke
-def test_smooth_truncation_zero_width_aborts():
-    """truncation_width=0.0 is explicitly invalid and should abort the process."""
+def test_smooth_truncation_zero_width_reports_error_without_aborting():
+    """truncation_width=0.0 is invalid but should not terminate the Python process."""
     code = textwrap.dedent(
         """
         import cea
 
         prod = cea.Mixture(["H2", "O2"], products_from_reactants=True)
-        solver = cea.EqSolver(prod, smooth_truncation=True, truncation_width=0.0)
+        cea.EqSolver(prod, smooth_truncation=True, truncation_width=0.0)
+        print("CONTINUED_AFTER_CONSTRUCTOR")
         """
     )
     result = subprocess.run(
@@ -178,7 +179,8 @@ def test_smooth_truncation_zero_width_aborts():
         text=True,
         check=False,
     )
-    assert result.returncode != 0, (
-        "Expected non-zero exit when truncation_width=0.0 with smooth_truncation=True, "
-        "but process exited successfully."
-    )
+    combined = result.stdout + result.stderr
+
+    assert result.returncode == 0, combined
+    assert "truncation_width must be > 0" in result.stdout, combined
+    assert "CONTINUED_AFTER_CONSTRUCTOR" in result.stdout, combined

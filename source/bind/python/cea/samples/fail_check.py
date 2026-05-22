@@ -8,6 +8,7 @@ import numpy as np
 # shown under normal import conditions. maybe have simple
 # variables of the path to them for inspection in code?
 import cea
+cea.set_log_level(cea.LOG_DEBUG)
 
 reac_names = ["H2(L)", "O2(L)"]
 T_reactant = np.array([20.27, 90.17])  # Reactant temperatures (K)

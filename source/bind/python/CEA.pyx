@@ -333,7 +333,7 @@ def set_log_level(level):
     return
 
 def _maybe_print_init_path(label, path):
-    if _py_log_level == LOG_NONE:
+    if _py_log_level not in (LOG_INFO, LOG_DEBUG):
         return
     if path:
         print(f"Loaded {label} from: {path}")
