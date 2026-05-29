@@ -71,15 +71,18 @@ manual testing:
 Testing from Excel on Windows
 -----------------------------
 1. Build `cea_excel.dll`.
-2. Ensure `cea_excel.dll` is in a location Excel can load.
-3. If Excel cannot discover the DLL by filename alone, update the `Lib` string
-   in `modCEADeclare.bas` to a full path for local testing.
+2. Copy `cea_excel.dll` next to the macro-enabled workbook. For local build
+   tree testing, `lib/cea_excel.dll`, `lib/Release/cea_excel.dll`, and
+   `Release/cea_excel.dll` below the workbook folder are also checked.
+3. Keep any native DLL dependencies in the same folder as `cea_excel.dll`.
 4. In Excel, run `TestCEAAdd` first, then `TestCEAVersion` or
    `WriteCEAVersionToReadme`.
 
 Known limitations
 -----------------
 - The native library must be discoverable by Excel/VBA.
+- The VBA loader resolves the native library relative to the saved workbook
+  location; it does not require editing absolute paths into the VBA modules.
 - The wrapper is intentionally kept minimal; this first pass only exposes a
   trivial add function and the version string bridge.
 - On Windows, this first pass targets 64-bit Excel.

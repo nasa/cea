@@ -9,7 +9,15 @@ Private Const ADD_STATUS_CELL As String = "B5"
 
 Private Function CallCEAAdd(ByVal a As Long, ByVal b As Long, ByRef result As Long) As Boolean
 #If Win64 Then
+    Dim loadError As String
+
     On Error GoTo LoadError
+
+    If Not EnsureCEALibraryLoaded(loadError) Then
+        result = 0
+        MsgBox loadError, vbCritical, "CEA Excel wrapper"
+        Exit Function
+    End If
 
     result = cea_excel_test_add(a, b)
     CallCEAAdd = True
@@ -31,9 +39,17 @@ End Function
 Private Function CallCEAVersion(ByRef version As String, ByRef status As Long) As Boolean
 #If Win64 Then
     Dim buffer As String
+    Dim loadError As String
     Dim nulPos As Long
 
     On Error GoTo LoadError
+
+    If Not EnsureCEALibraryLoaded(loadError) Then
+        version = ""
+        status = -1
+        MsgBox loadError, vbCritical, "CEA Excel wrapper"
+        Exit Function
+    End If
 
     buffer = String$(256, vbNullChar)
     status = cea_excel_version(buffer, Len(buffer))
@@ -52,8 +68,9 @@ LoadError:
     version = ""
     status = -1
     MsgBox "Unable to load or call the native CEA Excel library." & vbCrLf & _
-           "Confirm the library path in modCEADeclare.bas and that the " & _
-           "native dependencies are available." & vbCrLf & vbCrLf & _
+           "The loader tried workbook-relative locations before this call. " & _
+           "Confirm " & CEALibraryPath() & " and its native dependencies " & _
+           "are available." & vbCrLf & vbCrLf & _
            "VBA error " & CStr(Err.Number) & ": " & Err.Description, _
            vbCritical, "CEA Excel wrapper"
 #Else
