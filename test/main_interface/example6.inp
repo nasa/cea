@@ -12,5 +12,5 @@ reac  oxid O2  wt%=100
 
  prob  detonation   case=6  t=298.15,500, r,e=1, pbar=1,20
 
-output  calories transport
+output  calories transport long
 end

@@ -17,6 +17,6 @@ reac      name H2(L) moles=100
 prob      tp  p,atm=.05  case=14
           t,k = 1000,500,350,305,304.3,304.2,304,300,
 
-output    siunits  debug
+output    siunits  long
 
 end

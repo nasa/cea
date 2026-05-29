@@ -3,6 +3,7 @@ module fb_utils
 
     use fb_logging
     use fb_parameters, only: wp, empty_int, empty_real, tol
+    use iso_c_binding, only: c_char, c_int, c_null_char
     implicit none
     integer, parameter :: IK = kind(0)
     integer, parameter :: SK = kind("a")
@@ -31,6 +32,18 @@ module fb_utils
     interface flat
         module procedure :: flat_r2, flat_r3, flat_r4
         module procedure :: flat_i2, flat_i3, flat_i4
+    end interface
+    interface
+        function cea_bindc_abort_recovery_is_active() bind(c)
+            import c_int
+            integer(c_int) :: cea_bindc_abort_recovery_is_active
+        end function
+
+        subroutine cea_bindc_abort_recover(message, message_len) bind(c)
+            import c_char, c_int
+            character(kind=c_char), intent(in) :: message(*)
+            integer(c_int), value :: message_len
+        end subroutine
     end interface
 
     private :: set_ios, &
@@ -75,7 +88,27 @@ contains
     subroutine abort(msg)
         ! Exit with error code 1, optionally displaying error message.
         character(*), intent(in), optional :: msg
+        character(kind=c_char), allocatable :: cmsg(:)
+        integer :: i, nmsg
+
         if (present(msg)) call log_critical(msg)
+
+        if (cea_bindc_abort_recovery_is_active() /= 0) then
+            if (present(msg)) then
+                nmsg = len_trim(msg)
+                allocate(cmsg(nmsg + 1))
+                do i = 1, nmsg
+                    cmsg(i) = msg(i:i)
+                end do
+                cmsg(nmsg + 1) = c_null_char
+                call cea_bindc_abort_recover(cmsg, int(nmsg, c_int))
+            else
+                allocate(cmsg(1))
+                cmsg(1) = c_null_char
+                call cea_bindc_abort_recover(cmsg, 0_c_int)
+            end if
+        end if
+
         stop 1
     end subroutine
 

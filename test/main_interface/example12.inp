@@ -19,5 +19,5 @@ prob  rocket  case=12  p,psia =1000, pi/p=68.0457,  eql frozen nfz=2
        supersonic=5,10,25,50,75,100,150,200, o/f= 2.5,
 only  CO    CO2   H   HNO  HO2   H2    H2O   H2O2  N     NO    NO2
      N2    N2O   O  OH  O2    HCO   NH    CH4  NH2  NH3  H2O(L)  C(gr)
-output  siunits  massf  plot aeat t p ivac isp mach cf
+output  siunits  massf  long
 end

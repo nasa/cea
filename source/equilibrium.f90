@@ -1803,14 +1803,16 @@ contains
         integer :: singular_index_                ! Index of condensed species that caused a singular matrix
         real(dp) :: temp                          ! Temp value to select condensed species
         real(dp) :: delg                          ! ∂g (Gibb's energy) of a cantidate condensed species [unitless]
-        real(dp) :: min_delg                      ! Largest negative ∂g (Gibb's energy) of a cantidate condensed species [unitless]
+        real(dp) :: min_delg                      ! Largest negative ∂g of a candidate
+                                                   ! condensed species [unitless]
         real(dp) :: delg_singular                 ! ∂g of the condensed species with singular_index
         real(dp), pointer :: h_c(:)               ! Condensed enthalpies [unitless]
         real(dp), pointer :: s_c(:)               ! Condensed entropies [unitless]
         real(dp), pointer :: A_c(:,:)             ! Condensed stoichiometric matrices
         real(dp), pointer :: pi(:)                ! 𝛑_j (k-th iteration)
         integer, allocatable :: active_idx(:)     ! Active condensed indices in current active-order mapping
-        logical :: made_change                    ! Flag to indicate if a species was added or removed (used for other subroutine calls)
+        logical :: made_change                    ! Flag to indicate if a species was
+                                                   ! added or removed
         real(dp), parameter :: T_min = 200.0d0    ! Minimum gas temperature defined in thermo data [K]
         real(dp), parameter :: tol = 1d-12
 

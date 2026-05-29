@@ -117,6 +117,8 @@ module cea_input
         !! Dataset containing the output options
         real(dp), allocatable :: trace
             !! Only output species with concentrations greater than `trace`
+        logical :: long = .false.
+            !! Print extra-precision numeric output
         logical :: transport = .false.
             !! Optional flag to calculate mixture transport properties
         logical :: mass_fractions = .false.
@@ -723,6 +725,7 @@ contains
             ! Four letter keywords
             match = .true.
             select case(token(:4))
+                case('long'); output%long = .true.
                 case('tran'); output%transport = .true.
                 case('trac'); output%trace = scanner%read_real()
                 case default

@@ -151,8 +151,9 @@ whenever you modify solver behavior.
 
 * **Integration harness** – ``test/main_interface/test_main.py`` re-runs the
   original RP‑1311 problems and compares the generated ``*.out`` files against
-  reference outputs.  Ensure the ``cea`` executable is on ``PATH`` or adjust the
-  ``run_dir`` variable near the top of the script before running::
+  reference outputs.  Ensure the ``cea`` executable is on ``PATH``, set
+  ``CEA_EXE`` or ``CEA_RUN_DIR``, or build ``build*/source/cea`` in this
+  checkout before running::
 
       python test/main_interface/test_main.py
 

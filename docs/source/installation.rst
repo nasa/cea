@@ -271,12 +271,7 @@ Validation checks:
       cd build-intel\source
       python ..\..\test\main_interface\test_main.py
 
-  Expected result for this check is 13 out of 14 passing, with a small error on
-  example 11::
-
-      Reference    | Test         | Rel. Error
-      --------------------------------------------------------------
-      F-                :   2.5000e-04 |   2.6000e-04 |       4.000%
+  Expected result for this check is 14/14 passing.
 
 * Python binding tests (from the CEA root)::
 

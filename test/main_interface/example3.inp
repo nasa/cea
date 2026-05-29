@@ -19,7 +19,7 @@ reac
      fuel C7H8(L)   wtfrac= .4   t(k)= 298.15
      fuel C8H18(L),n-octa   wtfrac= .6 t(k)= 298.15
 prob   case=Example-3   hp  p(bar)=100,10,1, o/f = 17
-output siunits  trace=1.e-15
+output siunits  trace=1.e-15 long
 
 omit CCN              CNC              C2N2             C2O
      C3H4,allene      C3H4,propyne     C3H4,cyclo-      C3

@@ -125,6 +125,10 @@ extern "C"
   // Logging Control
   cea_err cea_set_log_level(const cea_log_level level);
 
+  // Last recovered fatal error message for the current thread
+  cea_err cea_last_error_message_len(cea_int *message_len);
+  cea_err cea_last_error_message_buf(char *message, const cea_int buf_len);
+
   // Initialization (not thread safe)
   cea_err cea_init();
   cea_err cea_init_thermo(const cea_string thermofile);

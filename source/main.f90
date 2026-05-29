@@ -1127,20 +1127,39 @@ contains
                 end if
                 write(ioout, '(A)') ""
                 write(ioout, '(A)') "INITIAL GAS (1)"
-                write(ioout, '(A, 14F9.3)') "Mach1            ", (solutions(i, 1, k)%mach(1), i=1,m)
-                write(ioout, '(A, 14F9.3)') "u1, m/s          ", (solutions(i, 1, k)%u(1), i=1,m)
-                write(ioout, '(A, 14F9.3)') "P, bar           ", (solutions(i, 1, k)%pressure(1), i=1,m)
-                write(ioout, '(A, 14F9.3)') "T, K             ", (solutions(i, 1, k)%eq_soln(1)%T, i=1,m)
-                write(ioout, '(A, 14E9.3e1)') "rho1, kg/m^3     ", (solutions(i, 1, k)%eq_soln(1)%density, i=1,m)
-                write(ioout, '(A, 14F9.2)') "H, kJ/kg         ", (solutions(i, 1, k)%eq_soln(1)%enthalpy, i=1,m)
-                write(ioout, '(A, 14F9.2)') "U, kJ/kg         ", (solutions(i, 1, k)%eq_soln(1)%energy, i=1,m)
-                write(ioout, '(A, 14F9.1)') "G, kJ/kg         ", (solutions(i, 1, k)%eq_soln(1)%gibbs_energy, i=1,m)
-                write(ioout, '(A, 14F9.2)') "S, kJ/(kg-K)     ", (solutions(i, 1, k)%eq_soln(1)%entropy, i=1,m)
+                if (prob%output%long) then
+                    write(ioout, '(A, *(1X, ES23.15E3))') "Mach1            ", (solutions(i, 1, k)%mach(1), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "u1, m/s          ", (solutions(i, 1, k)%u(1), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "P, bar           ", (solutions(i, 1, k)%pressure(1), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "T, K             ", (solutions(i, 1, k)%eq_soln(1)%T, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "rho1, kg/m^3     ", (solutions(i, 1, k)%eq_soln(1)%density, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "H, kJ/kg         ", (solutions(i, 1, k)%eq_soln(1)%enthalpy, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "U, kJ/kg         ", (solutions(i, 1, k)%eq_soln(1)%energy, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "G, kJ/kg         ", (solutions(i, 1, k)%eq_soln(1)%gibbs_energy, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "S, kJ/(kg-K)     ", (solutions(i, 1, k)%eq_soln(1)%entropy, i=1,m)
+                else
+                    write(ioout, '(A, 14F9.3)') "Mach1            ", (solutions(i, 1, k)%mach(1), i=1,m)
+                    write(ioout, '(A, 14F9.3)') "u1, m/s          ", (solutions(i, 1, k)%u(1), i=1,m)
+                    write(ioout, '(A, 14F9.3)') "P, bar           ", (solutions(i, 1, k)%pressure(1), i=1,m)
+                    write(ioout, '(A, 14F9.3)') "T, K             ", (solutions(i, 1, k)%eq_soln(1)%T, i=1,m)
+                    write(ioout, '(A, 14E9.3e1)') "rho1, kg/m^3     ", (solutions(i, 1, k)%eq_soln(1)%density, i=1,m)
+                    write(ioout, '(A, 14F9.2)') "H, kJ/kg         ", (solutions(i, 1, k)%eq_soln(1)%enthalpy, i=1,m)
+                    write(ioout, '(A, 14F9.2)') "U, kJ/kg         ", (solutions(i, 1, k)%eq_soln(1)%energy, i=1,m)
+                    write(ioout, '(A, 14F9.1)') "G, kJ/kg         ", (solutions(i, 1, k)%eq_soln(1)%gibbs_energy, i=1,m)
+                    write(ioout, '(A, 14F9.2)') "S, kJ/(kg-K)     ", (solutions(i, 1, k)%eq_soln(1)%entropy, i=1,m)
+                end if
                 write(ioout, '(A)') ""
-                write(ioout, '(A, 14F9.3)') "M, (1/n)         ", (1.0d0/solutions(i, 1, k)%eq_soln(1)%n, i=1,m)
-                write(ioout, '(A, 14F9.3)') "Cp, kJ/(kg-K)    ", (solutions(i, 1, k)%eq_soln(1)%cp_eq, i=1,m)
-                write(ioout, '(A, 14F9.3)') "Gamma_s          ", (solutions(i, 1, k)%eq_soln(1)%gamma_s, i=1,m)
-                write(ioout, '(A, 14F9.3)') "Son. Vel., m/s   ", (solutions(i, 1, k)%v_sonic(1), i=1,m)
+                if (prob%output%long) then
+                    write(ioout, '(A, *(1X, ES23.15E3))') "M, (1/n)         ", (1.0d0/solutions(i, 1, k)%eq_soln(1)%n, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "Cp, kJ/(kg-K)    ", (solutions(i, 1, k)%eq_soln(1)%cp_eq, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "Gamma_s          ", (solutions(i, 1, k)%eq_soln(1)%gamma_s, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "Son. Vel., m/s   ", (solutions(i, 1, k)%v_sonic(1), i=1,m)
+                else
+                    write(ioout, '(A, 14F9.3)') "M, (1/n)         ", (1.0d0/solutions(i, 1, k)%eq_soln(1)%n, i=1,m)
+                    write(ioout, '(A, 14F9.3)') "Cp, kJ/(kg-K)    ", (solutions(i, 1, k)%eq_soln(1)%cp_eq, i=1,m)
+                    write(ioout, '(A, 14F9.3)') "Gamma_s          ", (solutions(i, 1, k)%eq_soln(1)%gamma_s, i=1,m)
+                    write(ioout, '(A, 14F9.3)') "Son. Vel., m/s   ", (solutions(i, 1, k)%v_sonic(1), i=1,m)
+                end if
 
                 ! -------------------------------------------------------------------
                 ! Write results for the incident shock (equilibrium)
@@ -1150,9 +1169,19 @@ contains
                     if (.not. solutions(i, 1, k)%converged) then
                         write(ioout, '(A)') ""
                         if (use_mach) then
-                            write(ioout, '(A, 14F9.3)') "WARNING: No convergence for Mach1=",solutions(i, 1, k)%mach(1)
+                            if (prob%output%long) then
+                                write(ioout, '(A, 1X, ES23.15E3)') "WARNING: No convergence for Mach1=", &
+                                    solutions(i, 1, k)%mach(1)
+                            else
+                                write(ioout, '(A, 14F9.3)') "WARNING: No convergence for Mach1=",solutions(i, 1, k)%mach(1)
+                            end if
                         else
-                            write(ioout, '(A, 14F9.3)') "WARNING: No convergence for u1=",solutions(i, 1, k)%u(1)
+                            if (prob%output%long) then
+                                write(ioout, '(A, 1X, ES23.15E3)') "WARNING: No convergence for u1=", &
+                                    solutions(i, 1, k)%u(1)
+                            else
+                                write(ioout, '(A, 14F9.3)') "WARNING: No convergence for u1=",solutions(i, 1, k)%u(1)
+                            end if
                         end if
                         write(ioout, '(A)') "ANSWERS NOT RELIABLE, SOLUTION MAY NOT EXIST"
                     end if
@@ -1161,23 +1190,51 @@ contains
                 ! Write the shocked gas properties
                 write(ioout, '(A)') ""
                 write(ioout, '(A)') "SHOCKED GAS (2)--INCIDENT--"//incd_type
-                write(ioout, '(A, 14F9.3)') "u2, m/s          ", (solutions(i, 1, k)%u(2), i=1,m)
-                write(ioout, '(A, 14F9.3)') "P, bar           ", (solutions(i, 1, k)%pressure(2), i=1,m)
-                write(ioout, '(A, 14F9.3)') "T, K             ", (solutions(i, 1, k)%eq_soln(2)%T, i=1,m)
-                write(ioout, '(A, 14E9.3e1)') "rho, kg/m^3      ", (solutions(i, 1, k)%eq_soln(2)%density, i=1,m)
-                write(ioout, '(A, 14F9.2)') "H, kJ/kg         ", (solutions(i, 1, k)%eq_soln(2)%enthalpy, i=1,m)
-                write(ioout, '(A, 14F9.2)') "U, kJ/kg         ", (solutions(i, 1, k)%eq_soln(2)%energy, i=1,m)
-                write(ioout, '(A, 14F9.1)') "G, kJ/kg         ", (solutions(i, 1, k)%eq_soln(2)%gibbs_energy, i=1,m)
-                write(ioout, '(A, 14F9.2)') "S, kJ/(kg-K)     ", (solutions(i, 1, k)%eq_soln(2)%entropy, i=1,m)
-                write(ioout, '(A)') ""
-                write(ioout, '(A, 14F9.3)') "M, (1/n)         ", (1.0d0/solutions(i, 1, k)%eq_soln(2)%n, i=1,m)
-                if (write_incd_eql) then
-                    write(ioout, '(A, 14F9.3)') "(dln(V)/dln(P))t ", (solutions(i, 1, k)%eq_partials(2)%dlnV_dlnP, i=1,m)
-                    write(ioout, '(A, 14F9.3)') "(dln(V)/dln(T))p ", (solutions(i, 1, k)%eq_partials(2)%dlnV_dlnT, i=1,m)
+                if (prob%output%long) then
+                    write(ioout, '(A, *(1X, ES23.15E3))') "u2, m/s          ", (solutions(i, 1, k)%u(2), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "P, bar           ", (solutions(i, 1, k)%pressure(2), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "T, K             ", (solutions(i, 1, k)%eq_soln(2)%T, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "rho, kg/m^3      ", (solutions(i, 1, k)%eq_soln(2)%density, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "H, kJ/kg         ", (solutions(i, 1, k)%eq_soln(2)%enthalpy, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "U, kJ/kg         ", (solutions(i, 1, k)%eq_soln(2)%energy, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "G, kJ/kg         ", (solutions(i, 1, k)%eq_soln(2)%gibbs_energy, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "S, kJ/(kg-K)     ", (solutions(i, 1, k)%eq_soln(2)%entropy, i=1,m)
+                else
+                    write(ioout, '(A, 14F9.3)') "u2, m/s          ", (solutions(i, 1, k)%u(2), i=1,m)
+                    write(ioout, '(A, 14F9.3)') "P, bar           ", (solutions(i, 1, k)%pressure(2), i=1,m)
+                    write(ioout, '(A, 14F9.3)') "T, K             ", (solutions(i, 1, k)%eq_soln(2)%T, i=1,m)
+                    write(ioout, '(A, 14E9.3e1)') "rho, kg/m^3      ", (solutions(i, 1, k)%eq_soln(2)%density, i=1,m)
+                    write(ioout, '(A, 14F9.2)') "H, kJ/kg         ", (solutions(i, 1, k)%eq_soln(2)%enthalpy, i=1,m)
+                    write(ioout, '(A, 14F9.2)') "U, kJ/kg         ", (solutions(i, 1, k)%eq_soln(2)%energy, i=1,m)
+                    write(ioout, '(A, 14F9.1)') "G, kJ/kg         ", (solutions(i, 1, k)%eq_soln(2)%gibbs_energy, i=1,m)
+                    write(ioout, '(A, 14F9.2)') "S, kJ/(kg-K)     ", (solutions(i, 1, k)%eq_soln(2)%entropy, i=1,m)
                 end if
-                write(ioout, '(A, 14F9.3)') "Cp, kJ/(kg-K)    ", (solutions(i, 1, k)%eq_soln(2)%cp_eq, i=1,m)
-                write(ioout, '(A, 14F9.3)') "Gamma_s          ", (solutions(i, 1, k)%eq_partials(2)%gamma_s, i=1,m)
-                write(ioout, '(A, 14F9.3)') "Son. Vel., m/s   ", (solutions(i, 1, k)%v_sonic(2), i=1,m)
+                write(ioout, '(A)') ""
+                if (prob%output%long) then
+                    write(ioout, '(A, *(1X, ES23.15E3))') "M, (1/n)         ", (1.0d0/solutions(i, 1, k)%eq_soln(2)%n, i=1,m)
+                else
+                    write(ioout, '(A, 14F9.3)') "M, (1/n)         ", (1.0d0/solutions(i, 1, k)%eq_soln(2)%n, i=1,m)
+                end if
+                if (write_incd_eql) then
+                    if (prob%output%long) then
+                        write(ioout, '(A, *(1X, ES23.15E3))') "(dln(V)/dln(P))t ", &
+                            (solutions(i, 1, k)%eq_partials(2)%dlnV_dlnP, i=1,m)
+                        write(ioout, '(A, *(1X, ES23.15E3))') "(dln(V)/dln(T))p ", &
+                            (solutions(i, 1, k)%eq_partials(2)%dlnV_dlnT, i=1,m)
+                    else
+                        write(ioout, '(A, 14F9.3)') "(dln(V)/dln(P))t ", (solutions(i, 1, k)%eq_partials(2)%dlnV_dlnP, i=1,m)
+                        write(ioout, '(A, 14F9.3)') "(dln(V)/dln(T))p ", (solutions(i, 1, k)%eq_partials(2)%dlnV_dlnT, i=1,m)
+                    end if
+                end if
+                if (prob%output%long) then
+                    write(ioout, '(A, *(1X, ES23.15E3))') "Cp, kJ/(kg-K)    ", (solutions(i, 1, k)%eq_soln(2)%cp_eq, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "Gamma_s          ", (solutions(i, 1, k)%eq_partials(2)%gamma_s, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "Son. Vel., m/s   ", (solutions(i, 1, k)%v_sonic(2), i=1,m)
+                else
+                    write(ioout, '(A, 14F9.3)') "Cp, kJ/(kg-K)    ", (solutions(i, 1, k)%eq_soln(2)%cp_eq, i=1,m)
+                    write(ioout, '(A, 14F9.3)') "Gamma_s          ", (solutions(i, 1, k)%eq_partials(2)%gamma_s, i=1,m)
+                    write(ioout, '(A, 14F9.3)') "Son. Vel., m/s   ", (solutions(i, 1, k)%v_sonic(2), i=1,m)
+                end if
                 write(ioout, '(A)') ""
 
                 if (prob%output%transport .and. solver%eq_solver%transport) then
@@ -1185,11 +1242,19 @@ contains
                 end if
 
                 ! Write the ratios
-                write(ioout, '(A, 14F9.5)') "P2/P1            ", (solutions(i, 1, k)%p21, i=1,m)
-                write(ioout, '(A, 14F9.5)') "T2/T1            ", (solutions(i, 1, k)%t21, i=1,m)
-                write(ioout, '(A, 14F9.5)') "M2/M1            ", (solutions(i, 1, k)%M21, i=1,m)
-                write(ioout, '(A, 14F9.5)') "rho2/rho1        ", (1.0d0/solutions(i, 1, k)%rho12, i=1,m)
-                write(ioout, '(A, 14F9.3)') "v2, m/s          ", (solutions(i, 1, k)%v2, i=1,m)
+                if (prob%output%long) then
+                    write(ioout, '(A, *(1X, ES23.15E3))') "P2/P1            ", (solutions(i, 1, k)%p21, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "T2/T1            ", (solutions(i, 1, k)%t21, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "M2/M1            ", (solutions(i, 1, k)%M21, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "rho2/rho1        ", (1.0d0/solutions(i, 1, k)%rho12, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "v2, m/s          ", (solutions(i, 1, k)%v2, i=1,m)
+                else
+                    write(ioout, '(A, 14F9.5)') "P2/P1            ", (solutions(i, 1, k)%p21, i=1,m)
+                    write(ioout, '(A, 14F9.5)') "T2/T1            ", (solutions(i, 1, k)%t21, i=1,m)
+                    write(ioout, '(A, 14F9.5)') "M2/M1            ", (solutions(i, 1, k)%M21, i=1,m)
+                    write(ioout, '(A, 14F9.5)') "rho2/rho1        ", (1.0d0/solutions(i, 1, k)%rho12, i=1,m)
+                    write(ioout, '(A, 14F9.3)') "v2, m/s          ", (solutions(i, 1, k)%v2, i=1,m)
+                end if
                 write(ioout, '(A)') ""
 
                 ! Set the trace output value
@@ -1227,7 +1292,8 @@ contains
                 write(ioout, *) ""
                 do idx = 1, solver%eq_solver%num_products
                     if (is_trace(idx) .eqv. .false.) then
-                        eq_fmt = get_shock_species_format(solutions, idx, 1, k, m, 2, prob%output%mass_fractions)
+                        eq_fmt = get_shock_species_format(solutions, idx, 1, k, m, 2, prob%output%mass_fractions, &
+                                                          prob%output%long)
                         if (prob%output%mass_fractions) then
                         write(ioout, eq_fmt) trim(adjustl(solver%eq_solver%products%species_names(idx))), &
                             (solutions(i, 1, k)%eq_soln(2)%mass_fractions(idx), i=1,m)
@@ -1242,7 +1308,11 @@ contains
                 ! Print the list of products with negligible amounts
                 if (write_incd_eql) then
                     write(ioout, '(A)') "PRODUCTS WHICH WERE CONSIDERED BUT WHOSE "// mass_or_mole //" FRACTIONS"
-                    write(ioout, '(A, 1PE13.6 ,A)') "WERE LESS THAN", trace, " FOR ALL ASSIGNED CONDITIONS"
+                    if (prob%output%long) then
+                        call write_long_trace_line(ioout, trace)
+                    else
+                        write(ioout, '(A, 1PE13.6 ,A)') "WERE LESS THAN", trace, " FOR ALL ASSIGNED CONDITIONS"
+                    end if
                     write(ioout, '(A)') ""
                     ncols = 5
                     nrows = (num_trace - 1)/ncols + 1
@@ -1258,23 +1328,51 @@ contains
 
             if (write_refl_eql .or. write_refl_frz) then
                 write(ioout, '(A)') "SHOCKED GAS (5)--REFLECTED--"//refl_type
-                write(ioout, '(A, 14F9.3)') "u5, m/s          ", (solutions(i, 1, k)%u(3), i=1,m)
-                write(ioout, '(A, 14F9.3)') "P, bar           ", (solutions(i, 1, k)%pressure(3), i=1,m)
-                write(ioout, '(A, 14F9.3)') "T, K             ", (solutions(i, 1, k)%eq_soln(3)%T, i=1,m)
-                write(ioout, '(A, 14E9.3e1)') "rho, kg/m^3      ", (solutions(i, 1, k)%eq_soln(3)%density, i=1,m)
-                write(ioout, '(A, 14F9.2)') "H, kJ/kg         ", (solutions(i, 1, k)%eq_soln(3)%enthalpy, i=1,m)
-                write(ioout, '(A, 14F9.2)') "U, kJ/kg         ", (solutions(i, 1, k)%eq_soln(3)%energy, i=1,m)
-                write(ioout, '(A, 14F9.1)') "G, kJ/kg         ", (solutions(i, 1, k)%eq_soln(3)%gibbs_energy, i=1,m)
-                write(ioout, '(A, 14F9.2)') "S, kJ/(kg-K)     ", (solutions(i, 1, k)%eq_soln(3)%entropy, i=1,m)
-                write(ioout, '(A)') ""
-                write(ioout, '(A, 14F9.3)') "M, (1/n)         ", (1.0d0/solutions(i, 1, k)%eq_soln(3)%n, i=1,m)
-                if (write_refl_eql) then
-                    write(ioout, '(A, 14F9.3)') "(dln(V)/dln(P))t ", (solutions(i, 1, k)%eq_partials(3)%dlnV_dlnP, i=1,m)
-                    write(ioout, '(A, 14F9.3)') "(dln(V)/dln(T))p ", (solutions(i, 1, k)%eq_partials(3)%dlnV_dlnT, i=1,m)
+                if (prob%output%long) then
+                    write(ioout, '(A, *(1X, ES23.15E3))') "u5, m/s          ", (solutions(i, 1, k)%u(3), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "P, bar           ", (solutions(i, 1, k)%pressure(3), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "T, K             ", (solutions(i, 1, k)%eq_soln(3)%T, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "rho, kg/m^3      ", (solutions(i, 1, k)%eq_soln(3)%density, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "H, kJ/kg         ", (solutions(i, 1, k)%eq_soln(3)%enthalpy, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "U, kJ/kg         ", (solutions(i, 1, k)%eq_soln(3)%energy, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "G, kJ/kg         ", (solutions(i, 1, k)%eq_soln(3)%gibbs_energy, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "S, kJ/(kg-K)     ", (solutions(i, 1, k)%eq_soln(3)%entropy, i=1,m)
+                else
+                    write(ioout, '(A, 14F9.3)') "u5, m/s          ", (solutions(i, 1, k)%u(3), i=1,m)
+                    write(ioout, '(A, 14F9.3)') "P, bar           ", (solutions(i, 1, k)%pressure(3), i=1,m)
+                    write(ioout, '(A, 14F9.3)') "T, K             ", (solutions(i, 1, k)%eq_soln(3)%T, i=1,m)
+                    write(ioout, '(A, 14E9.3e1)') "rho, kg/m^3      ", (solutions(i, 1, k)%eq_soln(3)%density, i=1,m)
+                    write(ioout, '(A, 14F9.2)') "H, kJ/kg         ", (solutions(i, 1, k)%eq_soln(3)%enthalpy, i=1,m)
+                    write(ioout, '(A, 14F9.2)') "U, kJ/kg         ", (solutions(i, 1, k)%eq_soln(3)%energy, i=1,m)
+                    write(ioout, '(A, 14F9.1)') "G, kJ/kg         ", (solutions(i, 1, k)%eq_soln(3)%gibbs_energy, i=1,m)
+                    write(ioout, '(A, 14F9.2)') "S, kJ/(kg-K)     ", (solutions(i, 1, k)%eq_soln(3)%entropy, i=1,m)
                 end if
-                write(ioout, '(A, 14F9.3)') "Cp, kJ/(kg-K)    ", (solutions(i, 1, k)%eq_soln(3)%cp_eq, i=1,m)
-                write(ioout, '(A, 14F9.3)') "Gamma_s          ", (solutions(i, 1, k)%eq_partials(3)%gamma_s, i=1,m)
-                write(ioout, '(A, 14F9.3)') "Son. Vel., m/s   ", (solutions(i, 1, k)%v_sonic(3), i=1,m)
+                write(ioout, '(A)') ""
+                if (prob%output%long) then
+                    write(ioout, '(A, *(1X, ES23.15E3))') "M, (1/n)         ", (1.0d0/solutions(i, 1, k)%eq_soln(3)%n, i=1,m)
+                else
+                    write(ioout, '(A, 14F9.3)') "M, (1/n)         ", (1.0d0/solutions(i, 1, k)%eq_soln(3)%n, i=1,m)
+                end if
+                if (write_refl_eql) then
+                    if (prob%output%long) then
+                        write(ioout, '(A, *(1X, ES23.15E3))') "(dln(V)/dln(P))t ", &
+                            (solutions(i, 1, k)%eq_partials(3)%dlnV_dlnP, i=1,m)
+                        write(ioout, '(A, *(1X, ES23.15E3))') "(dln(V)/dln(T))p ", &
+                            (solutions(i, 1, k)%eq_partials(3)%dlnV_dlnT, i=1,m)
+                    else
+                        write(ioout, '(A, 14F9.3)') "(dln(V)/dln(P))t ", (solutions(i, 1, k)%eq_partials(3)%dlnV_dlnP, i=1,m)
+                        write(ioout, '(A, 14F9.3)') "(dln(V)/dln(T))p ", (solutions(i, 1, k)%eq_partials(3)%dlnV_dlnT, i=1,m)
+                    end if
+                end if
+                if (prob%output%long) then
+                    write(ioout, '(A, *(1X, ES23.15E3))') "Cp, kJ/(kg-K)    ", (solutions(i, 1, k)%eq_soln(3)%cp_eq, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "Gamma_s          ", (solutions(i, 1, k)%eq_partials(3)%gamma_s, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "Son. Vel., m/s   ", (solutions(i, 1, k)%v_sonic(3), i=1,m)
+                else
+                    write(ioout, '(A, 14F9.3)') "Cp, kJ/(kg-K)    ", (solutions(i, 1, k)%eq_soln(3)%cp_eq, i=1,m)
+                    write(ioout, '(A, 14F9.3)') "Gamma_s          ", (solutions(i, 1, k)%eq_partials(3)%gamma_s, i=1,m)
+                    write(ioout, '(A, 14F9.3)') "Son. Vel., m/s   ", (solutions(i, 1, k)%v_sonic(3), i=1,m)
+                end if
                 write(ioout, '(A)') ""
 
                 if (prob%output%transport .and. solver%eq_solver%transport) then
@@ -1282,11 +1380,19 @@ contains
                 end if
 
                 ! Write the ratios
-                write(ioout, '(A, 14F9.5)') "P5/P2            ", (solutions(i, 1, k)%p52, i=1,m)
-                write(ioout, '(A, 14F9.5)') "T5/T2            ", (solutions(i, 1, k)%t52, i=1,m)
-                write(ioout, '(A, 14F9.5)') "M5/M2            ", (solutions(i, 1, k)%M52, i=1,m)
-                write(ioout, '(A, 14F9.5)') "rho5/rho2        ", (solutions(i, 1, k)%rho52, i=1,m)
-                write(ioout, '(A, 14F9.3)') "u5+v2, m/s       ", (solutions(i, 1, k)%u5_p_v2, i=1,m)
+                if (prob%output%long) then
+                    write(ioout, '(A, *(1X, ES23.15E3))') "P5/P2            ", (solutions(i, 1, k)%p52, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "T5/T2            ", (solutions(i, 1, k)%t52, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "M5/M2            ", (solutions(i, 1, k)%M52, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "rho5/rho2        ", (solutions(i, 1, k)%rho52, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') "u5+v2, m/s       ", (solutions(i, 1, k)%u5_p_v2, i=1,m)
+                else
+                    write(ioout, '(A, 14F9.5)') "P5/P2            ", (solutions(i, 1, k)%p52, i=1,m)
+                    write(ioout, '(A, 14F9.5)') "T5/T2            ", (solutions(i, 1, k)%t52, i=1,m)
+                    write(ioout, '(A, 14F9.5)') "M5/M2            ", (solutions(i, 1, k)%M52, i=1,m)
+                    write(ioout, '(A, 14F9.5)') "rho5/rho2        ", (solutions(i, 1, k)%rho52, i=1,m)
+                    write(ioout, '(A, 14F9.3)') "u5+v2, m/s       ", (solutions(i, 1, k)%u5_p_v2, i=1,m)
+                end if
                 write(ioout, '(A)') ""
 
                 ! Set the trace output value
@@ -1324,7 +1430,8 @@ contains
                 write(ioout, *) ""
                 do idx = 1, solver%eq_solver%num_products
                     if (is_trace(idx) .eqv. .false.) then
-                        eq_fmt = get_shock_species_format(solutions, idx, 1, k, m, 3, prob%output%mass_fractions)
+                        eq_fmt = get_shock_species_format(solutions, idx, 1, k, m, 3, prob%output%mass_fractions, &
+                                                          prob%output%long)
                         if (prob%output%mass_fractions) then
                         write(ioout, eq_fmt) trim(adjustl(solver%eq_solver%products%species_names(idx))), &
                             (solutions(i, 1, k)%eq_soln(3)%mass_fractions(idx), i=1,m)
@@ -1339,7 +1446,11 @@ contains
                 ! Print the list of products with negligible amounts
                 if (write_refl_eql) then
                     write(ioout, '(A)') "PRODUCTS WHICH WERE CONSIDERED BUT WHOSE "// mass_or_mole //" FRACTIONS"
-                    write(ioout, '(A, 1PE13.6 ,A)') "WERE LESS THAN", trace, " FOR ALL ASSIGNED CONDITIONS"
+                    if (prob%output%long) then
+                        call write_long_trace_line(ioout, trace)
+                    else
+                        write(ioout, '(A, 1PE13.6 ,A)') "WERE LESS THAN", trace, " FOR ALL ASSIGNED CONDITIONS"
+                    end if
                     write(ioout, '(A)') ""
                     ncols = 5
                     nrows = (num_trace - 1)/ncols + 1
@@ -1372,37 +1483,74 @@ contains
         end if
         write(ioout, '(A)') ""
 
-        write(ioout, '(A, 14F9.4)') " Visc, Millipoise", (solutions(i, 1, k)%eq_soln(idx)%viscosity, i=1,m)
+        if (prob%output%long) then
+            write(ioout, '(A, *(1X, ES23.15E3))') " Visc, Millipoise", &
+                (solutions(i, 1, k)%eq_soln(idx)%viscosity, i=1,m)
+        else
+            write(ioout, '(A, 14F9.4)') " Visc, Millipoise", (solutions(i, 1, k)%eq_soln(idx)%viscosity, i=1,m)
+        end if
         write(ioout, '(A)') ""
 
         if (include_equilibrium) then
             write(ioout, '(A)') " WITH EQUILIBRIUM REACTIONS"
-            if (prob%output%siunit) then
-                write(ioout, '(A, 14F9.4)') " Cp, kJ/(kg-K)   ", &
-                    (merge(solutions(i, 1, k)%eq_soln(idx)%cp_eq_transport, solutions(i, 1, k)%eq_soln(idx)%cp_eq, &
-                           solutions(i, 1, k)%eq_soln(idx)%cp_eq_transport > 0.0d0), i=1,m)
-                write(ioout, '(A, 14F9.4)') " Conductivity    ", (solutions(i, 1, k)%eq_soln(idx)%conductivity_eq, i=1,m)
+            if (prob%output%long) then
+                if (prob%output%siunit) then
+                    write(ioout, '(A, *(1X, ES23.15E3))') " Cp, kJ/(kg-K)   ", &
+                        (merge(solutions(i, 1, k)%eq_soln(idx)%cp_eq_transport, &
+                               solutions(i, 1, k)%eq_soln(idx)%cp_eq, &
+                               solutions(i, 1, k)%eq_soln(idx)%cp_eq_transport > 0.0d0), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
+                        (solutions(i, 1, k)%eq_soln(idx)%conductivity_eq, i=1,m)
+                else
+                    write(ioout, '(A, *(1X, ES23.15E3))') " Cp, cal/(g-K)   ", &
+                        (merge(solutions(i, 1, k)%eq_soln(idx)%cp_eq_transport, &
+                               solutions(i, 1, k)%eq_soln(idx)%cp_eq, &
+                               solutions(i, 1, k)%eq_soln(idx)%cp_eq_transport > 0.0d0)/4.184d0, i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
+                        (solutions(i, 1, k)%eq_soln(idx)%conductivity_eq/4.184d0, i=1,m)
+                end if
+                write(ioout, '(A, *(1X, ES23.15E3))') " Prandtl Number  ", &
+                    (solutions(i, 1, k)%eq_soln(idx)%Pr_eq, i=1,m)
             else
-                write(ioout, '(A, 14F9.4)') " Cp, cal/(g-K)   ", &
-                    (merge(solutions(i, 1, k)%eq_soln(idx)%cp_eq_transport, solutions(i, 1, k)%eq_soln(idx)%cp_eq, &
-                           solutions(i, 1, k)%eq_soln(idx)%cp_eq_transport > 0.0d0)/4.184d0, i=1,m)
-                write(ioout, '(A, 14F9.4)') " Conductivity    ", &
-                    (solutions(i, 1, k)%eq_soln(idx)%conductivity_eq/4.184d0, i=1,m)
+                if (prob%output%siunit) then
+                    write(ioout, '(A, 14F9.4)') " Cp, kJ/(kg-K)   ", &
+                        (merge(solutions(i, 1, k)%eq_soln(idx)%cp_eq_transport, solutions(i, 1, k)%eq_soln(idx)%cp_eq, &
+                               solutions(i, 1, k)%eq_soln(idx)%cp_eq_transport > 0.0d0), i=1,m)
+                    write(ioout, '(A, 14F9.4)') " Conductivity    ", (solutions(i, 1, k)%eq_soln(idx)%conductivity_eq, i=1,m)
+                else
+                    write(ioout, '(A, 14F9.4)') " Cp, cal/(g-K)   ", &
+                        (merge(solutions(i, 1, k)%eq_soln(idx)%cp_eq_transport, solutions(i, 1, k)%eq_soln(idx)%cp_eq, &
+                               solutions(i, 1, k)%eq_soln(idx)%cp_eq_transport > 0.0d0)/4.184d0, i=1,m)
+                    write(ioout, '(A, 14F9.4)') " Conductivity    ", &
+                        (solutions(i, 1, k)%eq_soln(idx)%conductivity_eq/4.184d0, i=1,m)
+                end if
+                write(ioout, '(A, 14F9.4)') " Prandtl Number  ", (solutions(i, 1, k)%eq_soln(idx)%Pr_eq, i=1,m)
             end if
-            write(ioout, '(A, 14F9.4)') " Prandtl Number  ", (solutions(i, 1, k)%eq_soln(idx)%Pr_eq, i=1,m)
             write(ioout, '(A)') ""
         end if
 
         write(ioout, '(A)') " WITH FROZEN REACTIONS"
-        if (prob%output%siunit) then
-            write(ioout, '(A, 14F9.4)') " Cp, kJ/(kg-K)   ", (solutions(i, 1, k)%eq_soln(idx)%cp_fr, i=1,m)
-            write(ioout, '(A, 14F9.4)') " Conductivity    ", (solutions(i, 1, k)%eq_soln(idx)%conductivity_fr, i=1,m)
+        if (prob%output%long) then
+            if (prob%output%siunit) then
+                write(ioout, '(A, *(1X, ES23.15E3))') " Cp, kJ/(kg-K)   ", (solutions(i, 1, k)%eq_soln(idx)%cp_fr, i=1,m)
+                write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", (solutions(i, 1, k)%eq_soln(idx)%conductivity_fr, i=1,m)
+            else
+                write(ioout, '(A, *(1X, ES23.15E3))') " Cp, cal/(g-K)   ", (solutions(i, 1, k)%eq_soln(idx)%cp_fr/4.184d0, i=1,m)
+                write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
+                    (solutions(i, 1, k)%eq_soln(idx)%conductivity_fr/4.184d0, i=1,m)
+            end if
+            write(ioout, '(A, *(1X, ES23.15E3))') " Prandtl Number  ", (solutions(i, 1, k)%eq_soln(idx)%Pr_fr, i=1,m)
         else
-            write(ioout, '(A, 14F9.4)') " Cp, cal/(g-K)   ", (solutions(i, 1, k)%eq_soln(idx)%cp_fr/4.184d0, i=1,m)
-            write(ioout, '(A, 14F9.4)') " Conductivity    ", &
-                (solutions(i, 1, k)%eq_soln(idx)%conductivity_fr/4.184d0, i=1,m)
+            if (prob%output%siunit) then
+                write(ioout, '(A, 14F9.4)') " Cp, kJ/(kg-K)   ", (solutions(i, 1, k)%eq_soln(idx)%cp_fr, i=1,m)
+                write(ioout, '(A, 14F9.4)') " Conductivity    ", (solutions(i, 1, k)%eq_soln(idx)%conductivity_fr, i=1,m)
+            else
+                write(ioout, '(A, 14F9.4)') " Cp, cal/(g-K)   ", (solutions(i, 1, k)%eq_soln(idx)%cp_fr/4.184d0, i=1,m)
+                write(ioout, '(A, 14F9.4)') " Conductivity    ", &
+                    (solutions(i, 1, k)%eq_soln(idx)%conductivity_fr/4.184d0, i=1,m)
+            end if
+            write(ioout, '(A, 14F9.4)') " Prandtl Number  ", (solutions(i, 1, k)%eq_soln(idx)%Pr_fr, i=1,m)
         end if
-        write(ioout, '(A, 14F9.4)') " Prandtl Number  ", (solutions(i, 1, k)%eq_soln(idx)%Pr_fr, i=1,m)
         write(ioout, '(A)') ""
     end subroutine
 
@@ -1439,7 +1587,69 @@ contains
             write(ioout, '(A)') ' UNBURNED GAS'
             write(ioout, *) ""
 
-            if (prob%output%siunit) then
+            if (prob%output%long) then
+
+                if (prob%output%siunit) then
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' P, bar          ', &
+                        ((solutions(i, j, k)%pressure, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' T, K            ', &
+                        ((solutions(i, j, k)%eq_soln%T, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' Density, kg/m^3   ', &
+                        ((solutions(i, j, k)%eq_soln%density, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' H, kJ/kg        ', &
+                        ((solutions(i, j, k)%eq_soln%enthalpy, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' U, kJ/kg        ', &
+                        ((solutions(i, j, k)%eq_soln%energy, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' G, kJ/kg        ', &
+                        ((solutions(i, j, k)%eq_soln%gibbs_energy, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' S, kJ/kg-K      ', &
+                        ((solutions(i, j, k)%eq_soln%entropy, j=1,n), i=1,m)
+                    write(ioout, *) ""
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' M, (1/n)        ', &
+                        ((1.0d0/solutions(i, j, k)%eq_soln%n, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' (dln(V)/dln(P))t', &
+                        ((solutions(i, j, k)%eq_partials%dlnV_dlnP, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' (dln(V)/dln(T))p', &
+                        ((solutions(i, j, k)%eq_partials%dlnV_dlnT, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' Cp, kJ/kg-K     ', &
+                        ((solutions(i, j, k)%eq_soln%cp_eq, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' Gamma_s         ', &
+                        ((solutions(i, j, k)%eq_partials%gamma_s, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' Son. Vel., m/s  ', &
+                        ((sqrt(solutions(i, j, k)%eq_soln%n*R*solutions(i, j, k)%eq_partials%gamma_s* &
+                               solutions(i, j, k)%eq_soln%T), j=1,n), i=1,m)
+                else
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' P, atm          ', &
+                        ((solutions(i, j, k)%pressure/1.01325d0, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' T, K            ', &
+                        ((solutions(i, j, k)%eq_soln%T, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' Density, g/cc   ', &
+                        ((solutions(i, j, k)%eq_soln%density/1.d3, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' H, cal/g        ', &
+                        ((solutions(i, j, k)%eq_soln%enthalpy/4.184d0, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' U, cal/g        ', &
+                        ((solutions(i, j, k)%eq_soln%energy/4.184d0, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' G, cal/g        ', &
+                        ((solutions(i, j, k)%eq_soln%gibbs_energy/4.184d0, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' S, cal/g-K      ', &
+                        ((solutions(i, j, k)%eq_soln%entropy/4.184d0, j=1,n), i=1,m)
+                    write(ioout, *) ""
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' M, (1/n)        ', &
+                        ((1.0d0/solutions(i, j, k)%eq_soln%n, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' (dln(V)/dln(P))t', &
+                        ((solutions(i, j, k)%eq_partials%dlnV_dlnP, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' (dln(V)/dln(T))p', &
+                        ((solutions(i, j, k)%eq_partials%dlnV_dlnT, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' Cp, cal/g-K     ', &
+                        ((solutions(i, j, k)%eq_soln%cp_eq/4.184d0, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' Gamma_s         ', &
+                        ((solutions(i, j, k)%eq_partials%gamma_s, j=1,n), i=1,m)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' Son. Vel., m/s  ', &
+                        ((sqrt(solutions(i, j, k)%eq_soln%n*R*solutions(i, j, k)%eq_partials%gamma_s* &
+                               solutions(i, j, k)%eq_soln%T), j=1,n), i=1,m)
+                end if
+
+            else if (prob%output%siunit) then
 
                 ! Print the values of each variable in the required format
                 write(ioout, '(A, 14F9.4)') ' P1, bar          ', ((solutions(i, j, k)%P1,       j=1,n), i=1,m)
@@ -1515,45 +1725,93 @@ contains
                 write(ioout, *) ""
 
                 ! Viscosity
-                write(ioout, '(A, 14F9.4)') " Visc, Millipoise", ((solutions(i, j, k)%eq_soln%viscosity, j=1,n), i=1,m)
+                if (prob%output%long) then
+                    write(ioout, '(A, *(1X, ES23.15E3))') " Visc, Millipoise", &
+                        ((solutions(i, j, k)%eq_soln%viscosity, j=1,n), i=1,m)
+                else
+                    write(ioout, '(A, 14F9.4)') " Visc, Millipoise", ((solutions(i, j, k)%eq_soln%viscosity, j=1,n), i=1,m)
+                end if
                 write(ioout, *) ""
 
                 ! Equilibrium properies
                 write(ioout, '(A)') " WITH EQUILIBRIUM REACTIONS"
-                if (prob%output%siunit) then
-                    write(ioout, '(A, 14F9.4)') " Cp, kJ/kg-K     ", ((solutions(i, j, k)%eq_soln%cp_eq, j=1,n), i=1,m)
-                    write(ioout, '(A, 14F9.4)') " Conductivity    ", ((solutions(i, j, k)%eq_soln%conductivity_eq, j=1,n), i=1,m)
+                if (prob%output%long) then
+                    if (prob%output%siunit) then
+                        write(ioout, '(A, *(1X, ES23.15E3))') " Cp, kJ/kg-K     ", &
+                            ((solutions(i, j, k)%eq_soln%cp_eq, j=1,n), i=1,m)
+                        write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
+                            ((solutions(i, j, k)%eq_soln%conductivity_eq, j=1,n), i=1,m)
+                    else
+                        write(ioout, '(A, *(1X, ES23.15E3))') " Cp, cal/g-K     ", &
+                            ((solutions(i, j, k)%eq_soln%cp_eq/4.184d0, j=1,n), i=1,m)
+                        write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
+                            ((solutions(i, j, k)%eq_soln%conductivity_eq/4.184d0, j=1,n), i=1,m)
+                    end if
+                    write(ioout, '(A, *(1X, ES23.15E3))') " Prandtl Number  ", &
+                        ((solutions(i, j, k)%eq_soln%Pr_eq, j=1,n), i=1,m)
                 else
-                    write(ioout, '(A, 14F9.4)') " Cp, cal/g-K     ", ((solutions(i, j, k)%eq_soln%cp_eq/4.184d0, j=1,n), i=1,m)
-                    write(ioout, '(A, 14F9.4)') " Conductivity    ", &
-                        ((solutions(i, j, k)%eq_soln%conductivity_eq/4.184d0, j=1,n), i=1,m)
+                    if (prob%output%siunit) then
+                        write(ioout, '(A, 14F9.4)') " Cp, kJ/kg-K     ", ((solutions(i, j, k)%eq_soln%cp_eq, j=1,n), i=1,m)
+                        write(ioout, '(A, 14F9.4)') " Conductivity    ", &
+                            ((solutions(i, j, k)%eq_soln%conductivity_eq, j=1,n), i=1,m)
+                    else
+                        write(ioout, '(A, 14F9.4)') " Cp, cal/g-K     ", ((solutions(i, j, k)%eq_soln%cp_eq/4.184d0, j=1,n), i=1,m)
+                        write(ioout, '(A, 14F9.4)') " Conductivity    ", &
+                            ((solutions(i, j, k)%eq_soln%conductivity_eq/4.184d0, j=1,n), i=1,m)
+                    end if
+                    write(ioout, '(A, 14F9.4)') " Prandtl Number  ", ((solutions(i, j, k)%eq_soln%Pr_eq, j=1,n), i=1,m)
                 end if
-                write(ioout, '(A, 14F9.4)') " Prandtl Number  ", ((solutions(i, j, k)%eq_soln%Pr_eq, j=1,n), i=1,m)
                 write(ioout, *) ""
 
                 ! Frozen properties
                 write(ioout, '(A)') " WITH FROZEN REACTIONS"
-                if (prob%output%siunit) then
-                    write(ioout, '(A, 14F9.4)') " Cp, kJ/kg-K     ", ((solutions(i, j, k)%eq_soln%cp_fr, j=1,n), i=1,m)
-                    write(ioout, '(A, 14F9.4)') " Conductivity    ", ((solutions(i, j, k)%eq_soln%conductivity_fr, j=1,n), i=1,m)
+                if (prob%output%long) then
+                    if (prob%output%siunit) then
+                        write(ioout, '(A, *(1X, ES23.15E3))') " Cp, kJ/kg-K     ", &
+                            ((solutions(i, j, k)%eq_soln%cp_fr, j=1,n), i=1,m)
+                        write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
+                            ((solutions(i, j, k)%eq_soln%conductivity_fr, j=1,n), i=1,m)
+                    else
+                        write(ioout, '(A, *(1X, ES23.15E3))') " Cp, cal/g-K     ", &
+                            ((solutions(i, j, k)%eq_soln%cp_fr/4.184d0, j=1,n), i=1,m)
+                        write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
+                            ((solutions(i, j, k)%eq_soln%conductivity_fr/4.184d0, j=1,n), i=1,m)
+                    end if
+                    write(ioout, '(A, *(1X, ES23.15E3))') " Prandtl Number  ", &
+                        ((solutions(i, j, k)%eq_soln%Pr_fr, j=1,n), i=1,m)
                 else
-                    write(ioout, '(A, 14F9.4)') " Cp, cal/g-K     ", ((solutions(i, j, k)%eq_soln%cp_fr/4.184d0, j=1,n), i=1,m)
-                    write(ioout, '(A, 14F9.4)') " Conductivity    ", &
-                        ((solutions(i, j, k)%eq_soln%conductivity_fr/4.184d0, j=1,n), i=1,m)
+                    if (prob%output%siunit) then
+                        write(ioout, '(A, 14F9.4)') " Cp, kJ/kg-K     ", ((solutions(i, j, k)%eq_soln%cp_fr, j=1,n), i=1,m)
+                        write(ioout, '(A, 14F9.4)') " Conductivity    ", &
+                            ((solutions(i, j, k)%eq_soln%conductivity_fr, j=1,n), i=1,m)
+                    else
+                        write(ioout, '(A, 14F9.4)') " Cp, cal/g-K     ", ((solutions(i, j, k)%eq_soln%cp_fr/4.184d0, j=1,n), i=1,m)
+                        write(ioout, '(A, 14F9.4)') " Conductivity    ", &
+                            ((solutions(i, j, k)%eq_soln%conductivity_fr/4.184d0, j=1,n), i=1,m)
+                    end if
+                    write(ioout, '(A, 14F9.4)') " Prandtl Number  ", ((solutions(i, j, k)%eq_soln%Pr_fr, j=1,n), i=1,m)
                 end if
-                write(ioout, '(A, 14F9.4)') " Prandtl Number  ", ((solutions(i, j, k)%eq_soln%Pr_fr, j=1,n), i=1,m)
                 write(ioout, *) ""
 
             end if
 
             ! Write out the detonation parameters
             write(ioout,'(A)') " DETONATION PARAMETERS"
-            write(ioout, '(A, 14F9.4)') " P/P1             ", ((solutions(i, j, k)%P_P1,     j=1,n), i=1,m)
-            write(ioout, '(A, 14F9.4)') " T/T1             ", ((solutions(i, j, k)%T_T1,     j=1,n), i=1,m)
-            write(ioout, '(A, 14F9.4)') " M/M1             ", ((solutions(i, j, k)%M_M1,     j=1,n), i=1,m)
-            write(ioout, '(A, 14F9.4)') " rho/rho1         ", ((solutions(i, j, k)%rho_rho1, j=1,n), i=1,m)
-            write(ioout, '(A, 14F9.4)') " Det. Mach Number ", ((solutions(i, j, k)%mach,     j=1,n), i=1,m)
-            write(ioout, '(A, 14F9.3)') " Det. Vel., m/s   ", ((solutions(i, j, k)%velocity, j=1,n), i=1,m)
+            if (prob%output%long) then
+                write(ioout, '(A, *(1X, ES23.15E3))') " P/P1             ", ((solutions(i, j, k)%P_P1,     j=1,n), i=1,m)
+                write(ioout, '(A, *(1X, ES23.15E3))') " T/T1             ", ((solutions(i, j, k)%T_T1,     j=1,n), i=1,m)
+                write(ioout, '(A, *(1X, ES23.15E3))') " M/M1             ", ((solutions(i, j, k)%M_M1,     j=1,n), i=1,m)
+                write(ioout, '(A, *(1X, ES23.15E3))') " rho/rho1         ", ((solutions(i, j, k)%rho_rho1, j=1,n), i=1,m)
+                write(ioout, '(A, *(1X, ES23.15E3))') " Det. Mach Number ", ((solutions(i, j, k)%mach,     j=1,n), i=1,m)
+                write(ioout, '(A, *(1X, ES23.15E3))') " Det. Vel., m/s   ", ((solutions(i, j, k)%velocity, j=1,n), i=1,m)
+            else
+                write(ioout, '(A, 14F9.4)') " P/P1             ", ((solutions(i, j, k)%P_P1,     j=1,n), i=1,m)
+                write(ioout, '(A, 14F9.4)') " T/T1             ", ((solutions(i, j, k)%T_T1,     j=1,n), i=1,m)
+                write(ioout, '(A, 14F9.4)') " M/M1             ", ((solutions(i, j, k)%M_M1,     j=1,n), i=1,m)
+                write(ioout, '(A, 14F9.4)') " rho/rho1         ", ((solutions(i, j, k)%rho_rho1, j=1,n), i=1,m)
+                write(ioout, '(A, 14F9.4)') " Det. Mach Number ", ((solutions(i, j, k)%mach,     j=1,n), i=1,m)
+                write(ioout, '(A, 14F9.3)') " Det. Vel., m/s   ", ((solutions(i, j, k)%velocity, j=1,n), i=1,m)
+            end if
 
             ! Set the trace output value
             trace = 5.d-6
@@ -1585,7 +1843,8 @@ contains
             write(ioout, *) ""
             do idx = 1, solver%eq_solver%num_products
                 if (.not. is_trace(idx)) then
-                    eq_fmt = get_deton_species_format(solutions, idx, k, m, n, prob%output%mass_fractions)
+                    eq_fmt = get_deton_species_format(solutions, idx, k, m, n, prob%output%mass_fractions, &
+                                                      prob%output%long)
                     if (prob%output%mass_fractions) then
                         write(ioout, eq_fmt) trim(adjustl(solver%eq_solver%products%species_names(idx))), &
                             ((solutions(i, j, k)%eq_soln%mass_fractions(idx), j=1,n), i=1,m)
@@ -1599,7 +1858,11 @@ contains
             ! Print the list of products with negligible amounts
             write(ioout, '(A)') ""
             write(ioout, '(A)') "PRODUCTS WHICH WERE CONSIDERED BUT WHOSE "// mass_or_mole //" FRACTIONS"
-            write(ioout, '(A, 1PE13.6 ,A)') "WERE LESS THAN", trace, " FOR ALL ASSIGNED CONDITIONS"
+            if (prob%output%long) then
+                call write_long_trace_line(ioout, trace)
+            else
+                write(ioout, '(A, 1PE13.6 ,A)') "WERE LESS THAN", trace, " FOR ALL ASSIGNED CONDITIONS"
+            end if
             write(ioout, '(A)') ""
             ncols = 5
             nrows = (num_trace - 1)/ncols + 1
@@ -1964,21 +2227,90 @@ contains
                 if (reactant_temp > 0.0d0) then
                     reactant_energy = solver%reactants%species(i)%calc_enthalpy(reactant_temp)*R/1.0d3
                 end if
-                write(ioout, "(A20, F10.3, 1X, F11.3, F10.2)") solver%reactants%species_names(i), &
-                    reactant_amount, reactant_energy, reactant_temp
+                if (prob%output%long) then
+                    call write_long_reactant_row(ioout, solver%reactants%species_names(i), reactant_amount, &
+                                                 reactant_energy, reactant_temp)
+                else
+                    write(ioout, "(A20, F10.3, 1X, F11.3, F10.2)") solver%reactants%species_names(i), &
+                        reactant_amount, reactant_energy, reactant_temp
+                end if
             end do
 
             ! Print the o/f ratio and equivalent values
             call compute_fuel_ratios(prob, solver%reactants, k, of_ratio, pct_fuel, r_eq, phi_eq)
-            write(ioout, '(A, F10.5, A, F9.5, A, F8.5, A, F8.5)') 'O/F = ', &
-                of_ratio, '    % Fuel = ', pct_fuel, '    r, Eq. Ratio = ', r_eq, '    phi, Eq. Ratio = ', phi_eq
+            if (prob%output%long) then
+                call write_long_ratio_line(ioout, of_ratio, pct_fuel, r_eq, phi_eq)
+            else
+                write(ioout, '(A, F10.5, A, F9.5, A, F8.5, A, F8.5)') 'O/F = ', &
+                    of_ratio, '    % Fuel = ', pct_fuel, '    r, Eq. Ratio = ', r_eq, '    phi, Eq. Ratio = ', phi_eq
+            end if
 
             ! Print the thermodynamic properties
             write(ioout, *) ""
             write(ioout, '(A)') ' THERMODYNAMIC PROPERTIES'
             write(ioout, *) ""
 
-            if (prob%output%siunit) then
+            if (prob%output%long) then
+                if (prob%output%siunit) then
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' P, bar          ', &
+                        ((solutions(i, j, k)%pressure, i=1,m), j=1,n)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' T, K            ', &
+                        ((solutions(i, j, k)%T, i=1,m), j=1,n)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' Density, kg/m^3 ', &
+                        ((solutions(i, j, k)%density, i=1,m), j=1,n)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' H, kJ/kg        ', &
+                        ((solutions(i, j, k)%enthalpy, i=1,m), j=1,n)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' U, kJ/kg        ', &
+                        ((solutions(i, j, k)%energy, i=1,m), j=1,n)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' G, kJ/kg        ', &
+                        ((solutions(i, j, k)%gibbs_energy, i=1,m), j=1,n)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' S, kJ/kg-K      ', &
+                        ((solutions(i, j, k)%entropy, i=1,m), j=1,n)
+                    write(ioout, *) ""
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' M, (1/n)        ', &
+                        ((1.0d0/solutions(i, j, k)%n, i=1,m), j=1,n)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' (dln(V)/dln(P))t', &
+                        ((partials(i, j, k)%dlnV_dlnP, i=1,m), j=1,n)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' (dln(V)/dln(T))p', &
+                        ((partials(i, j, k)%dlnV_dlnT, i=1,m), j=1,n)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' Cp, kJ/kg-K     ', &
+                        ((solutions(i, j, k)%cp_eq, i=1,m), j=1,n)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' Gamma_s         ', &
+                        ((partials(i, j, k)%gamma_s, i=1,m), j=1,n)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' Son. Vel., m/s  ', &
+                        ((sqrt(solutions(i, j, k)%n * R * partials(i, j, k)%gamma_s * &
+                               solutions(i, j, k)%T), i=1,m), j=1,n)
+                else
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' P, atm          ', &
+                        ((solutions(i, j, k)%pressure/1.01325d0, i=1,m), j=1,n)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' T, K            ', &
+                        ((solutions(i, j, k)%T, i=1,m), j=1,n)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' Density, g/cc   ', &
+                        ((solutions(i, j, k)%density/1.d3, i=1,m), j=1,n)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' H, cal/g        ', &
+                        ((solutions(i, j, k)%enthalpy/4.184d0, i=1,m), j=1,n)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' U, cal/g        ', &
+                        ((solutions(i, j, k)%energy/4.184d0, i=1,m), j=1,n)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' G, cal/g        ', &
+                        ((solutions(i, j, k)%gibbs_energy/4.184d0, i=1,m), j=1,n)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' S, cal/g-K      ', &
+                        ((solutions(i, j, k)%entropy/4.184d0, i=1,m), j=1,n)
+                    write(ioout, *) ""
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' M, (1/n)        ', &
+                        ((1.0d0/solutions(i, j, k)%n, i=1,m), j=1,n)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' (dln(V)/dln(P))t', &
+                        ((partials(i, j, k)%dlnV_dlnP, i=1,m), j=1,n)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' (dln(V)/dln(T))p', &
+                        ((partials(i, j, k)%dlnV_dlnT, i=1,m), j=1,n)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' Cp, cal/g-K     ', &
+                        ((solutions(i, j, k)%cp_eq/4.184d0, i=1,m), j=1,n)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' Gamma_s         ', &
+                        ((partials(i, j, k)%gamma_s, i=1,m), j=1,n)
+                    write(ioout, '(A, *(1X, ES23.15E3))') ' Son. Vel., m/s  ', &
+                        ((sqrt(solutions(i, j, k)%n * R * partials(i, j, k)%gamma_s * &
+                               solutions(i, j, k)%T), i=1,m), j=1,n)
+                end if
+            else if (prob%output%siunit) then
 
                 ! Print the values of each variable in the required format
                 write(ioout, '(A, 18F14.5)') ' P, bar          ', ((solutions(i, j, k)%pressure,     i=1,m), j=1,n)
@@ -2026,31 +2358,70 @@ contains
                 write(ioout, *) ""
 
                 ! Viscosity
-                write(ioout, '(A, 18F14.4)') " Visc, Millipoise", ((solutions(i, j, k)%viscosity, i=1,m), j=1,n)
+                if (prob%output%long) then
+                    write(ioout, '(A, *(1X, ES23.15E3))') " Visc, Millipoise", &
+                        ((solutions(i, j, k)%viscosity, i=1,m), j=1,n)
+                else
+                    write(ioout, '(A, 18F14.4)') " Visc, Millipoise", ((solutions(i, j, k)%viscosity, i=1,m), j=1,n)
+                end if
                 write(ioout, *) ""
 
                 ! Equilibrium properies
                 write(ioout, '(A)') " WITH EQUILIBRIUM REACTIONS"
-                if (prob%output%siunit) then
-                    write(ioout, '(A, 18F14.4)') " Cp, kJ/kg-K     ", ((solutions(i, j, k)%cp_eq, i=1,m), j=1,n)
-                    write(ioout, '(A, 18F14.4)') " Conductivity    ", ((solutions(i, j, k)%conductivity_eq, i=1,m), j=1,n)
+                if (prob%output%long) then
+                    if (prob%output%siunit) then
+                        write(ioout, '(A, *(1X, ES23.15E3))') " Cp, kJ/kg-K     ", &
+                            ((solutions(i, j, k)%cp_eq, i=1,m), j=1,n)
+                        write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
+                            ((solutions(i, j, k)%conductivity_eq, i=1,m), j=1,n)
+                    else
+                        write(ioout, '(A, *(1X, ES23.15E3))') " Cp, cal/g-K     ", &
+                            ((solutions(i, j, k)%cp_eq/4.184d0, i=1,m), j=1,n)
+                        write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
+                            ((solutions(i, j, k)%conductivity_eq/4.184d0, i=1,m), j=1,n)
+                    end if
+                    write(ioout, '(A, *(1X, ES23.15E3))') " Prandtl Number  ", &
+                        ((solutions(i, j, k)%Pr_eq, i=1,m), j=1,n)
                 else
-                    write(ioout, '(A, 18F14.4)') " Cp, cal/g-K     ", ((solutions(i, j, k)%cp_eq/4.184d0, i=1,m), j=1,n)
-                    write(ioout, '(A, 18F14.4)') " Conductivity    ", ((solutions(i, j, k)%conductivity_eq/4.184d0, i=1,m), j=1,n)
+                    if (prob%output%siunit) then
+                        write(ioout, '(A, 18F14.4)') " Cp, kJ/kg-K     ", ((solutions(i, j, k)%cp_eq, i=1,m), j=1,n)
+                        write(ioout, '(A, 18F14.4)') " Conductivity    ", ((solutions(i, j, k)%conductivity_eq, i=1,m), j=1,n)
+                    else
+                        write(ioout, '(A, 18F14.4)') " Cp, cal/g-K     ", ((solutions(i, j, k)%cp_eq/4.184d0, i=1,m), j=1,n)
+                        write(ioout, '(A, 18F14.4)') " Conductivity    ", &
+                            ((solutions(i, j, k)%conductivity_eq/4.184d0, i=1,m), j=1,n)
+                    end if
+                    write(ioout, '(A, 18F14.4)') " Prandtl Number  ", ((solutions(i, j, k)%Pr_eq, i=1,m), j=1,n)
                 end if
-                write(ioout, '(A, 18F14.4)') " Prandtl Number  ", ((solutions(i, j, k)%Pr_eq, i=1,m), j=1,n)
                 write(ioout, *) ""
 
                 ! Frozen properties
                 write(ioout, '(A)') " WITH FROZEN REACTIONS"
-                if (prob%output%siunit) then
-                    write(ioout, '(A, 18F14.4)') " Cp, kJ/kg-K     ", ((solutions(i, j, k)%cp_fr, i=1,m), j=1,n)
-                    write(ioout, '(A, 18F14.4)') " Conductivity    ", ((solutions(i, j, k)%conductivity_fr, i=1,m), j=1,n)
+                if (prob%output%long) then
+                    if (prob%output%siunit) then
+                        write(ioout, '(A, *(1X, ES23.15E3))') " Cp, kJ/kg-K     ", &
+                            ((solutions(i, j, k)%cp_fr, i=1,m), j=1,n)
+                        write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
+                            ((solutions(i, j, k)%conductivity_fr, i=1,m), j=1,n)
+                    else
+                        write(ioout, '(A, *(1X, ES23.15E3))') " Cp, cal/g-K     ", &
+                            ((solutions(i, j, k)%cp_fr/4.184d0, i=1,m), j=1,n)
+                        write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
+                            ((solutions(i, j, k)%conductivity_fr/4.184d0, i=1,m), j=1,n)
+                    end if
+                    write(ioout, '(A, *(1X, ES23.15E3))') " Prandtl Number  ", &
+                        ((solutions(i, j, k)%Pr_fr, i=1,m), j=1,n)
                 else
-                    write(ioout, '(A, 18F14.4)') " Cp, cal/g-K     ", ((solutions(i, j, k)%cp_fr/4.184d0, i=1,m), j=1,n)
-                    write(ioout, '(A, 18F14.4)') " Conductivity    ", ((solutions(i, j, k)%conductivity_fr/4.184d0, i=1,m), j=1,n)
+                    if (prob%output%siunit) then
+                        write(ioout, '(A, 18F14.4)') " Cp, kJ/kg-K     ", ((solutions(i, j, k)%cp_fr, i=1,m), j=1,n)
+                        write(ioout, '(A, 18F14.4)') " Conductivity    ", ((solutions(i, j, k)%conductivity_fr, i=1,m), j=1,n)
+                    else
+                        write(ioout, '(A, 18F14.4)') " Cp, cal/g-K     ", ((solutions(i, j, k)%cp_fr/4.184d0, i=1,m), j=1,n)
+                        write(ioout, '(A, 18F14.4)') " Conductivity    ", &
+                            ((solutions(i, j, k)%conductivity_fr/4.184d0, i=1,m), j=1,n)
+                    end if
+                    write(ioout, '(A, 18F14.4)') " Prandtl Number  ", ((solutions(i, j, k)%Pr_fr, i=1,m), j=1,n)
                 end if
-                write(ioout, '(A, 18F14.4)') " Prandtl Number  ", ((solutions(i, j, k)%Pr_fr, i=1,m), j=1,n)
                 write(ioout, *) ""
 
             end if
@@ -2085,7 +2456,8 @@ contains
             write(ioout, *) ""
             do idx = 1, solver%num_products
                 if (is_trace(idx) .eqv. .false.) then
-                    eq_fmt = get_eq_species_format(solutions, idx, k, m, n, prob%output%mass_fractions)
+                    eq_fmt = get_eq_species_format(solutions, idx, k, m, n, prob%output%mass_fractions, &
+                                                   prob%output%long)
                     if (prob%output%mass_fractions) then
                         write(ioout, eq_fmt) trim(adjustl(solver%products%species_names(idx))), &
                             ((solutions(i, j, k)%mass_fractions(idx), i=1,m), j=1,n)
@@ -2099,7 +2471,11 @@ contains
             ! Print the list of products with negligible amounts
             write(ioout, '(A)') ""
             write(ioout, '(A)') "PRODUCTS WHICH WERE CONSIDERED BUT WHOSE "// mass_or_mole //" FRACTIONS"
-            write(ioout, '(A, 1PE13.6 ,A)') "WERE LESS THAN", trace, " FOR ALL ASSIGNED CONDITIONS"
+            if (prob%output%long) then
+                call write_long_trace_line(ioout, trace)
+            else
+                write(ioout, '(A, 1PE13.6 ,A)') "WERE LESS THAN", trace, " FOR ALL ASSIGNED CONDITIONS"
+            end if
             write(ioout, '(A)') ""
             ncols = 5
             nrows = (num_trace - 1)/ncols + 1
@@ -2310,25 +2686,40 @@ contains
 
                     ! Print assigned pressure/area ratio schedules.
                     if (allocated(prob%problem%pcp_schedule)) then
-                        write(ioout, '(A)', advance='no') trim(prob%problem%pcp_schedule%name)//" = "
-                        do idx = 1, size(prob%problem%pcp_schedule%values)
-                            write(ioout, '(F10.4)', advance='no') prob%problem%pcp_schedule%values(idx)
-                        end do
-                        write(ioout, *)
+                        if (prob%output%long) then
+                            call write_long_schedule_line(ioout, prob%problem%pcp_schedule%name, &
+                                                          prob%problem%pcp_schedule%values)
+                        else
+                            write(ioout, '(A)', advance='no') trim(prob%problem%pcp_schedule%name)//" = "
+                            do idx = 1, size(prob%problem%pcp_schedule%values)
+                                write(ioout, '(F10.4)', advance='no') prob%problem%pcp_schedule%values(idx)
+                            end do
+                            write(ioout, *)
+                        end if
                     end if
                     if (allocated(prob%problem%subar_schedule)) then
-                        write(ioout, '(A)', advance='no') trim(prob%problem%subar_schedule%name)//" = "
-                        do idx = 1, size(prob%problem%subar_schedule%values)
-                            write(ioout, '(F10.4)', advance='no') prob%problem%subar_schedule%values(idx)
-                        end do
-                        write(ioout, *)
+                        if (prob%output%long) then
+                            call write_long_schedule_line(ioout, prob%problem%subar_schedule%name, &
+                                                          prob%problem%subar_schedule%values)
+                        else
+                            write(ioout, '(A)', advance='no') trim(prob%problem%subar_schedule%name)//" = "
+                            do idx = 1, size(prob%problem%subar_schedule%values)
+                                write(ioout, '(F10.4)', advance='no') prob%problem%subar_schedule%values(idx)
+                            end do
+                            write(ioout, *)
+                        end if
                     end if
                     if (allocated(prob%problem%supar_schedule)) then
-                        write(ioout, '(A)', advance='no') trim(prob%problem%supar_schedule%name)//" = "
-                        do idx = 1, size(prob%problem%supar_schedule%values)
-                            write(ioout, '(F10.4)', advance='no') prob%problem%supar_schedule%values(idx)
-                        end do
-                        write(ioout, *)
+                        if (prob%output%long) then
+                            call write_long_schedule_line(ioout, prob%problem%supar_schedule%name, &
+                                                          prob%problem%supar_schedule%values)
+                        else
+                            write(ioout, '(A)', advance='no') trim(prob%problem%supar_schedule%name)//" = "
+                            do idx = 1, size(prob%problem%supar_schedule%values)
+                                write(ioout, '(F10.4)', advance='no') prob%problem%supar_schedule%values(idx)
+                            end do
+                            write(ioout, *)
+                        end if
                     end if
                     write(ioout,*) ""
 
@@ -2353,37 +2744,116 @@ contains
                         if (reactant_temp > 0.0d0) then
                             reactant_energy = solver%eq_solver%reactants%species(idx)%calc_enthalpy(reactant_temp)*R/1.0d3
                         end if
-                        write(ioout, "(A20, F10.3, 1X, F11.3, F10.2)") solver%eq_solver%reactants%species_names(idx), &
-                            reactant_amount, reactant_energy, reactant_temp
+                        if (prob%output%long) then
+                            call write_long_reactant_row(ioout, solver%eq_solver%reactants%species_names(idx), &
+                                                         reactant_amount, reactant_energy, reactant_temp)
+                        else
+                            write(ioout, "(A20, F10.3, 1X, F11.3, F10.2)") solver%eq_solver%reactants%species_names(idx), &
+                                reactant_amount, reactant_energy, reactant_temp
+                        end if
                     end do
                     write(ioout,*) ""
 
                     ! Print the o/f ratio and equivalent values
                     call compute_fuel_ratios(prob, solver%eq_solver%reactants, j, of_ratio, pct_fuel, r_eq, phi_eq)
-                    write(ioout, '(A, F10.5, A, F9.5, A, F8.5, A, F8.5)') &
-                        'O/F = ', of_ratio, '    % Fuel = ', pct_fuel, '    r, Eq. Ratio = ', r_eq, '    phi, Eq. Ratio = ', phi_eq
+                    if (prob%output%long) then
+                        call write_long_ratio_line(ioout, of_ratio, pct_fuel, r_eq, phi_eq)
+                    else
+                        write(ioout, '(A, F10.5, A, F9.5, A, F8.5, A, F8.5)') &
+                            'O/F = ', of_ratio, '    % Fuel = ', pct_fuel, &
+                            '    r, Eq. Ratio = ', r_eq, '    phi, Eq. Ratio = ', &
+                            phi_eq
+                    end if
                     write(ioout,*) ""
 
                     ! Print the header with station names aligned to F13.x value columns.
-                    write(ioout, '(/,A)', advance='no') repeat(' ', 18)
-                    if (prob%problem%rkt_finite_area) then
-                        write(ioout, '(A13)', advance='no') "INJECTOR"
-                        write(ioout, '(A13)', advance='no') "COMB END"
+                    if (prob%output%long) then
+                        call write_long_station_header(ioout, prob%problem%rkt_finite_area, ne)
                     else
-                        write(ioout, '(A13)', advance='no') "CHAMBER"
+                        write(ioout, '(/,A)', advance='no') repeat(' ', 18)
+                        if (prob%problem%rkt_finite_area) then
+                            write(ioout, '(A13)', advance='no') "INJECTOR"
+                            write(ioout, '(A13)', advance='no') "COMB END"
+                        else
+                            write(ioout, '(A13)', advance='no') "CHAMBER"
+                        end if
+                        write(ioout, '(A13)', advance='no') "THROAT"
+                        do idx = 1, ne
+                            write(ioout, '(A13)', advance='no') "EXIT"
+                        end do
+                        write(ioout, *)
                     end if
-                    write(ioout, '(A13)', advance='no') "THROAT"
-                    do idx = 1, ne
-                        write(ioout, '(A13)', advance='no') "EXIT"
-                    end do
-                    write(ioout, *)
 
                     ! Print the rocket properties
-                    write(ioout, pinj_fmt) (solutions(i,j,k)%pressure(1)/solutions(i,j,k)%pressure(idx), idx=1,np)
-                    if (prob%output%siunit) then
-                        write(ioout, p_fmt) (solutions(i,j,k)%pressure(idx), idx=1,np)
-                        write(ioout, t_fmt) (solutions(i,j,k)%eq_soln(idx)%T, idx=1,np)
-                        write(ioout, rho_fmt) (solutions(i,j,k)%eq_soln(idx)%density, idx=1,np)
+                    if (prob%output%long) then
+                        write(ioout, '(A, *(1X, ES23.15E3))') ' Pinj/P           ', &
+                            (solutions(i,j,k)%pressure(1)/solutions(i,j,k)%pressure(idx), idx=1,np)
+                        if (prob%output%siunit) then
+                            write(ioout, '(A, *(1X, ES23.15E3))') ' P, bar           ', &
+                                (solutions(i,j,k)%pressure(idx), idx=1,np)
+                        else
+                            write(ioout, '(A, *(1X, ES23.15E3))') ' P, atm           ', &
+                                (solutions(i,j,k)%pressure(idx)/1.01325d0, idx=1,np)
+                        end if
+                        write(ioout, '(A, *(1X, ES23.15E3))') ' T, K             ', &
+                            (solutions(i,j,k)%eq_soln(idx)%T, idx=1,np)
+                        if (prob%output%siunit) then
+                            write(ioout, '(A, *(1X, ES23.15E3))') ' Density, kg/m^3  ', &
+                                (solutions(i,j,k)%eq_soln(idx)%density, idx=1,np)
+                            write(ioout, '(A, *(1X, ES23.15E3))') ' H, kJ/kg         ', &
+                                (solutions(i,j,k)%eq_soln(idx)%enthalpy, idx=1,np)
+                            write(ioout, '(A, *(1X, ES23.15E3))') ' U, kJ/kg         ', &
+                                (solutions(i,j,k)%eq_soln(idx)%energy, idx=1,np)
+                            write(ioout, '(A, *(1X, ES23.15E3))') ' G, kJ/kg         ', &
+                                (solutions(i,j,k)%eq_soln(idx)%gibbs_energy, idx=1,np)
+                            write(ioout, '(A, *(1X, ES23.15E3))') ' S, kJ/kg-K       ', &
+                                (solutions(i,j,k)%eq_soln(idx)%entropy, idx=1,np)
+                            write(ioout, *) ""
+                            write(ioout, '(A, *(1X, ES23.15E3))') 'M, (1/n)        ', &
+                                (1.0d0/solutions(i, j, k)%eq_soln(idx)%n, idx=1,np)
+                            if (.not. frozen) then
+                                write(ioout, '(A, *(1X, ES23.15E3))') '(dln(V)/dln(P))t', &
+                                    (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnP, idx=1,np)
+                                write(ioout, '(A, *(1X, ES23.15E3))') '(dln(V)/dln(T))p', &
+                                    (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnT, idx=1,np)
+                            end if
+                            write(ioout, '(A, *(1X, ES23.15E3))') 'Cp, kJ/(kg-K)   ', &
+                                (solutions(i, j, k)%eq_soln(idx)%cp_eq, idx=1,np)
+                        else
+                            write(ioout, '(A, *(1X, ES23.15E3))') ' Density, g/cc    ', &
+                                (solutions(i,j,k)%eq_soln(idx)%density/1.d3, idx=1,np)
+                            write(ioout, '(A, *(1X, ES23.15E3))') ' H, cal/g         ', &
+                                (solutions(i,j,k)%eq_soln(idx)%enthalpy/4.184d0, idx=1,np)
+                            write(ioout, '(A, *(1X, ES23.15E3))') ' U, cal/g         ', &
+                                (solutions(i,j,k)%eq_soln(idx)%energy/4.184d0, idx=1,np)
+                            write(ioout, '(A, *(1X, ES23.15E3))') ' G, cal/g         ', &
+                                (solutions(i,j,k)%eq_soln(idx)%gibbs_energy/4.184d0, idx=1,np)
+                            write(ioout, '(A, *(1X, ES23.15E3))') ' S, cal/g-K       ', &
+                                (solutions(i,j,k)%eq_soln(idx)%entropy/4.184d0, idx=1,np)
+                            write(ioout, *) ""
+                            write(ioout, '(A, *(1X, ES23.15E3))') 'M, (1/n)        ', &
+                                (1.0d0/solutions(i, j, k)%eq_soln(idx)%n, idx=1,np)
+                            if (.not. frozen) then
+                                write(ioout, '(A, *(1X, ES23.15E3))') '(dln(V)/dln(P))t', &
+                                    (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnP, idx=1,np)
+                                write(ioout, '(A, *(1X, ES23.15E3))') '(dln(V)/dln(T))p', &
+                                    (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnT, idx=1,np)
+                            end if
+                            write(ioout, '(A, *(1X, ES23.15E3))') 'Cp, cal/(g-K)   ', &
+                                (solutions(i, j, k)%eq_soln(idx)%cp_eq/4.184d0, idx=1,np)
+                        end if
+                        write(ioout, '(A, *(1X, ES23.15E3))') 'Gamma_s         ', &
+                            (solutions(i, j, k)%eq_partials(idx)%gamma_s, idx=1,np)
+                        write(ioout, '(A, *(1X, ES23.15E3))') 'Son. Vel., m/s  ', &
+                            (solutions(i, j, k)%v_sonic(idx), idx=1,np)
+                        write(ioout, '(A, *(1X, ES23.15E3))') 'Mach            ', &
+                            (solutions(i, j, k)%mach(idx), idx=1,np)
+                    else
+                        write(ioout, pinj_fmt) (solutions(i,j,k)%pressure(1)/solutions(i,j,k)%pressure(idx), idx=1,np)
+                        if (prob%output%siunit) then
+                            write(ioout, p_fmt) (solutions(i,j,k)%pressure(idx), idx=1,np)
+                            write(ioout, t_fmt) (solutions(i,j,k)%eq_soln(idx)%T, idx=1,np)
+                            write(ioout, rho_fmt) (solutions(i,j,k)%eq_soln(idx)%density, idx=1,np)
                         write(ioout, h_fmt) (solutions(i,j,k)%eq_soln(idx)%enthalpy, idx=1,np)
                         write(ioout, u_fmt) (solutions(i,j,k)%eq_soln(idx)%energy, idx=1,np)
                         write(ioout, g_fmt) (solutions(i,j,k)%eq_soln(idx)%gibbs_energy, idx=1,np)
@@ -2398,11 +2868,11 @@ contains
                         write(ioout, thermo_fmt) 'Gamma_s         ', (solutions(i, j, k)%eq_partials(idx)%gamma_s, idx=1,np)
                         write(ioout, vsonic_fmt) 'Son. Vel., m/s  ', (solutions(i, j, k)%v_sonic(idx), idx=1,np)
                         write(ioout, thermo_fmt) 'Mach            ', (solutions(i, j, k)%mach(idx), idx=1,np)
-                    else
-                        write(ioout, p_fmt) (solutions(i,j,k)%pressure(idx)/1.01325d0, idx=1,np)
-                        write(ioout, t_fmt) (solutions(i,j,k)%eq_soln(idx)%T, idx=1,np)
-                        write(ioout, rho_fmt) (solutions(i,j,k)%eq_soln(idx)%density/1.d3, idx=1,np)
-                        write(ioout, h_fmt) (solutions(i,j,k)%eq_soln(idx)%enthalpy/4.184d0, idx=1,np)
+                        else
+                            write(ioout, p_fmt) (solutions(i,j,k)%pressure(idx)/1.01325d0, idx=1,np)
+                            write(ioout, t_fmt) (solutions(i,j,k)%eq_soln(idx)%T, idx=1,np)
+                            write(ioout, rho_fmt) (solutions(i,j,k)%eq_soln(idx)%density/1.d3, idx=1,np)
+                            write(ioout, h_fmt) (solutions(i,j,k)%eq_soln(idx)%enthalpy/4.184d0, idx=1,np)
                         write(ioout, u_fmt) (solutions(i,j,k)%eq_soln(idx)%energy/4.184d0, idx=1,np)
                         write(ioout, g_fmt) (solutions(i,j,k)%eq_soln(idx)%gibbs_energy/4.184d0, idx=1,np)
                         write(ioout, s_fmt) (solutions(i,j,k)%eq_soln(idx)%entropy/4.184d0, idx=1,np)
@@ -2415,7 +2885,8 @@ contains
                         write(ioout, thermo_fmt) 'Cp, cal/(g-K)   ', (solutions(i, j, k)%eq_soln(idx)%cp_eq/4.184d0, idx=1,np)
                         write(ioout, thermo_fmt) 'Gamma_s         ', (solutions(i, j, k)%eq_partials(idx)%gamma_s, idx=1,np)
                         write(ioout, vsonic_fmt) 'Son. Vel., m/s  ', (solutions(i, j, k)%v_sonic(idx), idx=1,np)
-                        write(ioout, thermo_fmt) 'Mach            ', (solutions(i, j, k)%mach(idx), idx=1,np)
+                            write(ioout, thermo_fmt) 'Mach            ', (solutions(i, j, k)%mach(idx), idx=1,np)
+                        end if
                     end if
 
                     ! Write out transport properties
@@ -2426,36 +2897,74 @@ contains
                         write(ioout, *) ""
 
                         ! Viscosity
-                        write(ioout, thermo_fmt) " Visc, Millipoise", (solutions(i, j, k)%eq_soln(idx)%viscosity, idx=1,np)
+                        if (prob%output%long) then
+                            write(ioout, '(A, *(1X, ES23.15E3))') " Visc, Millipoise", &
+                                (solutions(i, j, k)%eq_soln(idx)%viscosity, idx=1,np)
+                        else
+                            write(ioout, thermo_fmt) " Visc, Millipoise", (solutions(i, j, k)%eq_soln(idx)%viscosity, idx=1,np)
+                        end if
                         write(ioout, *) ""
 
                         if (.not. frozen) then
                             write(ioout, '(A)') " WITH EQUILIBRIUM REACTIONS"
-                            if (prob%output%siunit) then
-                                write(ioout, thermo_fmt) " Cp, kJ/(kg-K)   ", (solutions(i, j, k)%eq_soln(idx)%cp_eq, idx=1,np)
-                                write(ioout, thermo_fmt) " Conductivity    ", &
-                                    (solutions(i, j, k)%eq_soln(idx)%conductivity_eq, idx=1,np)
+                            if (prob%output%long) then
+                                if (prob%output%siunit) then
+                                    write(ioout, '(A, *(1X, ES23.15E3))') " Cp, kJ/(kg-K)   ", &
+                                        (solutions(i, j, k)%eq_soln(idx)%cp_eq, idx=1,np)
+                                    write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
+                                        (solutions(i, j, k)%eq_soln(idx)%conductivity_eq, idx=1,np)
+                                else
+                                    write(ioout, '(A, *(1X, ES23.15E3))') " Cp, cal/(g-K)   ", &
+                                        (solutions(i, j, k)%eq_soln(idx)%cp_eq/4.184d0, idx=1,np)
+                                    write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
+                                        (solutions(i, j, k)%eq_soln(idx)%conductivity_eq/4.184d0, idx=1,np)
+                                end if
+                                write(ioout, '(A, *(1X, ES23.15E3))') " Prandtl Number  ", &
+                                    (solutions(i, j, k)%eq_soln(idx)%Pr_eq, idx=1,np)
                             else
-                                write(ioout, thermo_fmt) " Cp, cal/(g-K)   ", &
-                                    (solutions(i, j, k)%eq_soln(idx)%cp_eq/4.184d0, idx=1,np)
-                                write(ioout, thermo_fmt) " Conductivity    ", &
-                                    (solutions(i, j, k)%eq_soln(idx)%conductivity_eq/4.184d0, idx=1,np)
+                                if (prob%output%siunit) then
+                                    write(ioout, thermo_fmt) " Cp, kJ/(kg-K)   ", (solutions(i, j, k)%eq_soln(idx)%cp_eq, idx=1,np)
+                                    write(ioout, thermo_fmt) " Conductivity    ", &
+                                        (solutions(i, j, k)%eq_soln(idx)%conductivity_eq, idx=1,np)
+                                else
+                                    write(ioout, thermo_fmt) " Cp, cal/(g-K)   ", &
+                                        (solutions(i, j, k)%eq_soln(idx)%cp_eq/4.184d0, idx=1,np)
+                                    write(ioout, thermo_fmt) " Conductivity    ", &
+                                        (solutions(i, j, k)%eq_soln(idx)%conductivity_eq/4.184d0, idx=1,np)
+                                end if
+                                write(ioout, thermo_fmt) " Prandtl Number  ", (solutions(i, j, k)%eq_soln(idx)%Pr_eq, idx=1,np)
                             end if
-                            write(ioout, thermo_fmt) " Prandtl Number  ", (solutions(i, j, k)%eq_soln(idx)%Pr_eq, idx=1,np)
                             write(ioout, *) ""
                         end if
 
                         write(ioout, '(A)') " WITH FROZEN REACTIONS"
-                        if (prob%output%siunit) then
-                            write(ioout, thermo_fmt) " Cp, kJ/(kg-K)   ", (solutions(i, j, k)%eq_soln(idx)%cp_fr, idx=1,np)
-                            write(ioout, thermo_fmt) " Conductivity    ", &
-                                (solutions(i, j, k)%eq_soln(idx)%conductivity_fr, idx=1,np)
+                        if (prob%output%long) then
+                            if (prob%output%siunit) then
+                                write(ioout, '(A, *(1X, ES23.15E3))') " Cp, kJ/(kg-K)   ", &
+                                    (solutions(i, j, k)%eq_soln(idx)%cp_fr, idx=1,np)
+                                write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
+                                    (solutions(i, j, k)%eq_soln(idx)%conductivity_fr, idx=1,np)
+                            else
+                                write(ioout, '(A, *(1X, ES23.15E3))') " Cp, cal/(g-K)   ", &
+                                    (solutions(i, j, k)%eq_soln(idx)%cp_fr/4.184d0, idx=1,np)
+                                write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
+                                    (solutions(i, j, k)%eq_soln(idx)%conductivity_fr/4.184d0, idx=1,np)
+                            end if
+                            write(ioout, '(A, *(1X, ES23.15E3))') " Prandtl Number  ", &
+                                (solutions(i, j, k)%eq_soln(idx)%Pr_fr, idx=1,np)
                         else
-                            write(ioout, thermo_fmt) " Cp, cal/(g-K)   ", (solutions(i, j, k)%eq_soln(idx)%cp_fr/4.184d0, idx=1,np)
-                            write(ioout, thermo_fmt) " Conductivity    ", &
-                                (solutions(i, j, k)%eq_soln(idx)%conductivity_fr/4.184d0, idx=1,np)
+                            if (prob%output%siunit) then
+                                write(ioout, thermo_fmt) " Cp, kJ/(kg-K)   ", (solutions(i, j, k)%eq_soln(idx)%cp_fr, idx=1,np)
+                                write(ioout, thermo_fmt) " Conductivity    ", &
+                                    (solutions(i, j, k)%eq_soln(idx)%conductivity_fr, idx=1,np)
+                            else
+                                write(ioout, thermo_fmt) " Cp, cal/(g-K)   ", &
+                                    (solutions(i, j, k)%eq_soln(idx)%cp_fr/4.184d0, idx=1,np)
+                                write(ioout, thermo_fmt) " Conductivity    ", &
+                                    (solutions(i, j, k)%eq_soln(idx)%conductivity_fr/4.184d0, idx=1,np)
+                            end if
+                            write(ioout, thermo_fmt) " Prandtl Number  ", (solutions(i, j, k)%eq_soln(idx)%Pr_fr, idx=1,np)
                         end if
-                        write(ioout, thermo_fmt) " Prandtl Number  ", (solutions(i, j, k)%eq_soln(idx)%Pr_fr, idx=1,np)
                         write(ioout, *) ""
 
                     end if
@@ -2466,11 +2975,30 @@ contains
                         write(ioout, '(A)') " PERFORMANCE PARAMETERS"
                         write(ioout, *) ""
 
-                        perf_label = 'Ae/At           '
-                        write(perf_fmt, '("(",i0,"(F13.4))")') np-1
-                        write(ioout, '(1x,A,1x,A13)', advance='no') perf_label, ''
-                        write(ioout, trim(perf_fmt)) (solutions(i, j, k)%ae_at(idx), idx=2,np)
-                        if (prob%output%siunit) then
+                        if (prob%output%long) then
+                            write(ioout, '(A, *(1X, ES23.15E3))') 'Ae/At           ', (solutions(i, j, k)%ae_at(idx), idx=2,np)
+                            if (prob%output%siunit) then
+                                write(ioout, '(A, *(1X, ES23.15E3))') 'C*, m/s         ', (solutions(i, j, k)%c_star(idx), idx=2,np)
+                            else
+                                write(ioout, '(A, *(1X, ES23.15E3))') 'C*, ft/s        ', &
+                                    (solutions(i, j, k)%c_star(idx)*3.2808349d0, idx=2,np)
+                            end if
+                            write(ioout, '(A, *(1X, ES23.15E3))') 'Cf              ', (solutions(i, j, k)%cf(idx), idx=2,np)
+                            if (prob%output%siunit) then
+                                write(ioout, '(A, *(1X, ES23.15E3))') 'Ivac, m/s       ', (solutions(i, j, k)%i_vac(idx), idx=2,np)
+                                write(ioout, '(A, *(1X, ES23.15E3))') 'Isp, m/s        ', (solutions(i, j, k)%i_sp(idx), idx=2,np)
+                            else
+                                write(ioout, '(A, *(1X, ES23.15E3))') 'Ivac, lb-s/lb   ', &
+                                    (solutions(i, j, k)%i_vac(idx)/9.80665d0, idx=2,np)
+                                write(ioout, '(A, *(1X, ES23.15E3))') 'Isp, lb-s/lb    ', &
+                                    (solutions(i, j, k)%i_sp(idx)/9.80665d0, idx=2,np)
+                            end if
+                        else
+                            perf_label = 'Ae/At           '
+                            write(perf_fmt, '("(",i0,"(F13.4))")') np-1
+                            write(ioout, '(1x,A,1x,A13)', advance='no') perf_label, ''
+                            write(ioout, trim(perf_fmt)) (solutions(i, j, k)%ae_at(idx), idx=2,np)
+                            if (prob%output%siunit) then
                             perf_label = 'C*, m/s         '
                             write(perf_fmt, '("(",i0,"(F13.2))")') np-1
                             write(ioout, '(1x,A,1x,A13)', advance='no') perf_label, ''
@@ -2501,6 +3029,7 @@ contains
                             perf_label = 'Isp, lb-s/lb    '
                             write(ioout, '(1x,A,1x,A13)', advance='no') perf_label, ''
                             write(ioout, trim(perf_fmt)) (solutions(i, j, k)%i_sp(idx)/9.80665d0, idx=2,np)
+                            end if
                         end if
                     end if
 
@@ -2535,10 +3064,10 @@ contains
                         if (is_trace(ii) .eqv. .false.) then
                             if (frozen) then
                                 spec_fmt = get_rocket_species_format(solutions, ii, i, j, k, np, &
-                                    prob%output%mass_fractions, .true., nfrz)
+                                    prob%output%mass_fractions, .true., nfrz, prob%output%long)
                             else
                                 spec_fmt = get_rocket_species_format(solutions, ii, i, j, k, np, &
-                                    prob%output%mass_fractions)
+                                    prob%output%mass_fractions, long_output=prob%output%long)
                             end if
                             if (prob%output%mass_fractions) then
                                 if (frozen) then
@@ -2567,7 +3096,11 @@ contains
                     ! Print the list of products with negligible amounts
                     write(ioout, '(A)') ""
                     write(ioout, '(A)') "PRODUCTS WHICH WERE CONSIDERED BUT WHOSE "// mass_or_mole //" FRACTIONS"
-                    write(ioout, '(A, 1PE13.6 ,A)') "WERE LESS THAN", trace, " FOR ALL ASSIGNED CONDITIONS"
+                    if (prob%output%long) then
+                        call write_long_trace_line(ioout, trace)
+                    else
+                        write(ioout, '(A, 1PE13.6 ,A)') "WERE LESS THAN", trace, " FOR ALL ASSIGNED CONDITIONS"
+                    end if
                     write(ioout, '(A)') ""
                     if (num_trace > 0) then
                         ncols = 5
@@ -2589,119 +3122,220 @@ contains
                         if (prob%problem%rkt_finite_area) np = np + 1
                         nc = np - ne
 
-                        ! Print the header with station names aligned to F13.x value columns.
-                        write(ioout, '(/,A)', advance='no') repeat(' ', 18)
-                        if (prob%problem%rkt_finite_area) then
-                            write(ioout, '(A13)', advance='no') "INJECTOR"
-                            write(ioout, '(A13)', advance='no') "COMB END"
+                        ! Print the header with station names aligned to the value columns.
+                        if (prob%output%long) then
+                            call write_long_station_header(ioout, prob%problem%rkt_finite_area, ne)
                         else
-                            write(ioout, '(A13)', advance='no') "CHAMBER"
+                            write(ioout, '(/,A)', advance='no') repeat(' ', 18)
+                            if (prob%problem%rkt_finite_area) then
+                                write(ioout, '(A13)', advance='no') "INJECTOR"
+                                write(ioout, '(A13)', advance='no') "COMB END"
+                            else
+                                write(ioout, '(A13)', advance='no') "CHAMBER"
+                            end if
+                            write(ioout, '(A13)', advance='no') "THROAT"
+                            do idx = 1, ne
+                                write(ioout, '(A13)', advance='no') "EXIT"
+                            end do
+                            write(ioout, *)
                         end if
-                        write(ioout, '(A13)', advance='no') "THROAT"
-                        do idx = 1, ne
-                            write(ioout, '(A13)', advance='no') "EXIT"
-                        end do
-                        write(ioout, *)
 
                         ! Print the rocket properties
                         x = nc+max_exit+1
                         y = nc+max_exit+ne
 
-                        write(ioout, pinj_fmt, advance="no") (solutions(i,j,k)%pressure(1)/solutions(i,j,k)%pressure(idx), idx=1,nc)
-                        write(ioout, ffmt) (solutions(i,j,k)%pressure(1)/solutions(i,j,k)%pressure(idx), idx=x,y)
-                        if (prob%output%siunit) then
-                            write(ioout, p_fmt, advance="no") (solutions(i,j,k)%pressure(idx), idx=1,nc)
-                            write(ioout, ffmt) (solutions(i,j,k)%pressure(idx), idx=x,y)
-
-                            write(ioout, t_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%T, idx=1,nc)
-                            write(ioout, ffmt) (solutions(i,j,k)%eq_soln(idx)%T, idx=x,y)
-
-                            write(ioout, rho_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%density, idx=1,nc)
-                            write(ioout, "(6(E13.4e1))") (solutions(i,j,k)%eq_soln(idx)%density, idx=x,y)
-
-                            write(ioout, h_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%enthalpy, idx=1,nc)
-                            write(ioout, ffmt) (solutions(i,j,k)%eq_soln(idx)%enthalpy, idx=x,y)
-
-                            write(ioout, u_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%energy, idx=1,nc)
-                            write(ioout, ffmt) (solutions(i,j,k)%eq_soln(idx)%energy, idx=x,y)
-
-                            write(ioout, g_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%gibbs_energy, idx=1,nc)
-                            write(ioout, "(6(F13.2))") (solutions(i,j,k)%eq_soln(idx)%gibbs_energy, idx=x,y)
-
-                            write(ioout, s_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%entropy, idx=1,nc)
-                            write(ioout, ffmt) (solutions(i,j,k)%eq_soln(idx)%entropy, idx=x,y)
-
-                            write(ioout, *) ""
-                            write(ioout, thermo_fmt, advance="no") 'M, (1/n)        ', &
-                                (1.0/solutions(i, j, k)%eq_soln(idx)%n, idx=1,nc)
-                            write(ioout, ffmt) (1.0/solutions(i, j, k)%eq_soln(idx)%n, idx=x,y)
-
-                            if (frozen .eqv. .false.) then
-                                write(ioout, thermo_fmt, advance="no") '(dln(V)/dln(P))t', &
-                                    (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnP, idx=1,nc)
-                                write(ioout, ffmt) (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnP, idx=x,y)
-
-                                write(ioout, thermo_fmt, advance="no") '(dln(V)/dln(T))p', &
-                                    (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnT, idx=1,nc)
-                                write(ioout, ffmt) (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnT, idx=x,y)
+                        if (prob%output%long) then
+                            if (prob%problem%rkt_finite_area) then
+                                write(ioout, '(A, *(1X, ES23.15E3))') ' Pinj/P           ', &
+                                    [ (solutions(i,j,k)%pressure(1)/solutions(i,j,k)%pressure(idx), idx=1,nc), &
+                                      (solutions(i,j,k)%pressure(1)/solutions(i,j,k)%pressure(idx), idx=x,y) ]
+                            else
+                                write(ioout, '(A, *(1X, ES23.15E3))') ' Pinf/P           ', &
+                                    [ (solutions(i,j,k)%pressure(1)/solutions(i,j,k)%pressure(idx), idx=1,nc), &
+                                      (solutions(i,j,k)%pressure(1)/solutions(i,j,k)%pressure(idx), idx=x,y) ]
                             end if
-
-                            write(ioout, thermo_fmt, advance="no") 'Cp, kJ/(kg-K)   ', &
-                                (solutions(i, j, k)%eq_soln(idx)%cp_eq, idx=1,nc)
-                            write(ioout, ffmt) (solutions(i, j, k)%eq_soln(idx)%cp_eq, idx=x,y)
+                            if (prob%output%siunit) then
+                                write(ioout, '(A, *(1X, ES23.15E3))') ' P, bar           ', &
+                                    [ (solutions(i,j,k)%pressure(idx), idx=1,nc), &
+                                      (solutions(i,j,k)%pressure(idx), idx=x,y) ]
+                            else
+                                write(ioout, '(A, *(1X, ES23.15E3))') ' P, atm           ', &
+                                    [ (solutions(i,j,k)%pressure(idx)/1.01325d0, idx=1,nc), &
+                                      (solutions(i,j,k)%pressure(idx)/1.01325d0, idx=x,y) ]
+                            end if
+                            write(ioout, '(A, *(1X, ES23.15E3))') ' T, K             ', &
+                                [ (solutions(i,j,k)%eq_soln(idx)%T, idx=1,nc), &
+                                  (solutions(i,j,k)%eq_soln(idx)%T, idx=x,y) ]
+                            if (prob%output%siunit) then
+                                write(ioout, '(A, *(1X, ES23.15E3))') ' Density, kg/m^3  ', &
+                                    [ (solutions(i,j,k)%eq_soln(idx)%density, idx=1,nc), &
+                                      (solutions(i,j,k)%eq_soln(idx)%density, idx=x,y) ]
+                                write(ioout, '(A, *(1X, ES23.15E3))') ' H, kJ/kg         ', &
+                                    [ (solutions(i,j,k)%eq_soln(idx)%enthalpy, idx=1,nc), &
+                                      (solutions(i,j,k)%eq_soln(idx)%enthalpy, idx=x,y) ]
+                                write(ioout, '(A, *(1X, ES23.15E3))') ' U, kJ/kg         ', &
+                                    [ (solutions(i,j,k)%eq_soln(idx)%energy, idx=1,nc), &
+                                      (solutions(i,j,k)%eq_soln(idx)%energy, idx=x,y) ]
+                                write(ioout, '(A, *(1X, ES23.15E3))') ' G, kJ/kg         ', &
+                                    [ (solutions(i,j,k)%eq_soln(idx)%gibbs_energy, idx=1,nc), &
+                                      (solutions(i,j,k)%eq_soln(idx)%gibbs_energy, idx=x,y) ]
+                                write(ioout, '(A, *(1X, ES23.15E3))') ' S, kJ/kg-K       ', &
+                                    [ (solutions(i,j,k)%eq_soln(idx)%entropy, idx=1,nc), &
+                                      (solutions(i,j,k)%eq_soln(idx)%entropy, idx=x,y) ]
+                                write(ioout, *) ""
+                                write(ioout, '(A, *(1X, ES23.15E3))') 'M, (1/n)        ', &
+                                    [ (1.0d0/solutions(i,j,k)%eq_soln(idx)%n, idx=1,nc), &
+                                      (1.0d0/solutions(i,j,k)%eq_soln(idx)%n, idx=x,y) ]
+                                if (.not. frozen) then
+                                    write(ioout, '(A, *(1X, ES23.15E3))') '(dln(V)/dln(P))t', &
+                                        [ (solutions(i,j,k)%eq_partials(idx)%dlnV_dlnP, idx=1,nc), &
+                                          (solutions(i,j,k)%eq_partials(idx)%dlnV_dlnP, idx=x,y) ]
+                                    write(ioout, '(A, *(1X, ES23.15E3))') '(dln(V)/dln(T))p', &
+                                        [ (solutions(i,j,k)%eq_partials(idx)%dlnV_dlnT, idx=1,nc), &
+                                          (solutions(i,j,k)%eq_partials(idx)%dlnV_dlnT, idx=x,y) ]
+                                end if
+                                write(ioout, '(A, *(1X, ES23.15E3))') 'Cp, kJ/(kg-K)   ', &
+                                    [ (solutions(i,j,k)%eq_soln(idx)%cp_eq, idx=1,nc), &
+                                      (solutions(i,j,k)%eq_soln(idx)%cp_eq, idx=x,y) ]
+                            else
+                                write(ioout, '(A, *(1X, ES23.15E3))') ' Density, g/cc    ', &
+                                    [ (solutions(i,j,k)%eq_soln(idx)%density/1.d3, idx=1,nc), &
+                                      (solutions(i,j,k)%eq_soln(idx)%density/1.d3, idx=x,y) ]
+                                write(ioout, '(A, *(1X, ES23.15E3))') ' H, cal/g         ', &
+                                    [ (solutions(i,j,k)%eq_soln(idx)%enthalpy/4.184d0, idx=1,nc), &
+                                      (solutions(i,j,k)%eq_soln(idx)%enthalpy/4.184d0, idx=x,y) ]
+                                write(ioout, '(A, *(1X, ES23.15E3))') ' U, cal/g         ', &
+                                    [ (solutions(i,j,k)%eq_soln(idx)%energy/4.184d0, idx=1,nc), &
+                                      (solutions(i,j,k)%eq_soln(idx)%energy/4.184d0, idx=x,y) ]
+                                write(ioout, '(A, *(1X, ES23.15E3))') ' G, cal/g         ', &
+                                    [ (solutions(i,j,k)%eq_soln(idx)%gibbs_energy/4.184d0, idx=1,nc), &
+                                      (solutions(i,j,k)%eq_soln(idx)%gibbs_energy/4.184d0, idx=x,y) ]
+                                write(ioout, '(A, *(1X, ES23.15E3))') ' S, cal/g-K       ', &
+                                    [ (solutions(i,j,k)%eq_soln(idx)%entropy/4.184d0, idx=1,nc), &
+                                      (solutions(i,j,k)%eq_soln(idx)%entropy/4.184d0, idx=x,y) ]
+                                write(ioout, *) ""
+                                write(ioout, '(A, *(1X, ES23.15E3))') 'M, (1/n)        ', &
+                                    [ (1.0d0/solutions(i,j,k)%eq_soln(idx)%n, idx=1,nc), &
+                                      (1.0d0/solutions(i,j,k)%eq_soln(idx)%n, idx=x,y) ]
+                                if (.not. frozen) then
+                                    write(ioout, '(A, *(1X, ES23.15E3))') '(dln(V)/dln(P))t', &
+                                        [ (solutions(i,j,k)%eq_partials(idx)%dlnV_dlnP, idx=1,nc), &
+                                          (solutions(i,j,k)%eq_partials(idx)%dlnV_dlnP, idx=x,y) ]
+                                    write(ioout, '(A, *(1X, ES23.15E3))') '(dln(V)/dln(T))p', &
+                                        [ (solutions(i,j,k)%eq_partials(idx)%dlnV_dlnT, idx=1,nc), &
+                                          (solutions(i,j,k)%eq_partials(idx)%dlnV_dlnT, idx=x,y) ]
+                                end if
+                                write(ioout, '(A, *(1X, ES23.15E3))') 'Cp, cal/(g-K)   ', &
+                                    [ (solutions(i,j,k)%eq_soln(idx)%cp_eq/4.184d0, idx=1,nc), &
+                                      (solutions(i,j,k)%eq_soln(idx)%cp_eq/4.184d0, idx=x,y) ]
+                            end if
+                            write(ioout, '(A, *(1X, ES23.15E3))') 'Gamma_s         ', &
+                                [ (solutions(i,j,k)%eq_partials(idx)%gamma_s, idx=1,nc), &
+                                  (solutions(i,j,k)%eq_partials(idx)%gamma_s, idx=x,y) ]
+                            write(ioout, '(A, *(1X, ES23.15E3))') 'Son. Vel., m/s  ', &
+                                [ (solutions(i,j,k)%v_sonic(idx), idx=1,nc), &
+                                  (solutions(i,j,k)%v_sonic(idx), idx=x,y) ]
+                            write(ioout, '(A, *(1X, ES23.15E3))') 'Mach            ', &
+                                [ (solutions(i,j,k)%mach(idx), idx=1,nc), &
+                                  (solutions(i,j,k)%mach(idx), idx=x,y) ]
                         else
-                            write(ioout, p_fmt, advance="no") (solutions(i,j,k)%pressure(idx)/1.01325d0, idx=1,nc)
-                            write(ioout, ffmt) (solutions(i,j,k)%pressure(idx), idx=x,y)
+                            write(ioout, pinj_fmt, advance="no") &
+                                (solutions(i,j,k)%pressure(1)/solutions(i,j,k)%pressure(idx), idx=1,nc)
+                            write(ioout, ffmt) (solutions(i,j,k)%pressure(1)/solutions(i,j,k)%pressure(idx), idx=x,y)
+                            if (prob%output%siunit) then
+                                write(ioout, p_fmt, advance="no") (solutions(i,j,k)%pressure(idx), idx=1,nc)
+                                write(ioout, ffmt) (solutions(i,j,k)%pressure(idx), idx=x,y)
 
-                            write(ioout, t_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%T, idx=1,nc)
-                            write(ioout, ffmt) (solutions(i,j,k)%eq_soln(idx)%T, idx=x,y)
+                                write(ioout, t_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%T, idx=1,nc)
+                                write(ioout, ffmt) (solutions(i,j,k)%eq_soln(idx)%T, idx=x,y)
 
-                            write(ioout, rho_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%density/1.d3, idx=1,nc)
-                            write(ioout, "(6(E13.4e1))") (solutions(i,j,k)%eq_soln(idx)%density, idx=x,y)
+                                write(ioout, rho_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%density, idx=1,nc)
+                                write(ioout, "(6(E13.4e1))") (solutions(i,j,k)%eq_soln(idx)%density, idx=x,y)
 
-                            write(ioout, h_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%enthalpy/4.184d0, idx=1,nc)
-                            write(ioout, ffmt) (solutions(i,j,k)%eq_soln(idx)%enthalpy, idx=x,y)
+                                write(ioout, h_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%enthalpy, idx=1,nc)
+                                write(ioout, ffmt) (solutions(i,j,k)%eq_soln(idx)%enthalpy, idx=x,y)
 
-                            write(ioout, u_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%energy/4.184d0, idx=1,nc)
-                            write(ioout, ffmt) (solutions(i,j,k)%eq_soln(idx)%energy, idx=x,y)
+                                write(ioout, u_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%energy, idx=1,nc)
+                                write(ioout, ffmt) (solutions(i,j,k)%eq_soln(idx)%energy, idx=x,y)
 
-                            write(ioout, g_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%gibbs_energy/4.184d0, idx=1,nc)
-                            write(ioout, "(6(F13.2))") (solutions(i,j,k)%eq_soln(idx)%gibbs_energy, idx=x,y)
+                                write(ioout, g_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%gibbs_energy, idx=1,nc)
+                                write(ioout, "(6(F13.2))") (solutions(i,j,k)%eq_soln(idx)%gibbs_energy, idx=x,y)
 
-                            write(ioout, s_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%entropy/4.184d0, idx=1,nc)
-                            write(ioout, ffmt) (solutions(i,j,k)%eq_soln(idx)%entropy, idx=x,y)
+                                write(ioout, s_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%entropy, idx=1,nc)
+                                write(ioout, ffmt) (solutions(i,j,k)%eq_soln(idx)%entropy, idx=x,y)
 
-                            write(ioout, *) ""
-                            write(ioout, thermo_fmt, advance="no") 'M, (1/n)        ', &
-                                (1.0/solutions(i, j, k)%eq_soln(idx)%n, idx=1,nc)
-                            write(ioout, ffmt) (1.0/solutions(i, j, k)%eq_soln(idx)%n, idx=x,y)
+                                write(ioout, *) ""
+                                write(ioout, thermo_fmt, advance="no") 'M, (1/n)        ', &
+                                    (1.0/solutions(i, j, k)%eq_soln(idx)%n, idx=1,nc)
+                                write(ioout, ffmt) (1.0/solutions(i, j, k)%eq_soln(idx)%n, idx=x,y)
 
-                            if (frozen .eqv. .false.) then
-                                write(ioout, thermo_fmt, advance="no") '(dln(V)/dln(P))t', &
-                                    (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnP, idx=1,nc)
-                                write(ioout, ffmt) (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnP, idx=x,y)
+                                if (frozen .eqv. .false.) then
+                                    write(ioout, thermo_fmt, advance="no") '(dln(V)/dln(P))t', &
+                                        (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnP, idx=1,nc)
+                                    write(ioout, ffmt) (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnP, idx=x,y)
 
-                                write(ioout, thermo_fmt, advance="no") '(dln(V)/dln(T))p', &
-                                     (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnT, idx=1,nc)
-                                write(ioout, ffmt) (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnT, idx=x,y)
+                                    write(ioout, thermo_fmt, advance="no") '(dln(V)/dln(T))p', &
+                                        (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnT, idx=1,nc)
+                                    write(ioout, ffmt) (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnT, idx=x,y)
+                                end if
+
+                                write(ioout, thermo_fmt, advance="no") 'Cp, kJ/(kg-K)   ', &
+                                    (solutions(i, j, k)%eq_soln(idx)%cp_eq, idx=1,nc)
+                                write(ioout, ffmt) (solutions(i, j, k)%eq_soln(idx)%cp_eq, idx=x,y)
+                            else
+                                write(ioout, p_fmt, advance="no") (solutions(i,j,k)%pressure(idx)/1.01325d0, idx=1,nc)
+                                write(ioout, ffmt) (solutions(i,j,k)%pressure(idx), idx=x,y)
+
+                                write(ioout, t_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%T, idx=1,nc)
+                                write(ioout, ffmt) (solutions(i,j,k)%eq_soln(idx)%T, idx=x,y)
+
+                                write(ioout, rho_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%density/1.d3, idx=1,nc)
+                                write(ioout, "(6(E13.4e1))") (solutions(i,j,k)%eq_soln(idx)%density, idx=x,y)
+
+                                write(ioout, h_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%enthalpy/4.184d0, idx=1,nc)
+                                write(ioout, ffmt) (solutions(i,j,k)%eq_soln(idx)%enthalpy, idx=x,y)
+
+                                write(ioout, u_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%energy/4.184d0, idx=1,nc)
+                                write(ioout, ffmt) (solutions(i,j,k)%eq_soln(idx)%energy, idx=x,y)
+
+                                write(ioout, g_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%gibbs_energy/4.184d0, idx=1,nc)
+                                write(ioout, "(6(F13.2))") (solutions(i,j,k)%eq_soln(idx)%gibbs_energy, idx=x,y)
+
+                                write(ioout, s_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%entropy/4.184d0, idx=1,nc)
+                                write(ioout, ffmt) (solutions(i,j,k)%eq_soln(idx)%entropy, idx=x,y)
+
+                                write(ioout, *) ""
+                                write(ioout, thermo_fmt, advance="no") 'M, (1/n)        ', &
+                                    (1.0/solutions(i, j, k)%eq_soln(idx)%n, idx=1,nc)
+                                write(ioout, ffmt) (1.0/solutions(i, j, k)%eq_soln(idx)%n, idx=x,y)
+
+                                if (frozen .eqv. .false.) then
+                                    write(ioout, thermo_fmt, advance="no") '(dln(V)/dln(P))t', &
+                                        (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnP, idx=1,nc)
+                                    write(ioout, ffmt) (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnP, idx=x,y)
+
+                                    write(ioout, thermo_fmt, advance="no") '(dln(V)/dln(T))p', &
+                                         (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnT, idx=1,nc)
+                                    write(ioout, ffmt) (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnT, idx=x,y)
+                                end if
+
+                                write(ioout, thermo_fmt, advance="no") 'Cp, cal/(g-K)   ', &
+                                    (solutions(i, j, k)%eq_soln(idx)%cp_eq/4.184d0, idx=1,nc)
+                                write(ioout, ffmt) (solutions(i, j, k)%eq_soln(idx)%cp_eq/4.184d0, idx=x,y)
                             end if
 
-                            write(ioout, thermo_fmt, advance="no") 'Cp, cal/(g-K)   ', &
-                                (solutions(i, j, k)%eq_soln(idx)%cp_eq/4.184d0, idx=1,nc)
-                            write(ioout, ffmt) (solutions(i, j, k)%eq_soln(idx)%cp_eq/4.184d0, idx=x,y)
+                            write(ioout, thermo_fmt, advance="no") 'Gamma_s         ', &
+                                (solutions(i, j, k)%eq_partials(idx)%gamma_s, idx=1,nc)
+                            write(ioout, ffmt) (solutions(i, j, k)%eq_partials(idx)%gamma_s, idx=x,y)
+
+                            write(ioout, vsonic_fmt, advance="no") 'Son. Vel., m/s  ', &
+                                (solutions(i, j, k)%v_sonic(idx), idx=1,nc)
+                            write(ioout, ffmt) (solutions(i, j, k)%v_sonic(idx), idx=x,y)
+
+                            write(ioout, thermo_fmt, advance="no") 'Mach            ', &
+                                (solutions(i, j, k)%mach(idx), idx=1,nc)
+                            write(ioout, ffmt) (solutions(i, j, k)%mach(idx), idx=x,y)
                         end if
-
-                        write(ioout, thermo_fmt, advance="no") 'Gamma_s         ', &
-                            (solutions(i, j, k)%eq_partials(idx)%gamma_s, idx=1,nc)
-                        write(ioout, ffmt) (solutions(i, j, k)%eq_partials(idx)%gamma_s, idx=x,y)
-
-                        write(ioout, vsonic_fmt, advance="no") 'Son. Vel., m/s  ', &
-                            (solutions(i, j, k)%v_sonic(idx), idx=1,nc)
-                        write(ioout, ffmt) (solutions(i, j, k)%v_sonic(idx), idx=x,y)
-
-                        write(ioout, thermo_fmt, advance="no") 'Mach            ', &
-                            (solutions(i, j, k)%mach(idx), idx=1,nc)
-                        write(ioout, ffmt) (solutions(i, j, k)%mach(idx), idx=x,y)
 
                         ! Write out transport properties
                         if (prob%output%transport) then
@@ -2770,34 +3404,52 @@ contains
                         write(ioout, *) ""
                         write(ioout, '(A)') " PERFORMANCE PARAMETERS"
                         write(ioout, *) ""
-                        perf_label = 'Ae/At           '
-                        write(perf_fmt, '("(",i0,"(F13.4))")') nc-1
-                        write(ioout, '(1x,A,1x,A13)', advance='no') perf_label, ''
-                        write(ioout, trim(perf_fmt), advance="no") (solutions(i, j, k)%ae_at(idx), idx=2,nc)
-                        write(ioout, "(5(F13.4))") (solutions(i, j, k)%ae_at(idx), idx=x,y)
+                        if (prob%output%long) then
+                            write(ioout, '(A, *(1X, ES23.15E3))') 'Ae/At           ', &
+                                [ (solutions(i,j,k)%ae_at(idx), idx=2,nc), &
+                                  (solutions(i,j,k)%ae_at(idx), idx=x,y) ]
+                            write(ioout, '(A, *(1X, ES23.15E3))') 'C*, m/s         ', &
+                                [ (solutions(i,j,k)%c_star(idx), idx=2,nc), &
+                                  (solutions(i,j,k)%c_star(idx), idx=x,y) ]
+                            write(ioout, '(A, *(1X, ES23.15E3))') 'Cf              ', &
+                                [ (solutions(i,j,k)%cf(idx), idx=2,nc), &
+                                  (solutions(i,j,k)%cf(idx), idx=x,y) ]
+                            write(ioout, '(A, *(1X, ES23.15E3))') 'Ivac, m/s       ', &
+                                [ (solutions(i,j,k)%i_vac(idx), idx=2,nc), &
+                                  (solutions(i,j,k)%i_vac(idx), idx=x,y) ]
+                            write(ioout, '(A, *(1X, ES23.15E3))') 'Isp, m/s        ', &
+                                [ (solutions(i,j,k)%i_sp(idx), idx=2,nc), &
+                                  (solutions(i,j,k)%i_sp(idx), idx=x,y) ]
+                        else
+                            perf_label = 'Ae/At           '
+                            write(perf_fmt, '("(",i0,"(F13.4))")') nc-1
+                            write(ioout, '(1x,A,1x,A13)', advance='no') perf_label, ''
+                            write(ioout, trim(perf_fmt), advance="no") (solutions(i, j, k)%ae_at(idx), idx=2,nc)
+                            write(ioout, "(5(F13.4))") (solutions(i, j, k)%ae_at(idx), idx=x,y)
 
-                        perf_label = 'C*, m/s         '
-                        write(perf_fmt, '("(",i0,"(F13.2))")') nc-1
-                        write(ioout, '(1x,A,1x,A13)', advance='no') perf_label, ''
-                        write(ioout, trim(perf_fmt), advance="no") (solutions(i, j, k)%c_star(idx), idx=2,nc)
-                        write(ioout, "(5(F13.2))") (solutions(i, j, k)%c_star(idx), idx=x,y)
+                            perf_label = 'C*, m/s         '
+                            write(perf_fmt, '("(",i0,"(F13.2))")') nc-1
+                            write(ioout, '(1x,A,1x,A13)', advance='no') perf_label, ''
+                            write(ioout, trim(perf_fmt), advance="no") (solutions(i, j, k)%c_star(idx), idx=2,nc)
+                            write(ioout, "(5(F13.2))") (solutions(i, j, k)%c_star(idx), idx=x,y)
 
-                        perf_label = 'Cf              '
-                        write(perf_fmt, '("(",i0,"(F13.4))")') nc-1
-                        write(ioout, '(1x,A,1x,A13)', advance='no') perf_label, ''
-                        write(ioout, trim(perf_fmt), advance="no") (solutions(i, j, k)%cf(idx), idx=2,nc)
-                        write(ioout, "(5(F13.4))") (solutions(i, j, k)%cf(idx), idx=x,y)
+                            perf_label = 'Cf              '
+                            write(perf_fmt, '("(",i0,"(F13.4))")') nc-1
+                            write(ioout, '(1x,A,1x,A13)', advance='no') perf_label, ''
+                            write(ioout, trim(perf_fmt), advance="no") (solutions(i, j, k)%cf(idx), idx=2,nc)
+                            write(ioout, "(5(F13.4))") (solutions(i, j, k)%cf(idx), idx=x,y)
 
-                        perf_label = 'Ivac, m/s       '
-                        write(perf_fmt, '("(",i0,"(F13.2))")') nc-1
-                        write(ioout, '(1x,A,1x,A13)', advance='no') perf_label, ''
-                        write(ioout, trim(perf_fmt), advance="no") (solutions(i, j, k)%i_vac(idx), idx=2,nc)
-                        write(ioout, "(5(F13.2))") (solutions(i, j, k)%i_vac(idx), idx=x,y)
+                            perf_label = 'Ivac, m/s       '
+                            write(perf_fmt, '("(",i0,"(F13.2))")') nc-1
+                            write(ioout, '(1x,A,1x,A13)', advance='no') perf_label, ''
+                            write(ioout, trim(perf_fmt), advance="no") (solutions(i, j, k)%i_vac(idx), idx=2,nc)
+                            write(ioout, "(5(F13.2))") (solutions(i, j, k)%i_vac(idx), idx=x,y)
 
-                        perf_label = 'Isp, m/s        '
-                        write(ioout, '(1x,A,1x,A13)', advance='no') perf_label, ''
-                        write(ioout, trim(perf_fmt), advance="no") (solutions(i, j, k)%i_sp(idx), idx=2,nc)
-                        write(ioout, "(5(F13.2))") (solutions(i, j, k)%i_sp(idx), idx=x,y)
+                            perf_label = 'Isp, m/s        '
+                            write(ioout, '(1x,A,1x,A13)', advance='no') perf_label, ''
+                            write(ioout, trim(perf_fmt), advance="no") (solutions(i, j, k)%i_sp(idx), idx=2,nc)
+                            write(ioout, "(5(F13.2))") (solutions(i, j, k)%i_sp(idx), idx=x,y)
+                        end if
 
                         ! Get the list of trace species
                         num_trace = 0
@@ -2833,28 +3485,56 @@ contains
                                 if (prob%output%mass_fractions) then
                                     if (frozen) then
                                         if (solutions(i, j, k)%eq_soln(nfrz)%mass_fractions(ii) > trace) then
-                                            write(ioout, '(1x, A, T19, F13.5)') &
-                                                trim(adjustl(solver%eq_solver%products%species_names(ii))), &
-                                                solutions(i, j, k)%eq_soln(nfrz)%mass_fractions(ii)
+                                            if (prob%output%long) then
+                                                write(ioout, '(1x, A16, *(1X, ES23.15E3))') &
+                                                    trim(adjustl(solver%eq_solver%products%species_names(ii))), &
+                                                    solutions(i, j, k)%eq_soln(nfrz)%mass_fractions(ii)
+                                            else
+                                                write(ioout, '(1x, A, T19, F13.5)') &
+                                                    trim(adjustl(solver%eq_solver%products%species_names(ii))), &
+                                                    solutions(i, j, k)%eq_soln(nfrz)%mass_fractions(ii)
+                                            end if
                                         end if
                                     else
-                                        write(ioout, '(1x, A, T19, 3(F13.5))', advance="no") &
-                                            trim(adjustl(solver%eq_solver%products%species_names(ii))), &
-                                            (solutions(i, j, k)%eq_soln(idx)%mass_fractions(ii), idx=1,nc)
-                                        write(ioout, '(3(F13.5))') (solutions(i, j, k)%eq_soln(idx)%mass_fractions(ii), idx=x,y)
+                                        if (prob%output%long) then
+                                            write(ioout, '(1x, A16, *(1X, ES23.15E3))') &
+                                                trim(adjustl(solver%eq_solver%products%species_names(ii))), &
+                                                [ (solutions(i, j, k)%eq_soln(idx)%mass_fractions(ii), idx=1,nc), &
+                                                  (solutions(i, j, k)%eq_soln(idx)%mass_fractions(ii), idx=x,y) ]
+                                        else
+                                            write(ioout, '(1x, A, T19, 3(F13.5))', advance="no") &
+                                                trim(adjustl(solver%eq_solver%products%species_names(ii))), &
+                                                (solutions(i, j, k)%eq_soln(idx)%mass_fractions(ii), idx=1,nc)
+                                            write(ioout, '(3(F13.5))') &
+                                                (solutions(i, j, k)%eq_soln(idx)%mass_fractions(ii), idx=x,y)
+                                        end if
                                     end if
                                 else
                                     if (frozen) then
                                         if (solutions(i, j, k)%eq_soln(nfrz)%mole_fractions(ii) > trace) then
-                                            write(ioout, '(1x, A, T19, F13.5)') &
-                                                trim(adjustl(solver%eq_solver%products%species_names(ii))), &
-                                                solutions(i, j, k)%eq_soln(nfrz)%mole_fractions(ii)
+                                            if (prob%output%long) then
+                                                write(ioout, '(1x, A16, *(1X, ES23.15E3))') &
+                                                    trim(adjustl(solver%eq_solver%products%species_names(ii))), &
+                                                    solutions(i, j, k)%eq_soln(nfrz)%mole_fractions(ii)
+                                            else
+                                                write(ioout, '(1x, A, T19, F13.5)') &
+                                                    trim(adjustl(solver%eq_solver%products%species_names(ii))), &
+                                                    solutions(i, j, k)%eq_soln(nfrz)%mole_fractions(ii)
+                                            end if
                                         end if
                                     else
-                                        write(ioout, '(1x, A, T19, 3(F13.5))', advance="no") &
-                                            trim(adjustl(solver%eq_solver%products%species_names(ii))), &
-                                            (solutions(i, j, k)%eq_soln(idx)%mole_fractions(ii), idx=1,nc)
-                                        write(ioout, '(3(F13.5))') (solutions(i, j, k)%eq_soln(idx)%mole_fractions(ii), idx=x,y)
+                                        if (prob%output%long) then
+                                            write(ioout, '(1x, A16, *(1X, ES23.15E3))') &
+                                                trim(adjustl(solver%eq_solver%products%species_names(ii))), &
+                                                [ (solutions(i, j, k)%eq_soln(idx)%mole_fractions(ii), idx=1,nc), &
+                                                  (solutions(i, j, k)%eq_soln(idx)%mole_fractions(ii), idx=x,y) ]
+                                        else
+                                            write(ioout, '(1x, A, T19, 3(F13.5))', advance="no") &
+                                                trim(adjustl(solver%eq_solver%products%species_names(ii))), &
+                                                (solutions(i, j, k)%eq_soln(idx)%mole_fractions(ii), idx=1,nc)
+                                            write(ioout, '(3(F13.5))') &
+                                                (solutions(i, j, k)%eq_soln(idx)%mole_fractions(ii), idx=x,y)
+                                        end if
                                     end if
                                 end if
                             end if
@@ -3050,7 +3730,69 @@ contains
 
     end subroutine
 
-    function get_eq_species_format(solutions, idx, k, m, n, mass_frac) result(eq_fmt)
+    subroutine write_long_reactant_row(ioout, name, amount, energy, temp)
+        integer, intent(in) :: ioout
+        character(*), intent(in) :: name
+        real(dp), intent(in) :: amount, energy, temp
+
+        write(ioout, '(A20, 1X, 3(1X, ES23.15E3))') name, amount, energy, temp
+    end subroutine
+
+    subroutine write_long_ratio_line(ioout, of_ratio, pct_fuel, r_eq, phi_eq)
+        integer, intent(in) :: ioout
+        real(dp), intent(in) :: of_ratio, pct_fuel, r_eq, phi_eq
+
+        write(ioout, '(A)', advance='no') 'O/F = '
+        write(ioout, '(ES23.15E3)', advance='no') of_ratio
+        write(ioout, '(A)', advance='no') '    % Fuel = '
+        write(ioout, '(ES23.15E3)', advance='no') pct_fuel
+        write(ioout, '(A)', advance='no') '    r, Eq. Ratio = '
+        write(ioout, '(ES23.15E3)', advance='no') r_eq
+        write(ioout, '(A)', advance='no') '    phi, Eq. Ratio = '
+        write(ioout, '(ES23.15E3)') phi_eq
+    end subroutine
+
+    subroutine write_long_trace_line(ioout, trace)
+        integer, intent(in) :: ioout
+        real(dp), intent(in) :: trace
+
+        write(ioout, '(A)', advance='no') 'WERE LESS THAN'
+        write(ioout, '(1X, ES23.15E3, 1X, A)') trace, 'FOR ALL ASSIGNED CONDITIONS'
+    end subroutine
+
+    subroutine write_long_schedule_line(ioout, label, values)
+        integer, intent(in) :: ioout
+        character(*), intent(in) :: label
+        real(dp), intent(in) :: values(:)
+
+        write(ioout, '(A)', advance='no') trim(label)//' ='
+        if (size(values) > 0) then
+            write(ioout, '(*(1X, ES23.15E3))') values
+        else
+            write(ioout, *)
+        end if
+    end subroutine
+
+    subroutine write_long_station_header(ioout, finite_area, ne)
+        integer, intent(in) :: ioout, ne
+        logical, intent(in) :: finite_area
+        integer :: idx
+
+        write(ioout, '(/,A)', advance='no') repeat(' ', 18)
+        if (finite_area) then
+            write(ioout, '(A24)', advance='no') 'INJECTOR'
+            write(ioout, '(A24)', advance='no') 'COMB END'
+        else
+            write(ioout, '(A24)', advance='no') 'CHAMBER'
+        end if
+        write(ioout, '(A24)', advance='no') 'THROAT'
+        do idx = 1, ne
+            write(ioout, '(A24)', advance='no') 'EXIT'
+        end do
+        write(ioout, *)
+    end subroutine
+
+    function get_eq_species_format(solutions, idx, k, m, n, mass_frac, long_output) result(eq_fmt)
         ! Write out the line formatting string for mole or mass fraction output
 
         ! Arguments
@@ -3060,6 +3802,7 @@ contains
         integer, intent(in) :: m  ! Size of index 1 of solutions
         integer, intent(in) :: n  ! Size of index 2 of solutions
         logical, intent(in) :: mass_frac  ! If true, use mass fractions; if false, use mole fractions
+        logical, intent(in), optional :: long_output
 
         ! Result
         character(:), allocatable :: eq_fmt
@@ -3067,6 +3810,13 @@ contains
         ! Locals
         integer :: i, j
         real(dp) :: amount
+
+        if (present(long_output)) then
+            if (long_output) then
+                eq_fmt = '(1x, A16, *(1X, ES23.15E3))'
+                return
+            end if
+        end if
 
         ! Set the format
         eq_fmt = '(1x, A, T18'
@@ -3091,7 +3841,8 @@ contains
 
     end function
 
-    function get_rocket_species_format(solutions, idx, i, j, k, np, mass_frac, frozen, nfrz) result(spec_fmt)
+    function get_rocket_species_format(solutions, idx, i, j, k, np, mass_frac, frozen, nfrz, &
+                                       long_output) result(spec_fmt)
         ! Write out the line formatting string for mole or mass fraction output
 
         ! Arguments
@@ -3104,6 +3855,7 @@ contains
         logical, intent(in) :: mass_frac  ! If true, use mass fractions; if false, use mole fractions
         logical, intent(in), optional :: frozen  ! If true, use frozen values; if false, use equilibrium values
         integer, intent(in), optional :: nfrz  ! Index of frozen solution
+        logical, intent(in), optional :: long_output
 
         ! Result
         character(:), allocatable :: spec_fmt
@@ -3121,6 +3873,13 @@ contains
                 nfrz_ = nfrz
             else
                 nfrz_ = 2
+            end if
+        end if
+
+        if (present(long_output)) then
+            if (long_output) then
+                spec_fmt = '(1x, A16, *(1X, ES23.15E3))'
+                return
             end if
         end if
 
@@ -3161,7 +3920,7 @@ contains
 
     end function
 
-    function get_shock_species_format(solutions, idx, j, k, m, n, mass_frac) result(spec_fmt)
+    function get_shock_species_format(solutions, idx, j, k, m, n, mass_frac, long_output) result(spec_fmt)
         ! Write out the line formatting string for mole or mass fraction output
 
         ! Arguments
@@ -3172,6 +3931,7 @@ contains
         integer, intent(in) :: m  ! Number of initial shock velocities or Mach numbers
         integer, intent(in) :: n  ! Shock station index
         logical, intent(in) :: mass_frac  ! If true, use mass fractions; if false, use mole fractions
+        logical, intent(in), optional :: long_output
 
         ! Result
         character(:), allocatable :: spec_fmt
@@ -3179,6 +3939,13 @@ contains
         ! Locals
         integer :: i
         real(dp) :: amount
+
+        if (present(long_output)) then
+            if (long_output) then
+                spec_fmt = '(1x, A16, *(1X, ES23.15E3))'
+                return
+            end if
+        end if
 
         ! Set the format
         spec_fmt = '(1x, A, T18'
@@ -3201,7 +3968,7 @@ contains
 
     end function
 
-    function get_deton_species_format(solutions, idx, k, m, n, mass_frac) result(eq_fmt)
+    function get_deton_species_format(solutions, idx, k, m, n, mass_frac, long_output) result(eq_fmt)
         ! Write out the line formatting string for mole or mass fraction output
 
         ! Arguments
@@ -3211,6 +3978,7 @@ contains
         integer, intent(in) :: m  ! Size of index 1 of solutions
         integer, intent(in) :: n  ! Size of index 2 of solutions
         logical, intent(in) :: mass_frac  ! If true, use mass fractions; if false, use mole fractions
+        logical, intent(in), optional :: long_output
 
         ! Result
         character(:), allocatable :: eq_fmt
@@ -3218,6 +3986,13 @@ contains
         ! Locals
         integer :: i, j
         real(dp) :: amount
+
+        if (present(long_output)) then
+            if (long_output) then
+                eq_fmt = '(1x, A16, *(1X, ES23.15E3))'
+                return
+            end if
+        end if
 
         ! Set the format
         eq_fmt = '(1x, A, T18'

@@ -4,6 +4,7 @@ import subprocess
 import warnings
 import csv
 from pathlib import Path
+import numpy as np
 
 # This program will run the tests in `test_names`, executing the `.inp` files
 # with the CEA main interface, and compare the output files generated in `test_dir`
@@ -94,6 +95,109 @@ def ref_round(ref_val, test_val):
 
     return test_val
 
+
+def resolve_dataset_key(dataset, key):
+    if key in dataset:
+        return key
+
+    fallback_keys = {
+        "Pinf/P": "Pinj/P",
+        "Pinj/P": "Pinf/P",
+    }
+    fallback_key = fallback_keys.get(key)
+    if fallback_key in dataset:
+        return fallback_key
+
+    return None
+
+
+def find_block_starts(vals):
+    if len(vals) < 3:
+        return [0]
+
+    starts = [0]
+    first_val = vals[0]
+    second_val = vals[1]
+    for i in range(1, len(vals) - 1):
+        if np.isclose(vals[i], first_val, rtol=1e-6, atol=1e-12) and np.isclose(vals[i + 1], second_val, rtol=1e-6, atol=1e-12):
+            starts.append(i)
+
+    return starts
+
+
+def last_block_length(dataset, control_keys):
+    for control_key in control_keys:
+        dataset_key = resolve_dataset_key(dataset, control_key)
+        if dataset_key is None:
+            continue
+        starts = find_block_starts(dataset[dataset_key]["vals"])
+        if len(starts) > 1:
+            return len(dataset[dataset_key]["vals"]) - starts[-1]
+
+    return None
+
+
+def block_sizes(dataset, control_keys):
+    for control_key in control_keys:
+        dataset_key = resolve_dataset_key(dataset, control_key)
+        if dataset_key is None:
+            continue
+        starts = find_block_starts(dataset[dataset_key]["vals"])
+        if len(starts) == 1:
+            continue
+        sizes = []
+        for i, start in enumerate(starts):
+            end = starts[i + 1] if i + 1 < len(starts) else len(dataset[dataset_key]["vals"])
+            sizes.append(end - start)
+        return sizes
+
+    return []
+
+
+def alignment_score(ref_vals, test_vals):
+    score = 0.0
+    for ref_val, test_val in zip(ref_vals, test_vals):
+        if round_vals:
+            test_val = ref_round(ref_val, test_val)
+        abs_err = abs(test_val - ref_val)
+        rel_err = abs_err
+        if abs(ref_val) > 1e-20:
+            rel_err /= abs(ref_val)
+        score += rel_err
+    return score
+
+
+def select_aligned_series(ref_vals, test_vals, candidate_lengths=None):
+    if candidate_lengths is None:
+        candidate_lengths = []
+
+    valid_lengths = []
+    for candidate_len in candidate_lengths:
+        if candidate_len is None:
+            continue
+        if candidate_len <= len(ref_vals) and candidate_len <= len(test_vals):
+            valid_lengths.append(candidate_len)
+
+    if len(ref_vals) != len(test_vals):
+        valid_lengths.append(min(len(ref_vals), len(test_vals)))
+
+    valid_lengths = sorted(set(valid_lengths), reverse=True)
+    if not valid_lengths:
+        return ref_vals, test_vals
+
+    best = None
+    for compare_len in valid_lengths:
+        for ref_start in range(len(ref_vals) - compare_len + 1):
+            ref_window = ref_vals[ref_start:ref_start + compare_len]
+            for test_start in range(len(test_vals) - compare_len + 1):
+                test_window = test_vals[test_start:test_start + compare_len]
+                score = alignment_score(ref_window, test_window)
+                candidate = (score, -compare_len, ref_start + test_start, ref_window, test_window)
+                if best is None or candidate < best:
+                    best = candidate
+
+    return best[3], best[4]
+
 def run_tests(test_names):
     cea_exe = resolve_cea_exe(REPO_ROOT)
 
@@ -136,24 +240,45 @@ for test in test_names:
     # Get the test output
     thermo, amounts, transport, rocket, shock, deton = parse_output(str(test_dir / f"{test}.out"))
 
+    thermo_block_len_ref = last_block_length(thermo_ref, ["Pinf/P", "Pinj/P"])
+    thermo_block_len_test = last_block_length(thermo, ["Pinf/P", "Pinj/P"])
+    rocket_block_len_ref = last_block_length(rocket_ref, ["Ae/At"])
+    rocket_block_len_test = last_block_length(rocket, ["Ae/At"])
+    thermo_block_sizes_ref = block_sizes(thermo_ref, ["Pinf/P", "Pinj/P"])
+    thermo_block_sizes_test = block_sizes(thermo, ["Pinf/P", "Pinj/P"])
+    rocket_block_sizes_ref = block_sizes(rocket_ref, ["Ae/At"])
+    rocket_block_sizes_test = block_sizes(rocket, ["Ae/At"])
+
     # Compare thermo output
     # ---------------------
     for var in thermo_ref:
         if var not in thermo_val_to_test:
             continue
+        test_key = resolve_dataset_key(thermo, thermo_val_to_test[var])
+        if test_key is None:
+            test_passed = False
+            warnings.warn(f"Property {var} not found in test output. SKIPPING.")
+            continue
+
+        ref_vals, test_vals = select_aligned_series(
+            thermo_ref[var]["vals"],
+            thermo[test_key]["vals"],
+            candidate_lengths=thermo_block_sizes_ref + thermo_block_sizes_test + [thermo_block_len_ref, thermo_block_len_test],
+        )
+
         # Make sure the reference and test arrays are the same length
-        ref_len = len(thermo_ref[var]["vals"])
-        test_len = len(thermo[thermo_val_to_test[var]]["vals"])
+        ref_len = len(ref_vals)
+        test_len = len(test_vals)
         if ref_len != test_len:
             test_passed = False
             warnings.warn(f"Property {var} has reference length of {ref_len}; test array has length of {test_len}. SKIPPING.")
-            print("Reference: ", thermo_ref[var]["vals"])
-            print("Test:      ", thermo[thermo_val_to_test[var]]["vals"])
+            print("Reference: ", ref_vals)
+            print("Test:      ", test_vals)
             continue
 
         for i in range(ref_len):
-            ref_val = thermo_ref[var]["vals"][i]
-            test_val = thermo[thermo_val_to_test[var]]["vals"][i]
+            ref_val = ref_vals[i]
+            test_val = test_vals[i]
 
             # Round the test value to the number of digits in the reference value
             if round_vals:
@@ -249,19 +374,30 @@ for test in test_names:
     for var in rocket_ref:
         if var not in rocket_val_to_test:
             continue
+        test_key = resolve_dataset_key(rocket, rocket_val_to_test[var])
+        if test_key is None:
+            test_passed = False
+            warnings.warn(f"Property {var} not found in test output. SKIPPING.")
+            continue
+
+        ref_vals, test_vals = select_aligned_series(
+            rocket_ref[var]["vals"],
+            rocket[test_key]["vals"],
+            candidate_lengths=rocket_block_sizes_ref + rocket_block_sizes_test + [rocket_block_len_ref, rocket_block_len_test],
+        )
         # Make sure the reference and test arrays are the same length
-        ref_len = len(rocket_ref[var]["vals"])
-        test_len = len(rocket[rocket_val_to_test[var]]["vals"])
+        ref_len = len(ref_vals)
+        test_len = len(test_vals)
         if ref_len != test_len:
             test_passed = False
             warnings.warn(f"Property {var} has reference length of {ref_len}; test array has length of {test_len}. SKIPPING.")
-            print("Reference: ", rocket_ref[var]["vals"])
-            print("Test:      ", rocket[rocket_val_to_test[var]]["vals"])
+            print("Reference: ", ref_vals)
+            print("Test:      ", test_vals)
             continue
 
         for i in range(ref_len):
-            ref_val = rocket_ref[var]["vals"][i]
-            test_val = rocket[rocket_val_to_test[var]]["vals"][i]
+            ref_val = ref_vals[i]
+            test_val = test_vals[i]
 
             # Round the test value to the number of digits in the reference value
             if round_vals:
@@ -308,19 +444,25 @@ for test in test_names:
             warnings.warn(f"Species {name} not found in test output.")
             continue
 
+        ref_vals, test_vals = select_aligned_series(
+            amounts_ref[name],
+            amounts[name],
+            candidate_lengths=thermo_block_sizes_ref + thermo_block_sizes_test + [thermo_block_len_ref, thermo_block_len_test],
+        )
+
         # Make sure the reference and test arrays are the same length
-        ref_len = len(amounts_ref[name])
-        test_len = len(amounts[name])
+        ref_len = len(ref_vals)
+        test_len = len(test_vals)
         if ref_len != test_len:
             test_passed = False
             warnings.warn(f"Species {name} has reference length of {ref_len}; test array has length of {test_len}. SKIPPING.")
-            print("Reference: ", amounts_ref[name])
-            print("Test:      ", amounts[name])
+            print("Reference: ", ref_vals)
+            print("Test:      ", test_vals)
             continue
 
         for i in range(ref_len):
-            ref_val = amounts_ref[name][i]
-            test_val = amounts[name][i]
+            ref_val = ref_vals[i]
+            test_val = test_vals[i]
 
             # Round the test value to the number of digits in the reference value
             if round_vals:

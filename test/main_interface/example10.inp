@@ -10,5 +10,5 @@ reac  fuel = H2(L)  t,k= 20.27
       oxid = O2(L)  t,k= 90.17
 problem  o/f=5.55157 case=10  rocket  fac  p,bar=53.3172 ma=1333.9
          pi/p=10,100,1000, sup-ae/at=25,50,75
-output  short
+output  long
 end

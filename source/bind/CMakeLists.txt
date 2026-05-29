@@ -70,7 +70,6 @@ if (CEA_ENABLE_BIND_PYTHON)
         # default if using ifc
         if (CMAKE_C_COMPILER_ID STREQUAL "IntelLLVM" OR CMAKE_C_COMPILER_ID STREQUAL "Intel")
             target_compile_options(libcea PUBLIC "-D__INTEL_COMPILER")
-            target_link_options(libcea PUBLIC "/static")
         endif()
     endif()
 

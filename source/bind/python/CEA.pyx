@@ -64,7 +64,33 @@ def _err_name(cea_err ierr):
         return "CEA_NOT_CONVERGED"
     if ierr == CEA_LAST_VALID_SOLUTION:
         return "CEA_LAST_VALID_SOLUTION"
+    if ierr == CEA_FORTRAN_ABORT:
+        return "CEA_FORTRAN_ABORT"
     return f"CEA_ERR_{int(ierr)}"
+
+
+cdef str _get_last_error_message():
+    cdef cea_err ierr
+    cdef cea_int message_len = 0
+    cdef char* message = NULL
+
+    ierr = cea_last_error_message_len(&message_len)
+    if ierr != SUCCESS:
+        return "fatal Fortran abort (failed to fetch message)"
+    if message_len <= 0:
+        return "fatal Fortran abort"
+
+    message = <char*>malloc((message_len + 1) * sizeof(char))
+    if message == NULL:
+        return "fatal Fortran abort (failed to allocate message buffer)"
+
+    try:
+        ierr = cea_last_error_message_buf(message, message_len + 1)
+        if ierr != SUCCESS:
+            return "fatal Fortran abort (failed to fetch message)"
+        return cea_convert_chars_to_str(message)
+    finally:
+        free(message)
 
 
 def _check_ierr(cea_err ierr, str context, bint allow_not_converged=True):
@@ -78,6 +104,8 @@ def _check_ierr(cea_err ierr, str context, bint allow_not_converged=True):
     if ierr == CEA_NOT_CONVERGED and allow_not_converged:
         warnings.warn(f"{context}: { _err_name(ierr) }", RuntimeWarning)
         return
+    if ierr == CEA_FORTRAN_ABORT:
+        raise RuntimeError(f"{context} failed with CEA_FORTRAN_ABORT: {_get_last_error_message()}")
     if ierr != SUCCESS:
         raise RuntimeError(f"{context} failed with {_err_name(ierr)}")
 
@@ -88,6 +116,7 @@ INVALID_PROPERTY_TYPE    = CEA_INVALID_PROPERTY_TYPE
 INVALID_EQUILIBRIUM_TYPE = CEA_INVALID_EQUILIBRIUM_TYPE
 NOT_CONVERGED           = CEA_NOT_CONVERGED
 LAST_VALID_SOLUTION     = CEA_LAST_VALID_SOLUTION
+FORTRAN_ABORT          = CEA_FORTRAN_ABORT
 
 # Alias the log levels
 LOG_CRITICAL = CEA_LOG_CRITICAL
@@ -304,7 +333,7 @@ def set_log_level(level):
     return
 
 def _maybe_print_init_path(label, path):
-    if _py_log_level == LOG_NONE:
+    if _py_log_level not in (LOG_INFO, LOG_DEBUG):
         return
     if path:
         print(f"Loaded {label} from: {path}")

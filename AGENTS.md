@@ -9,6 +9,8 @@ This repository is a scientific computing library (CEA). Follow these rules:
 - Keep changes small and focused; avoid drive-by formatting or whitespace churn.
 - In Fortran source files, keep lines within the default free-form GNU limit (target `<= 132`
   characters) so CI builds that do not pass `-ffree-line-length-none` do not fail.
+- Before finishing Fortran edits, check touched files for overlong lines with
+  `rg -n '.{133,}' path/to/file.f90`.
 - Maintain backward compatibility for the legacy user base.
 - If numerical behavior might change, call it out and add validation or tests when possible.
 - Respect layer boundaries: Fortran core in `source/`, C bindings in `source/bind/c/`,

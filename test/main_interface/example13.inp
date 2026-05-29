@@ -18,6 +18,6 @@ reac fuel = N2H4(L)    wt%= 80   t=298.15
      oxid = H2O2(L)    wt%=100   t=298.15
 prob  rocket  case=13  p,psia=3000, pi/p=3,10,30,300,equilibrium   %fuel = 67.
 
-outp  trace= 1.e-10 calories
+outp  trace= 1.e-10 calories long
 insert  BeO(L)
 end

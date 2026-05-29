@@ -1,10 +1,22 @@
 
-add_installed_library(cea_bindc SHARED bindc.F90)
+add_library(cea_abort_support STATIC cea_abort_support.c)
+target_include_directories(cea_abort_support PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+
+add_installed_library(cea_bindc SHARED bindc.F90 cea_recovery.c cea_abort_support.c)
 #include(../cmake/CompilerFlags.cmake)
 project_enable_fortran_std(cea_bindc)
-target_link_libraries(cea_bindc PRIVATE cea::core fbasics::core)
+target_link_libraries(cea_bindc
+    PRIVATE
+        cea::core
+        fbasics::core
+)
 target_include_directories(cea_bindc PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 install(FILES cea.h cea_enum.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cea/bindc)
+
+target_link_libraries(cea PRIVATE cea_abort_support)
+if(TARGET cea_core_test)
+    target_link_libraries(cea_core_test cea_abort_support)
+endif()
 if(WIN32)
     # on windows, several dll either need to be installed on the target
     # machine, or they need to be statically linked. linking seemed easier than
@@ -14,7 +26,7 @@ if(WIN32)
 
     if (CMAKE_Fortran_COMPILER_ID STREQUAL "IntelLLVM" OR CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
         target_link_options(cea_bindc
-                            PUBLIC "-libs:static")
+                            PRIVATE "-libs:static")
         set_target_properties(cea_bindc PROPERTIES
             WINDOWS_EXPORT_ALL_SYMBOLS ON
             PREFIX ""
@@ -22,13 +34,13 @@ if(WIN32)
         )
     else()
         target_link_options(cea_bindc
-                            PUBLIC "-static-libgfortran"
-                            PUBLIC "-static-libgcc"
-                            PUBLIC "-static-libquadmath")
+                            PRIVATE "-static-libgfortran"
+                            PRIVATE "-static-libgcc"
+                            PRIVATE "-static-libquadmath")
     endif()
 elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "IntelLLVM" OR CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
     target_link_options(cea_bindc
-                        PUBLIC "-static-intel")
+                        PRIVATE "-static-intel")
 endif()
 
 if (CEA_BUILD_TESTING)
