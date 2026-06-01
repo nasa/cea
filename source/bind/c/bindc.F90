@@ -970,6 +970,48 @@ contains
         of_ratio = mix%of_from_phi(oxidant_weights(:ns), fuel_weights(:ns), weight_eq_ratio)
     end function
 
+    function cea_mixture_of_ratio_to_chem_eq_ratio(mptr, len, oxidant_weights, fuel_weights, &
+        of_ratio, chem_eq_ratio) result(ierr) bind(c)
+        integer(c_int) :: ierr
+        type(c_ptr), intent(in), value :: mptr
+        integer(c_int), intent(in), value :: len
+        real(c_double), intent(in) :: oxidant_weights(*)
+        real(c_double), intent(in) :: fuel_weights(*)
+        real(c_double), intent(in), value :: of_ratio
+        real(c_double), intent(out) :: chem_eq_ratio
+        type(Mixture), pointer :: mix
+        integer :: ns
+        ierr = CEA_SUCCESS
+        call c_f_pointer(mptr, mix)
+        ns = mix%num_species
+        if (len < ns) then
+            ierr = CEA_INVALID_SIZE
+            return
+        end if
+        chem_eq_ratio = mix%equivalence_from_of(oxidant_weights(:ns), fuel_weights(:ns), of_ratio)
+    end function
+
+    function cea_mixture_of_ratio_to_weight_eq_ratio(mptr, len, oxidant_weights, fuel_weights, &
+        of_ratio, weight_eq_ratio) result(ierr) bind(c)
+        integer(c_int) :: ierr
+        type(c_ptr), intent(in), value :: mptr
+        integer(c_int), intent(in), value :: len
+        real(c_double), intent(in) :: oxidant_weights(*)
+        real(c_double), intent(in) :: fuel_weights(*)
+        real(c_double), intent(in), value :: of_ratio
+        real(c_double), intent(out) :: weight_eq_ratio
+        type(Mixture), pointer :: mix
+        integer :: ns
+        ierr = CEA_SUCCESS
+        call c_f_pointer(mptr, mix)
+        ns = mix%num_species
+        if (len < ns) then
+            ierr = CEA_INVALID_SIZE
+            return
+        end if
+        weight_eq_ratio = mix%phi_from_of(oxidant_weights(:ns), fuel_weights(:ns), of_ratio)
+    end function
+
     function cea_mixture_of_ratio_to_weights(mptr, len, oxidant_weights, fuel_weights, &
         of_ratio, weights) result(ierr) bind(c)
         integer(c_int) :: ierr

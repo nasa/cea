@@ -267,6 +267,22 @@ extern "C"
       const cea_real weight_eq_ratio,
       cea_real *of_ratio);
 
+  cea_err cea_mixture_of_ratio_to_chem_eq_ratio(
+      const cea_mixture mix,
+      const cea_int len,
+      const cea_real oxidant_weights[],
+      const cea_real fuel_weights[],
+      const cea_real of_ratio,
+      cea_real *chem_eq_ratio);
+
+  cea_err cea_mixture_of_ratio_to_weight_eq_ratio(
+      const cea_mixture mix,
+      const cea_int len,
+      const cea_real oxidant_weights[],
+      const cea_real fuel_weights[],
+      const cea_real of_ratio,
+      cea_real *weight_eq_ratio);
+
   cea_err cea_mixture_of_ratio_to_weights(
       const cea_mixture mix,
       const cea_int len,
