@@ -1721,7 +1721,11 @@ contains
             if (prob%output%transport) then
                 write(ioout, *) ""
                 write(ioout, '(A)') " TRANSPORT PROPERTIES (GASES ONLY)"
-                write(ioout, '(A)') "    CONDUCTIVITY IN UNITS OF MILLICALORIES/(CM)(K)(SEC)"
+                if (prob%output%siunit) then
+                    write(ioout, '(A)') "    CONDUCTIVITY IN UNITS OF MILLIWATTS/(CM)(K)"
+                else
+                    write(ioout, '(A)') "    CONDUCTIVITY IN UNITS OF MILLICALORIES/(CM)(K)(SEC)"
+                end if
                 write(ioout, *) ""
 
                 ! Viscosity
@@ -2354,7 +2358,11 @@ contains
             if (prob%output%transport) then
                 write(ioout, *) ""
                 write(ioout, '(A)') " TRANSPORT PROPERTIES (GASES ONLY)"
-                write(ioout, '(A)') "    CONDUCTIVITY IN UNITS OF MILLICALORIES/(CM)(K)(SEC)"
+                if (prob%output%siunit) then
+                    write(ioout, '(A)') "    CONDUCTIVITY IN UNITS OF MILLIWATTS/(CM)(K)"
+                else
+                    write(ioout, '(A)') "    CONDUCTIVITY IN UNITS OF MILLICALORIES/(CM)(K)(SEC)"
+                end if
                 write(ioout, *) ""
 
                 ! Viscosity
@@ -2893,7 +2901,11 @@ contains
                     if (prob%output%transport) then
                         write(ioout, *) ""
                         write(ioout, '(A)') " TRANSPORT PROPERTIES (GASES ONLY)"
-                        write(ioout, '(A)') "    CONDUCTIVITY IN UNITS OF MILLICALORIES/(CM)(K)(SEC)"
+                        if (prob%output%siunit) then
+                            write(ioout, '(A)') "    CONDUCTIVITY IN UNITS OF MILLIWATTS/(CM)(K)"
+                        else
+                            write(ioout, '(A)') "    CONDUCTIVITY IN UNITS OF MILLICALORIES/(CM)(K)(SEC)"
+                        end if
                         write(ioout, *) ""
 
                         ! Viscosity
@@ -3341,7 +3353,11 @@ contains
                         if (prob%output%transport) then
                             write(ioout, *) ""
                             write(ioout, '(A)') " TRANSPORT PROPERTIES (GASES ONLY)"
-                            write(ioout, '(A)') "    CONDUCTIVITY IN UNITS OF MILLICALORIES/(CM)(K)(SEC)"
+                            if (prob%output%siunit) then
+                                write(ioout, '(A)') "   CONDUCTIVITY IN UNITS OF MILLIWATTS/(CM)(K)"
+                            else
+                                write(ioout, '(A)') "   CONDUCTIVITY IN UNITS OF MILLICALORIES/(CM)(K)(SEC)"
+                            end if
                             write(ioout, *) ""
 
                             ! Viscosity
