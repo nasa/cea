@@ -414,6 +414,8 @@ contains
             soln%i_save = 0
         end if
 
+        call mark_completed(soln, idx)
+
     end subroutine
 
     subroutine RocketSolver_solve_throat_frozen(self, soln, idx, n_frz, pc, h_inf, awt)
