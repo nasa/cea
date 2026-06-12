@@ -118,6 +118,8 @@ static int test_rocket_solve(void)
     if (expect_status_ok(status, "CEA_ROCKET_IAC_SOLVE", message)) return 1;
     if (expect_true(converged != 0, "Expected rocket solve to converge")) return 1;
     if (expect_true(nvalues > 3, "Expected rocket vector outputs")) return 1;
+    if (expect_true(strstr(headers, "mass_H2O_chamber") != NULL, "Expected rocket mass fraction header")) return 1;
+    if (expect_true(strstr(headers, "mole_H2O_chamber") != NULL, "Expected rocket mole fraction header")) return 1;
 
     return 0;
 }
@@ -143,11 +145,15 @@ static int test_shock_solve(void)
     status = cea_excel_shock_solve(
         reactants, amounts, roles, bases, LEN(amounts), weights, LEN(weights),
         CEA_EXCEL_AMOUNT_WEIGHTS, 0.0, 300.0, 0.1, 1400.0, 0, 1, 0, 0,
-        "", "", "T\nP\nMach", "OH", 0, 0, -1.0, values, LEN(values),
+        "", "", "T\nP\nMach\nP21\nT21\nM21\nrho12\nv2\nu5_p_v2", "OH", 0, 0, -1.0, values, LEN(values),
         headers, LEN(headers), &nvalues, &converged, message, LEN(message));
     if (expect_status_ok(status, "CEA_SHOCK_SOLVE", message)) return 1;
     if (expect_true(converged != 0, "Expected shock solve to converge")) return 1;
-    if (expect_true(nvalues > 3, "Expected shock vector outputs")) return 1;
+    if (expect_true(nvalues == 21, "Expected vector, scalar, and species shock outputs")) return 1;
+    if (expect_true(strstr(headers, "P21") != NULL, "Expected scalar shock property header")) return 1;
+    if (expect_true(strstr(headers, "P21_state1") == NULL, "Scalar shock property must not have a station suffix")) return 1;
+    if (expect_true(strstr(headers, "mass_OH_state1") != NULL, "Expected shock mass fraction header")) return 1;
+    if (expect_true(strstr(headers, "mole_OH_state1") != NULL, "Expected shock mole fraction header")) return 1;
 
     (void)dummy;
     return 0;

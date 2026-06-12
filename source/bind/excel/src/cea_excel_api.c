@@ -749,6 +749,11 @@ static const char *excel_shock_station_name(int station)
     return "station";
 }
 
+static int excel_shock_property_is_scalar(int property_type)
+{
+    return property_type >= CEA_SHOCK_RHO12 && property_type <= CEA_SHOCK_U5_P_V2;
+}
+
 static int excel_append_vector_outputs(
     double values[],
     int values_cap,
@@ -1529,8 +1534,8 @@ static int excel_append_rocket_species(
     }
 
     for (station = 0; station < num_pts; station++) {
-        if (cea_rocket_solution_get_species_amounts(soln, np, station, mass, true) != CEA_SUCCESS ||
-            cea_rocket_solution_get_species_amounts(soln, np, station, mole, false) != CEA_SUCCESS) {
+        if (cea_rocket_solution_get_species_amounts(soln, np, station + 1, mass, true) != CEA_SUCCESS ||
+            cea_rocket_solution_get_species_amounts(soln, np, station + 1, mole, false) != CEA_SUCCESS) {
             free(mass);
             free(mole);
             excel_free_string_list(&species);
@@ -1851,8 +1856,8 @@ static int excel_append_shock_species(
     }
 
     for (station = 0; station < num_pts; station++) {
-        if (cea_shock_solution_get_species_amounts(soln, np, station, mass, true) != CEA_SUCCESS ||
-            cea_shock_solution_get_species_amounts(soln, np, station, mole, false) != CEA_SUCCESS) {
+        if (cea_shock_solution_get_species_amounts(soln, np, station + 1, mass, true) != CEA_SUCCESS ||
+            cea_shock_solution_get_species_amounts(soln, np, station + 1, mole, false) != CEA_SUCCESS) {
             free(mass);
             free(mole);
             excel_free_string_list(&species);
@@ -1935,6 +1940,7 @@ int cea_excel_shock_solve(
     int num_pts = reflected ? 3 : 1;
     double *weights = NULL;
     double *vector = NULL;
+    double scalar = 0.0;
     cea_err ierr;
     cea_err solve_ierr;
     cea_mixture reactants = NULL;
@@ -2037,6 +2043,21 @@ int cea_excel_shock_solve(
     }
     for (i = 0; i < nselected; i++) {
         if (selected[i] == NULL) {
+            continue;
+        }
+        if (excel_shock_property_is_scalar(selected[i]->type)) {
+            ierr = cea_shock_solution_get_scalar_property(
+                soln, (cea_shock_property_type)selected[i]->type, &scalar);
+            if (ierr != CEA_SUCCESS) {
+                status = excel_catch_cea_error(ierr, message, message_len);
+                goto cleanup;
+            }
+            status = excel_append_output(
+                values, values_cap, nvalues, headers, headers_len,
+                selected[i]->name, scalar);
+            if (status != CEA_EXCEL_SUCCESS) {
+                goto cleanup;
+            }
             continue;
         }
         ierr = cea_shock_solution_get_property(
