@@ -417,11 +417,18 @@ jobs:
           submodules: true
 
       - name: Set up Fortran compiler
-        if: ${{ runner.os != 'Windows' || matrix.toolchain.fcompiler != 'gcc' }}
+        if: ${{ runner.os == 'Linux' || (runner.os == 'Windows' && matrix.toolchain.fcompiler != 'gcc') }}
         uses: fortran-lang/setup-fortran@v1
         with:
           compiler: ${{ matrix.toolchain.fcompiler }}
           version: ${{ matrix.toolchain.fversion }}
+
+      - name: Set up Fortran compiler (macOS, gfortran)
+        if: ${{ runner.os == 'macOS' && matrix.toolchain.fcompiler == 'gcc' }}
+        run: |
+          brew update
+          brew install gcc@14
+          echo "FC=gfortran-14" >> "$GITHUB_ENV"
 
       - name: Set up Fortran compiler (Windows, gfortran)
         if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'gcc' }}
