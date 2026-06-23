@@ -444,9 +444,17 @@ jobs:
           }
         shell: pwsh
 
-      - name: Set up C Compiler
-        if: ${{matrix.toolchain.ccompiler == 'msvc'}}
+      - name: Set up MSVC toolchain (Windows MSVC/Intel)
+        if: ${{ runner.os == 'Windows' && (matrix.toolchain.ccompiler == 'msvc' || matrix.toolchain.fcompiler == 'intel') }}
         uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Remove MinGW/MSYS paths for Windows Intel builds
+        if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
+        shell: pwsh
+        run: |
+          $parts = $env:PATH -split ';'
+          $clean = $parts | Where-Object { $_ -and ($_ -notmatch 'mingw') -and ($_ -notmatch 'msys') -and ($_ -notmatch 'strawberry') }
+          "PATH=$($clean -join ';')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Install build tools
         run: |
