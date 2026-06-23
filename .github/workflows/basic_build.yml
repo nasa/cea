@@ -474,9 +474,15 @@ jobs:
             -DSKIP_ROBUST=YES
           cmake --build build/extern/gfe --target install
 
-      - name: Configure (linux)
+      - name: Configure (Ninja)
         if: ${{runner.os != 'Windows' || matrix.toolchain.ccompiler != 'msvc'}}
         run: |
+          cmake_fortran_flags=()
+          if [ "${{ matrix.toolchain.fcompiler }}" = "gcc" ]; then
+            # This is a gfortran-only flag; Windows ifx fails compiler detection with it.
+            cmake_fortran_flags+=(-DCMAKE_Fortran_FLAGS="-ffree-line-length-none")
+          fi
+
           cmake -S . -B build -G Ninja \
             -DCMAKE_PREFIX_PATH=build/install \
             -DCMAKE_BUILD_TYPE=Debug \
@@ -486,7 +492,7 @@ jobs:
             -DCEA_ENABLE_BIND_PYTHON=OFF \
             -DCEA_ENABLE_BIND_MATLAB=OFF \
             -DCEA_ENABLE_BIND_EXCEL=OFF \
-            -DCMAKE_Fortran_FLAGS="-ffree-line-length-none"
+            "${cmake_fortran_flags[@]}"
 
       - name: Configure (msvc)
         if: ${{runner.os == 'Windows' && matrix.toolchain.ccompiler == 'msvc'}}
