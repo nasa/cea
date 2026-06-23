@@ -81,8 +81,14 @@ if (CEA_ENABLE_BIND_PYTHON)
         add_dependencies(libcea compile_databases)
     endif()
     # the compiled library
-    install(TARGETS libcea DESTINATION lib)
-    install(TARGETS cea_bindc DESTINATION lib)
+    install(TARGETS libcea
+        RUNTIME DESTINATION lib
+        LIBRARY DESTINATION lib
+    )
+    install(TARGETS cea_bindc
+        RUNTIME DESTINATION lib
+        LIBRARY DESTINATION lib
+    )
     # default data files (compiled during build)
     install(FILES ${CMAKE_BINARY_DIR}/thermo.lib DESTINATION data)
     install(FILES ${CMAKE_BINARY_DIR}/trans.lib DESTINATION data)
