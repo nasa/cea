@@ -5,15 +5,39 @@ All notable user-visible changes to this project are documented here.
 ## [Unreleased]
 
 ### Changed
-- Python `cea.eq_solve` remains a deprecated compatibility shim, but now
-  returns the legacy object-based `EqSolution` result again via the compiled
-  binding instead of forwarding to the MATLAB wrapper.
-- MATLAB-facing docs now point to the Python package namespace instead of an
-  active separate MATLAB extension.
 
 ### Fixed
 
 ### Added
+
+## [3.2.1] - 2026-06-23
+
+### Changed
+- Legacy CLI `outp long` now enables extra-precision numeric output formatting
+  across equilibrium, rocket, shock, and detonation reports.
+- Python `cea.eq_solve` remains a deprecated compatibility shim, but now
+  returns the legacy object-based `EqSolution` result again via the compiled
+  binding instead of forwarding to the MATLAB wrapper.
+- Python initialization is quiet at the default log level; database load paths
+  are printed only when the log level is `LOG_INFO` or `LOG_DEBUG`.
+- MATLAB-facing docs now point to the Python package namespace instead of an
+  active separate MATLAB extension.
+
+### Fixed
+- C and Python binding calls now recover fatal Fortran `abort` paths as
+  `CEA_FORTRAN_ABORT` / Python `RuntimeError` with the recovered message instead
+  of terminating the caller process.
+- Legacy input parsing now treats bare `h` and `u` reactant energy units as
+  `J/mole`, matching the intended molar default.
+- Legacy SI transport output now labels conductivity as
+  `MILLIWATTS/(CM)(K)` instead of the non-SI millicalorie label.
+- Rocket throat states are now marked complete so throat properties are printed
+  even when no exit-cone condition is requested.
+- Corrected the malformed Paraffin reactant record in `data/thermo.inp`.
+
+### Added
+- Added the public `CEA_FORTRAN_ABORT` error code and C helpers for retrieving
+  the last recovered fatal Fortran error message.
 - Added a pure-Python `cea.matlab` module with a Matlab-oriented `eq_solve`
   entry point that returns a flat Python namespace of scalars, arrays, and
   dictionaries.

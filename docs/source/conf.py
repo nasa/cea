@@ -22,7 +22,7 @@ project = 'CEA'
 copyright = ''
 author = 'Mark Leader'
 version = '3.2'
-release = '3.2.0'
+release = '3.2.1'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
