@@ -97,12 +97,12 @@ static int test_rocket_solve(void)
     const int roles[] = {CEA_EXCEL_ROLE_FUEL, CEA_EXCEL_ROLE_OXIDIZER};
     const int bases[] = {CEA_EXCEL_BASIS_WEIGHT, CEA_EXCEL_BASIS_WEIGHT};
     const double temps[] = {20.27, 90.17};
-    const double pi_p[] = {10.0};
+    const double pi_p[] = {10.0, 100.0, 1000.0};
     const double subar[] = {1.58};
-    const double supar[] = {25.0};
+    const double supar[] = {25.0, 50.0, 75.0};
     const double dummy[] = {0.0};
-    double values[256];
-    char headers[4096];
+    double values[512];
+    char headers[16384];
     char message[512];
     int nvalues = 0;
     int converged = 0;
@@ -112,14 +112,30 @@ static int test_rocket_solve(void)
         0, reactants, amounts, roles, bases, LEN(amounts), dummy, 0,
         CEA_EXCEL_AMOUNT_OF, 5.55157, temps, LEN(temps), 53.3172,
         pi_p, LEN(pi_p), subar, LEN(subar), supar, LEN(supar), 0,
-        0.0, 0, 0.0, 0, 0.0, 0, "", "", "T\nP\nIsp", "H2O", 0, 0,
+        0.0, 0, 0.0, 0, 0.0, 0, "", "",
+        "T\nP\ndensity\nenthalpy\nenergy\ngibbs_energy\nentropy\nM\nMW\ncp_eq\ncp_fr\ncv_eq\ncv_fr\n"
+        "gamma_s\nsonic_velocity\nMach\nae_at\nc_star\ncoefficient_of_thrust\nIsp_vacuum\nIsp",
+        "H2O\nH2\nO2\nOH\nH\nO\nHO2\nH2O2", 0, 0,
         -1.0, values, LEN(values), headers, LEN(headers), &nvalues, &converged,
         message, LEN(message));
     if (expect_status_ok(status, "CEA_ROCKET_IAC_SOLVE", message)) return 1;
     if (expect_true(converged != 0, "Expected rocket solve to converge")) return 1;
-    if (expect_true(nvalues > 3, "Expected rocket vector outputs")) return 1;
+    if (expect_true(nvalues == 333, "Expected all workbook rocket properties and species outputs")) return 1;
     if (expect_true(strstr(headers, "mass_H2O_chamber") != NULL, "Expected rocket mass fraction header")) return 1;
-    if (expect_true(strstr(headers, "mole_H2O_chamber") != NULL, "Expected rocket mole fraction header")) return 1;
+    if (expect_true(strstr(headers, "mole_H2O2_exit_7") != NULL, "Expected final rocket species header")) return 1;
+    if (expect_true(isfinite(values[nvalues - 1]), "Expected finite final rocket species output")) return 1;
+
+    status = cea_excel_rocket_solve(
+        0, reactants, amounts, roles, bases, LEN(amounts), dummy, 0,
+        CEA_EXCEL_AMOUNT_OF, 5.55157, temps, LEN(temps), 53.3172,
+        pi_p, LEN(pi_p), subar, LEN(subar), supar, LEN(supar), 0,
+        0.0, 0, 0.0, 0, 0.0, 0, "", "", "T",
+        "H2O\nH2\nO2\nOH\nH\nO\nHO2\nH2O2", 0, 0,
+        -1.0, values, LEN(values), headers, LEN(headers), &nvalues, &converged,
+        message, LEN(message));
+    if (expect_status_ok(status, "CEA_ROCKET_IAC_SOLVE species only", message)) return 1;
+    if (expect_true(nvalues == 153, "Expected one property plus all rocket species outputs")) return 1;
+    if (expect_true(strstr(headers, "mole_H2O2_exit_7") != NULL, "Expected final compact rocket header")) return 1;
 
     return 0;
 }
@@ -144,16 +160,39 @@ static int test_shock_solve(void)
 
     status = cea_excel_shock_solve(
         reactants, amounts, roles, bases, LEN(amounts), weights, LEN(weights),
-        CEA_EXCEL_AMOUNT_WEIGHTS, 0.0, 300.0, 0.1, 1400.0, 0, 1, 0, 0,
-        "", "", "T\nP\nMach\nP21\nT21\nM21\nrho12\nv2\nu5_p_v2", "OH", 0, 0, -1.0, values, LEN(values),
+        CEA_EXCEL_AMOUNT_WEIGHTS, 0.0, 300.0, 0.0133322, 1100.0, 0, 1, 0, 0,
+        "", "",
+        "velocity\nMach\nsonic_velocity\nP\nT\ndensity\nenthalpy\nenergy\ngibbs_energy\nentropy\nM\nMW\n"
+        "cp_eq\ncp_fr\ncv_eq\ncv_fr\ngamma_s\nP21\nT21\nM21\nrho12\nv2\nP52\nT52\nM52\nrho52\nu5_p_v2",
+        "H2\nO2\nAr\nH\nO\nOH\nH2O\nHO2\nH2O2\nO3", 0, 0, -1.0, values, LEN(values),
         headers, LEN(headers), &nvalues, &converged, message, LEN(message));
     if (expect_status_ok(status, "CEA_SHOCK_SOLVE", message)) return 1;
     if (expect_true(converged != 0, "Expected shock solve to converge")) return 1;
-    if (expect_true(nvalues == 21, "Expected vector, scalar, and species shock outputs")) return 1;
+    if (expect_true(nvalues == 121, "Expected all workbook shock properties and species outputs")) return 1;
     if (expect_true(strstr(headers, "P21") != NULL, "Expected scalar shock property header")) return 1;
     if (expect_true(strstr(headers, "P21_state1") == NULL, "Scalar shock property must not have a station suffix")) return 1;
-    if (expect_true(strstr(headers, "mass_OH_state1") != NULL, "Expected shock mass fraction header")) return 1;
-    if (expect_true(strstr(headers, "mole_OH_state1") != NULL, "Expected shock mole fraction header")) return 1;
+    if (expect_true(strstr(headers, "mass_H2_state1") != NULL, "Expected shock mass fraction header")) return 1;
+    if (expect_true(strstr(headers, "mole_O3_state5") != NULL, "Expected final shock species header")) return 1;
+    if (expect_true(isfinite(values[nvalues - 1]), "Expected finite final shock species output")) return 1;
+
+    status = cea_excel_shock_solve(
+        reactants, amounts, roles, bases, LEN(amounts), weights, LEN(weights),
+        CEA_EXCEL_AMOUNT_WEIGHTS, 0.0, 300.0, 0.0133322, 1100.0, 0, 1, 0, 0,
+        "", "", "P21\nT21\nM21\nrho12\nv2\nP52\nT52\nM52\nrho52\nu5_p_v2",
+        "", 0, 0, -1.0, values, LEN(values), headers, LEN(headers),
+        &nvalues, &converged, message, LEN(message));
+    if (expect_status_ok(status, "CEA_SHOCK_SOLVE scalar only", message)) return 1;
+    if (expect_true(nvalues == 10, "Expected all scalar-only shock outputs")) return 1;
+
+    status = cea_excel_shock_solve(
+        reactants, amounts, roles, bases, LEN(amounts), weights, LEN(weights),
+        CEA_EXCEL_AMOUNT_WEIGHTS, 0.0, 300.0, 0.0133322, 1100.0, 0, 1, 0, 0,
+        "", "", "T", "H2\nO2\nAr\nH\nO\nOH\nH2O\nHO2\nH2O2\nO3",
+        0, 0, -1.0, values, LEN(values), headers, LEN(headers),
+        &nvalues, &converged, message, LEN(message));
+    if (expect_status_ok(status, "CEA_SHOCK_SOLVE species only", message)) return 1;
+    if (expect_true(nvalues == 63, "Expected one property plus all shock species outputs")) return 1;
+    if (expect_true(strstr(headers, "mole_O3_state5") != NULL, "Expected final compact shock header")) return 1;
 
     (void)dummy;
     return 0;
