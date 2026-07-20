@@ -10,6 +10,25 @@ All notable user-visible changes to this project are documented here.
 
 ### Added
 
+## [3.3.0] - 2026-07-20
+
+### Changed
+- Excel bindings are now an optional beta/experimental interface that defaults
+  to disabled in standard builds and is documented as supported only for
+  64-bit Windows Excel/VBA.
+
+### Fixed
+
+### Added
+- Added a beta/experimental Excel/VBA interface with worksheet UDFs backed by a
+  native `cea_excel.dll`, including equilibrium, rocket, shock, detonation,
+  unit-conversion, mixture-ratio, and thermodynamic helper functions.
+- Added the Excel native wrapper API, VBA modules, macro-enabled template
+  workbook, CMake build target, and native smoke/API tests.
+- Added Excel interface documentation, installation guidance, workbook setup
+  instructions, and recommendations to use the Python interface with Pandas
+  when spreadsheet-formatted exports are sufficient.
+
 ## [3.2.1] - 2026-06-23
 
 ### Changed
