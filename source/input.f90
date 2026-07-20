@@ -926,12 +926,12 @@ contains
                     if (substring(txt,'psi')) units = 'psi'
                     if (substring(txt,'mmh')) units = 'mmhg'
                 case ('h')
-                    units = 'j'
+                    units = 'j/mole'
                     if (substring(txt,'kj')) units = 'kj/mole'
                     if (substring(txt,'kc')) units = 'kcal/mole'
                     if (substring(txt, 'c')) units = 'cal/mole'
                 case ('u')
-                    units = 'j'
+                    units = 'j/mole'
                     if (substring(txt,'kj')) units = 'kj/mole'
                     if (substring(txt,'kc')) units = 'kcal/mole'
                     if (substring(txt, 'c')) units = 'cal/mole'

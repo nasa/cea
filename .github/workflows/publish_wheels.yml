@@ -79,6 +79,11 @@ jobs:
           CIBW_TEST_ENVIRONMENT: "CEA_DATA_DIR={project}/data"
           CIBW_ENVIRONMENT_MACOS: ${{ matrix.os == 'macos-14' && 'FC=gfortran-14 MACOSX_DEPLOYMENT_TARGET=14.0' || 'FC=gfortran-14 MACOSX_DEPLOYMENT_TARGET=15.0' }}
           CIBW_ENVIRONMENT_WINDOWS: "FC=ifx CC=icx CXX=icx"
+          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: >-
+            delvewheel repair
+            --add-path "{project}/build/py-build/source/bind/c"
+            -w {dest_dir}
+            -v {wheel}
           CMAKE_ARGS: "-DCEA_BUILD_TESTING=OFF"
         run: |
           cibuildwheel --output-dir dist

@@ -417,11 +417,18 @@ jobs:
           submodules: true
 
       - name: Set up Fortran compiler
-        if: ${{ runner.os != 'Windows' || matrix.toolchain.fcompiler != 'gcc' }}
+        if: ${{ runner.os == 'Linux' || (runner.os == 'Windows' && matrix.toolchain.fcompiler != 'gcc') }}
         uses: fortran-lang/setup-fortran@v1
         with:
           compiler: ${{ matrix.toolchain.fcompiler }}
           version: ${{ matrix.toolchain.fversion }}
+
+      - name: Set up Fortran compiler (macOS, gfortran)
+        if: ${{ runner.os == 'macOS' && matrix.toolchain.fcompiler == 'gcc' }}
+        run: |
+          brew update
+          brew install gcc@14
+          echo "FC=gfortran-14" >> "$GITHUB_ENV"
 
       - name: Set up Fortran compiler (Windows, gfortran)
         if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'gcc' }}
@@ -444,9 +451,17 @@ jobs:
           }
         shell: pwsh
 
-      - name: Set up C Compiler
-        if: ${{matrix.toolchain.ccompiler == 'msvc'}}
+      - name: Set up MSVC toolchain (Windows MSVC/Intel)
+        if: ${{ runner.os == 'Windows' && (matrix.toolchain.ccompiler == 'msvc' || matrix.toolchain.fcompiler == 'intel') }}
         uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Remove MinGW/MSYS paths for Windows Intel builds
+        if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
+        shell: pwsh
+        run: |
+          $parts = $env:PATH -split ';'
+          $clean = $parts | Where-Object { $_ -and ($_ -notmatch 'mingw') -and ($_ -notmatch 'msys') -and ($_ -notmatch 'strawberry') }
+          "PATH=$($clean -join ';')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Install build tools
         run: |
@@ -474,9 +489,15 @@ jobs:
             -DSKIP_ROBUST=YES
           cmake --build build/extern/gfe --target install
 
-      - name: Configure (linux)
+      - name: Configure (Ninja)
         if: ${{runner.os != 'Windows' || matrix.toolchain.ccompiler != 'msvc'}}
         run: |
+          cmake_fortran_flags=()
+          if [ "${{ matrix.toolchain.fcompiler }}" = "gcc" ]; then
+            # This is a gfortran-only flag; Windows ifx fails compiler detection with it.
+            cmake_fortran_flags+=(-DCMAKE_Fortran_FLAGS="-ffree-line-length-none")
+          fi
+
           cmake -S . -B build -G Ninja \
             -DCMAKE_PREFIX_PATH=build/install \
             -DCMAKE_BUILD_TYPE=Debug \
@@ -486,7 +507,7 @@ jobs:
             -DCEA_ENABLE_BIND_PYTHON=OFF \
             -DCEA_ENABLE_BIND_MATLAB=OFF \
             -DCEA_ENABLE_BIND_EXCEL=OFF \
-            -DCMAKE_Fortran_FLAGS="-ffree-line-length-none"
+            "${cmake_fortran_flags[@]}"
 
       - name: Configure (msvc)
         if: ${{runner.os == 'Windows' && matrix.toolchain.ccompiler == 'msvc'}}

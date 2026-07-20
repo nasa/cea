@@ -40,6 +40,8 @@ For most users, install the published Python package directly:
 This is the fastest path to start using the Python API (`import cea`) without
 building from source.
 
+The Python package requires Python 3.11 or newer.
+
 If you need the legacy CLI executable (`cea`) or C/Fortran build artifacts, use
 the source build path below.
 
