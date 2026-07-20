@@ -101,6 +101,34 @@ If you are not using presets, set ``-DCEA_ENABLE_BIND_PYTHON=OFF`` and also
 disable the MATLAB compatibility option (``CEA_ENABLE_BIND_MATLAB``, which
 forces Python on). For Fortran-only, add ``-DCEA_ENABLE_BIND_C=OFF``.
 
+Excel Binding
+-------------
+
+The Excel interface is an optional beta/experimental wrapper for 64-bit Windows
+Excel/VBA only. It is disabled by default and should not be attempted with
+macOS Excel or 32-bit Office.
+
+For spreadsheet-formatted output, the recommended workflow is still the Python
+interface with Pandas: run CEA in Python, collect results in a
+``pandas.DataFrame``, and export with ``DataFrame.to_csv()`` or
+``DataFrame.to_excel()``. Build the Excel interface when live worksheet formulas
+inside 64-bit Windows Excel are required.
+
+To build the native DLL for use from a macro-enabled workbook, run from a
+Windows developer prompt with C, C++, and Fortran compilers available. Configure
+with ``CEA_ENABLE_BIND_EXCEL=ON`` and build the ``cea_excel`` target::
+
+    cmake -S . -B build-excel -G "Visual Studio 17 2022" -DCEA_ENABLE_BIND_EXCEL=ON
+    cmake --build build-excel --target cea_excel --config Release
+
+If your shell already selects the desired CMake generator and compilers, the
+generator argument may be omitted::
+
+    cmake -S . -B build-excel -DCEA_ENABLE_BIND_EXCEL=ON
+    cmake --build build-excel --target cea_excel --config Release
+
+See :doc:`interfaces/excel_api` for workbook setup, worksheet function
+signatures, and diagnostics.
 
 Selecting Compilers and Generators
 ----------------------------------

@@ -6,13 +6,48 @@ public interface is worksheet UDFs backed by a native `cea_excel.dll`; VBA
 parses worksheet ranges and the native wrapper owns CEA setup, solve calls, and
 property extraction.
 
+Status and recommended workflow
+-------------------------------
+This interface is beta/experimental. It is included as a complete optional
+interface, but future releases may refine workbook conventions or UDF
+signatures as users exercise the interface.
+
+For most spreadsheet-oriented workflows, prefer the Python interface with
+Pandas. Run CEA from Python, collect results in a `pandas.DataFrame`, and export
+with `DataFrame.to_csv()` or `DataFrame.to_excel()` when the goal is to analyze
+or share results in spreadsheet form. Use this Excel/VBA interface when you
+specifically need live worksheet formulas backed by CEA inside 64-bit Windows
+Excel.
+
 Platform support
 ----------------
-- Supported: 64-bit Windows Excel/VBA.
+- Supported: 64-bit Windows with 64-bit Excel/VBA only.
 - Not supported: macOS Excel/VBA, 32-bit Office, XLL, or Office.js.
+- Do not attempt to use the workbook interface outside 64-bit Windows Excel.
+
+Installation overview
+---------------------
+1. Build the native `cea_excel.dll` on 64-bit Windows.
+2. Place the DLL and its native dependencies beside the macro-enabled workbook,
+   or in one of the supported loader subfolders listed below.
+3. Use `cea_template.xlsm`, or import the VBA modules into another `.xlsm`
+   workbook.
+4. Save the workbook and enable macros according to your organization's Excel
+   security policy.
+5. Run `TestCEAVersion` or `TestCEAAdd` before building formulas.
 
 Build commands
 --------------
+Run the build from a Windows developer prompt with C, C++, and Fortran
+compilers available. For example, with Visual Studio:
+
+```bash
+cmake -S . -B build-excel -G "Visual Studio 17 2022" -DCEA_ENABLE_BIND_EXCEL=ON
+cmake --build build-excel --target cea_excel --config Release
+```
+
+If your shell already selects the desired CMake generator and compilers, the
+generator argument may be omitted:
 
 ```bash
 cmake -S . -B build-excel -DCEA_ENABLE_BIND_EXCEL=ON
@@ -28,10 +63,12 @@ Workbook setup
 2. Copy `cea_excel.dll` next to the macro-enabled workbook, or into a `lib`,
    `lib\Release`, or `Release` folder below the workbook folder.
 3. Keep native DLL dependencies in the same folder as `cea_excel.dll`.
-4. Import these VBA modules:
+4. Use `cea_template.xlsm`, or import these VBA modules into another workbook:
    - `vba/modCEADeclare.bas`
    - `vba/modCEAUDF.bas`
    - `vba/modCEATest.bas` for diagnostics
+5. Save the workbook before calling the UDFs. The loader resolves DLL paths
+   relative to the saved workbook location.
 
 Reactant table
 --------------
