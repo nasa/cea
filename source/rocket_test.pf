@@ -277,6 +277,41 @@ contains
     end subroutine
 
     @test
+    subroutine test_rocket_frozen_after_station3
+        type(Mixture) :: products
+        type(Mixture) :: reactants
+        type(RocketSolver) :: solver
+        type(RocketSolution) :: soln
+        character(:), allocatable :: product_names(:)
+        integer :: i
+        real(dp) :: hc, weights(4)
+        real(dp), parameter :: tol = 1.0d-5
+
+        reactants = Mixture(all_thermo, ['RP-1', 'O2  ', 'CO2 ', 'H2O '])
+        product_names = reactants%get_products(all_thermo)
+        products = Mixture(all_thermo, product_names)
+
+        weights = reactants%weights_from_of([0.0d0, 0.92d0, 0.04d0, 0.04d0], &
+                                            [1.0d0, 0.0d0, 0.0d0, 0.0d0], 2.763d0)
+        hc = reactants%calc_enthalpy(weights, [300.0d0, 550.0d0, 550.0d0, 550.0d0])/R
+
+        solver = RocketSolver(products, reactants)
+        soln = solver%solve(weights, 100.0d0, supar=[1.3d0, 23.0d0], hc=hc, fac=.false., n_frz=3)
+
+        @assertEqual(4, soln%num_pts)
+        @assertEqual(.true., soln%converged)
+        do i = 1, size(soln%eq_soln(3)%nj)
+            @assertEqual(soln%eq_soln(3)%nj(i), soln%eq_soln(4)%nj(i))
+        end do
+        @assertRelativelyEqual(1541.85506497727d0, soln%eq_soln(4)%T, tol)
+        @assertRelativelyEqual(1.74302621180154d0, soln%cf(4), tol)
+        @assertRelativelyEqual(3136.08617955196d0, soln%i_sp(4), tol)
+        @assertRelativelyEqual(3305.48497379255d0, soln%i_vac(4), tol)
+        @assertRelativelyEqual(1799.21917313601d0, soln%c_star(4), tol)
+
+    end subroutine
+
+    @test
     subroutine test_rocket_frozen
         ! RP-1311 Example 12
         type(Mixture) :: products

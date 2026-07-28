@@ -897,6 +897,7 @@ contains
         ! Locals
         integer :: idx                       ! Station index
         integer :: n_frz_                    ! Temporary variable for frozen index
+        integer :: n_eq                      ! Number of equilibrium points in an exit schedule
         integer :: num_pts                   ! Total number of evaluation points
         character(len=2) :: prob_type        ! Equilibrium problem type
         real(dp) :: state1                   ! Chamber temperature or enthalpy, or entropy at other stations
@@ -1008,11 +1009,12 @@ contains
         if (has_array_values(pi_p)) then
             idx = 3
 
-            if (frozen .and. idx > n_frz_) then
-                call self%solve_pi_p_frozen(soln, idx, n_frz, pc, pi_p, h_inf, 1)
-            else
-                call self%solve_pi_p(soln, idx, pc, pi_p, h_inf, state1, reactant_weights)
-            end if
+            n_eq = size(pi_p)
+            if (frozen) n_eq = min(size(pi_p), max(0, n_frz_ - idx + 1))
+            if (n_eq > 0) &
+                call self%solve_pi_p(soln, idx, pc, pi_p(:n_eq), h_inf, state1, reactant_weights)
+            if (n_eq < size(pi_p)) &
+                call self%solve_pi_p_frozen(soln, idx, n_frz_, pc, pi_p(n_eq+1:), h_inf, 1)
             if (soln%status_code == rocket_status_failed) return
             if (soln%status_code == rocket_status_partial) then
                 call self%post_process(soln, .false.)
@@ -1043,11 +1045,13 @@ contains
 
         if (has_array_values(supar)) then
 
-            if (frozen .and. idx > n_frz_) then
-                call self%solve_supar_frozen(soln, idx, n_frz, pc, supar, h_inf, reactant_weights, idx-1, ln_pinf_pt, awt)
-            else
-                call self%solve_supar(soln, idx, pc, supar, h_inf, state1, reactant_weights, ln_pinf_pt, awt)
-            end if
+            n_eq = size(supar)
+            if (frozen) n_eq = min(size(supar), max(0, n_frz_ - idx + 1))
+            if (n_eq > 0) &
+                call self%solve_supar(soln, idx, pc, supar(:n_eq), h_inf, state1, reactant_weights, ln_pinf_pt, awt)
+            if (n_eq < size(supar)) &
+                call self%solve_supar_frozen(soln, idx, n_frz_, pc, supar(n_eq+1:), h_inf, reactant_weights, &
+                    idx-1, ln_pinf_pt, awt)
             if (soln%status_code == rocket_status_failed) return
             if (soln%status_code == rocket_status_partial) then
                 call self%post_process(soln, .false.)
@@ -1087,6 +1091,7 @@ contains
         integer :: i, j, k                   ! Loop index
         integer :: idx                       ! Station index
         integer :: n_frz_                    ! Temporary variable for frozen index
+        integer :: n_eq                      ! Number of equilibrium points in an exit schedule
         integer :: num_pts                   ! Total number of evaluation points
         integer, parameter :: max_iter_area = 10  ! Maximum number of iterations for exit condition using area ratio
         integer, parameter :: max_iter_chamber = 100  ! Safety guard for FAC chamber-closure iterations
@@ -1354,11 +1359,12 @@ contains
         if (has_array_values(pi_p)) then
             idx = 5
 
-            if (frozen .and. idx > n_frz_) then
-                call self%solve_pi_p_frozen(soln, idx, n_frz_, pc, pi_p, h_inj, 2)
-            else
-                call self%solve_pi_p(soln, idx, pc, pi_p, h_inj, S_ref, reactant_weights)
-            end if
+            n_eq = size(pi_p)
+            if (frozen) n_eq = min(size(pi_p), max(0, n_frz_ - idx + 1))
+            if (n_eq > 0) &
+                call self%solve_pi_p(soln, idx, pc, pi_p(:n_eq), h_inj, S_ref, reactant_weights)
+            if (n_eq < size(pi_p)) &
+                call self%solve_pi_p_frozen(soln, idx, n_frz_, pc, pi_p(n_eq+1:), h_inj, 2)
             if (soln%status_code == rocket_status_failed) return
             if (soln%status_code == rocket_status_partial) then
                 call self%post_process(soln, .true.)
@@ -1392,13 +1398,14 @@ contains
         if (has_array_values(supar)) then
             ln_pinf_pt = log(soln%pressure(2)/soln%pressure(4))
 
-            if (frozen .and. idx > n_frz_) then
-                call self%solve_supar_frozen(soln, idx, n_frz_, soln%pressure(2), supar, h_inj, reactant_weights, &
-                    idx-1, ln_pinf_pt, awt)
-            else
-                call self%solve_supar(soln, idx, soln%pressure(2), supar, h_inj, S_ref, reactant_weights, &
-                    ln_pinf_pt, awt)
-            end if
+            n_eq = size(supar)
+            if (frozen) n_eq = min(size(supar), max(0, n_frz_ - idx + 1))
+            if (n_eq > 0) &
+                call self%solve_supar(soln, idx, soln%pressure(2), supar(:n_eq), h_inj, S_ref, &
+                    reactant_weights, ln_pinf_pt, awt)
+            if (n_eq < size(supar)) &
+                call self%solve_supar_frozen(soln, idx, n_frz_, soln%pressure(2), supar(n_eq+1:), h_inj, &
+                    reactant_weights, idx-1, ln_pinf_pt, awt)
             if (soln%status_code == rocket_status_failed) return
             if (soln%status_code == rocket_status_partial) then
                 call self%post_process(soln, .true.)
