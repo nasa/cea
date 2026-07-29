@@ -7,6 +7,14 @@ All notable user-visible changes to this project are documented here.
 ### Changed
 
 ### Fixed
+
+### Added
+
+## [3.3.1] - 2026-07-29
+
+### Changed
+
+### Fixed
 - Frozen rocket calculations now switch from equilibrium to frozen composition
   after `n_frz` when the boundary falls within a multi-point exit schedule,
   restoring CEA2 behavior for both IAC and FAC calculations.
