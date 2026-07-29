@@ -2548,6 +2548,7 @@ contains
         exit_extra = 0
         frozen = .false.
         nfrz = prob%problem%rkt_nfrozen
+        if (nfrz == -1) nfrz = 1
 
         allocate(trace_names(solver%eq_solver%num_products),&
                  is_trace(solver%eq_solver%num_products))

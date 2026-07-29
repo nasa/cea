@@ -7,8 +7,11 @@ module cea_rocket
     use cea_mixture, only: Mixture, MixtureThermo
     use cea_equilibrium, only: EqSolution, EqSolver, EqPartials
     use cea_transport, only: TransportDB
+    use fb_findloc, only: findloc
     use fb_utils
     implicit none
+
+    private :: RocketSolver_set_reactant_frozen_state, RocketSolver_solve_subar_frozen
 
     integer, parameter :: rocket_status_success = 0
     integer, parameter :: rocket_status_partial = 1
@@ -113,6 +116,92 @@ contains
         if (.not. present(value)) return
         has_real_value = (value /= empty_dp)
     end function
+
+    subroutine RocketSolver_set_reactant_frozen_state(self, eq_soln, eq_partials, weights, pressure, tc_est, hc, tc)
+        class(RocketSolver), intent(in) :: self
+        type(EqSolution), intent(inout) :: eq_soln
+        type(EqPartials), intent(inout) :: eq_partials
+        real(dp), intent(in) :: weights(:)
+        real(dp), intent(in) :: pressure
+        real(dp), intent(in), optional :: tc_est
+        real(dp), intent(in), optional :: hc
+        real(dp), intent(in), optional :: tc
+
+        integer :: i, j, iter
+        integer, parameter :: max_iter_temperature = 50
+        real(dp), parameter :: temperature_tol = 1.0d-9
+        real(dp) :: cp, delta_T, gamma_s, temperature, weight_sum
+        logical :: temperature_converged
+
+        weight_sum = sum(weights)
+        if (weight_sum <= 0.0d0) call abort('RocketSolver: reactant weights must have a positive sum')
+
+        if (has_real_value(tc)) then
+            temperature = tc
+        else if (has_real_value(hc)) then
+            temperature = 298.15d0
+            if (has_real_value(tc_est)) temperature = tc_est
+            temperature_converged = .false.
+            do iter = 1, max_iter_temperature
+                cp = self%eq_solver%reactants%calc_frozen_cp(weights, temperature)/R
+                if (cp <= 0.0d0) call abort('RocketSolver: frozen reactant heat capacity must be positive')
+                delta_T = (hc - self%eq_solver%reactants%calc_enthalpy(weights, temperature)/R)/cp
+                temperature = max(1.0d0, temperature + delta_T)
+                if (abs(delta_T) <= temperature_tol*max(1.0d0, temperature)) then
+                    temperature_converged = .true.
+                    exit
+                end if
+            end do
+            if (.not. temperature_converged) &
+                call abort('RocketSolver: frozen reactant temperature did not converge')
+        else
+            call abort('RocketSolver: either chamber enthalpy or temperature must be specified')
+        end if
+
+        eq_soln = EqSolution(self%eq_solver, T_init=temperature)
+        eq_soln%w0 = weights
+        eq_soln%nj = 0.0d0
+        eq_soln%ln_nj = self%eq_solver%log_min
+
+        do i = 1, self%eq_solver%num_reactants
+            if (abs(weights(i)) <= tiny(1.0d0)) cycle
+            j = findloc(self%eq_solver%products%species_names, self%eq_solver%reactants%species_names(i), 1)
+            if (j == 0) then
+                call abort('RocketSolver: reactant not found in products for n_frz=-1: '// &
+                    trim(self%eq_solver%reactants%species_names(i)))
+            end if
+            eq_soln%nj(j) = eq_soln%nj(j) + weights(i)/ &
+                (self%eq_solver%reactants%species(i)%molecular_weight*weight_sum)
+            if (j <= self%eq_solver%num_gas) then
+                if (eq_soln%nj(j) <= 0.0d0) &
+                    call abort('RocketSolver: gas reactant amount must be positive for n_frz=-1')
+                eq_soln%ln_nj(j) = log(eq_soln%nj(j))
+            else
+                call eq_soln%activate_condensed(j-self%eq_solver%num_gas)
+            end if
+        end do
+
+        eq_soln%n = sum(eq_soln%nj(:self%eq_solver%num_gas))
+        if (eq_soln%n <= 0.0d0) &
+            call abort('RocketSolver: n_frz=-1 requires at least one gaseous reactant')
+
+        call eq_soln%constraints%set('tp', temperature, pressure, &
+            self%eq_solver%reactants%element_amounts_from_weights(weights))
+        call self%eq_solver%products%calc_thermo(eq_soln%thermo, temperature, condensed=.true.)
+
+        eq_soln%cp_fr = dot_product(eq_soln%thermo%cp, eq_soln%nj)*R/1.0d3
+        eq_soln%cp_eq = eq_soln%cp_fr
+        cp = eq_soln%cp_fr/(R*1.0d-3)
+        gamma_s = cp/(cp-eq_soln%n)
+        eq_soln%gamma_s = gamma_s
+        eq_soln%converged = .true.
+        eq_partials%dlnV_dlnP = -1.0d0
+        eq_partials%dlnV_dlnT = 1.0d0
+        eq_partials%gamma_s = gamma_s
+
+        call self%eq_solver%post_process(eq_soln)
+        call self%eq_solver%compute_transport_state(eq_soln)
+    end subroutine
 
     logical function has_array_values(values)
         real(dp), intent(in), optional :: values(:)
@@ -326,6 +415,64 @@ contains
         soln%warning_code = warning_code
         soln%last_completed_idx = max(soln%last_completed_idx, last_idx)
         soln%num_pts = max(0, soln%last_completed_idx)
+    end subroutine
+
+    subroutine RocketSolver_solve_subar_frozen(self, soln, idx, n_frz, pc, subar, h_inf, ln_pinf_pt, awt)
+        class(RocketSolver), intent(in) :: self
+        type(RocketSolution), intent(inout) :: soln
+        integer, intent(inout) :: idx
+        integer, intent(in) :: n_frz
+        real(dp), intent(in) :: pc
+        real(dp), intent(in) :: subar(:)
+        real(dp), intent(in) :: h_inf
+        real(dp), intent(in) :: ln_pinf_pt
+        real(dp), intent(in) :: awt
+
+        integer :: i, j
+        integer, parameter :: max_iter_area = 10
+        real(dp), parameter :: area_tol = 4.0d-5
+        real(dp) :: usq, asq, h, gamma_s
+        real(dp) :: ln_pinf_pe, dln_pinf_pe_dln_aeat, dln_pinf_pe
+
+        call log_debug("Starting frozen subar calculations")
+
+        do i = 1, size(subar)
+            soln%station(idx) = "exit    "
+            soln%eq_soln(idx) = EqSolution(self%eq_solver, T_init=soln%eq_soln(n_frz)%T)
+
+            if (subar(i) <= 1.0d0) call abort("Subsonic area ratio must be greater than 1.0")
+
+            ln_pinf_pe = ln_pinf_pt/(subar(i) + 10.587d0*(log(subar(i))**3.0d0) + 9.454d0*log(subar(i)))
+            if (subar(i) < 1.09d0) then
+                ln_pinf_pe = 0.9d0*ln_pinf_pe
+            else if (subar(i) > 10.0d0) then
+                ln_pinf_pe = ln_pinf_pe/subar(i)
+            end if
+
+            do j = 1, max_iter_area
+                soln%pressure(idx) = pc/exp(ln_pinf_pe)
+                call self%frozen(soln, idx, n_frz)
+                if (.not. soln%converged) return
+
+                h = dot_product(soln%eq_soln(idx)%nj, soln%eq_soln(idx)%thermo%enthalpy)*soln%eq_soln(idx)%T
+                gamma_s = soln%eq_partials(idx)%gamma_s
+                asq = soln%eq_soln(idx)%n*R*gamma_s*soln%eq_soln(idx)%T
+                usq = 2.0d0*(h_inf-h)*R
+                soln%v_sonic(idx) = sqrt(asq)
+                soln%mach(idx) = sqrt(usq/asq)
+                soln%ae_at(idx) = soln%eq_soln(idx)%n*soln%eq_soln(idx)%T/ &
+                    (soln%pressure(idx)*sqrt(usq)*awt)
+
+                dln_pinf_pe_dln_aeat = gamma_s*usq/(usq-asq)
+                dln_pinf_pe = dln_pinf_pe_dln_aeat*(log(subar(i))-log(soln%ae_at(idx)))
+                if (abs(soln%ae_at(idx)-subar(i))/subar(i) <= area_tol) exit
+                if (abs(dln_pinf_pe) < area_tol) exit
+                ln_pinf_pe = ln_pinf_pe + dln_pinf_pe
+            end do
+
+            idx = idx + 1
+            call mark_completed(soln, idx-1)
+        end do
     end subroutine
 
     subroutine RocketSolver_solve_throat(self, soln, idx, pc, h_inf, s0, weights, awt)
@@ -906,6 +1053,7 @@ contains
         real(dp) :: ln_pinf_pt               ! Temporary variable for ln(Pinf/Pt)
         real(dp) :: awt                      ! Mass flow per area in the throat
         logical :: frozen                    ! Flag to determine if frozen composition is used
+        logical :: reactants_frozen          ! Expand the reactant composition without equilibrium solves
 
         call log_debug("Starting rocket IAC solve")
 
@@ -933,8 +1081,13 @@ contains
         end if
 
         ! Set the frozen composition flag
+        reactants_frozen = .false.
         if (present(n_frz)) then
-            if (n_frz > 0 .and. n_frz <= num_pts) then
+            if (n_frz == -1) then
+                frozen = .true.
+                reactants_frozen = .true.
+                n_frz_ = 1
+            else if (n_frz > 0 .and. n_frz <= num_pts) then
                 frozen = .true.
                 n_frz_ = n_frz
             else
@@ -950,14 +1103,20 @@ contains
         ! -----------------------------------------------
         ! Chamber conditions (infinity)
         ! -----------------------------------------------
-        if (has_real_value(tc_est)) then
-            soln%eq_soln(1) = EqSolution(self%eq_solver, T_init=tc_est)
+        if (reactants_frozen) then
+            call RocketSolver_set_reactant_frozen_state(self, soln%eq_soln(1), soln%eq_partials(1), &
+                reactant_weights, pc, tc_est=tc_est, hc=hc, tc=tc)
         else
-            soln%eq_soln(1) = EqSolution(self%eq_solver)
-        end if
+            if (has_real_value(tc_est)) then
+                soln%eq_soln(1) = EqSolution(self%eq_solver, T_init=tc_est)
+            else
+                soln%eq_soln(1) = EqSolution(self%eq_solver)
+            end if
 
-        call log_debug("Starting chamber eqsolve")
-        call self%eq_solver%solve(soln%eq_soln(1), prob_type, state1, pc, reactant_weights, partials=soln%eq_partials(1))
+            call log_debug("Starting chamber eqsolve")
+            call self%eq_solver%solve(soln%eq_soln(1), prob_type, state1, pc, reactant_weights, &
+                partials=soln%eq_partials(1))
+        end if
         soln%i_save = -1
 
         ! Set the states
@@ -982,7 +1141,7 @@ contains
 
         ! Save some chamber solution variables for later use
         state1 = soln%eq_soln(1)%calc_entropy_sum(self%eq_solver)  ! Combustor entropy
-        if (prob_type == "tp") &
+        if (prob_type == "tp" .or. reactants_frozen) &
             h_inf = dot_product(soln%eq_soln(1)%nj, soln%eq_soln(1)%thermo%enthalpy) * &
                     soln%eq_soln(1)%T  ! Combustor enthalpy
 
@@ -992,7 +1151,7 @@ contains
         idx = 2
 
         if (frozen .and. idx > n_frz_) then
-            call self%solve_throat_frozen(soln, idx, n_frz, pc, h_inf, awt)
+            call self%solve_throat_frozen(soln, idx, n_frz_, pc, h_inf, awt)
         else
             call self%solve_throat(soln, idx, pc, h_inf, state1, reactant_weights, awt)
         end if
@@ -1031,7 +1190,9 @@ contains
 
         if (has_array_values(subar)) then
 
-            if (frozen .and. n_frz_ > 1) then
+            if (reactants_frozen) then
+                call RocketSolver_solve_subar_frozen(self, soln, idx, n_frz_, pc, subar, h_inf, ln_pinf_pt, awt)
+            else if (frozen .and. n_frz_ > 1) then
                 call log_info('RocketSolver: WARNING!!  FREEZING IS NOT ALLOWED AT A SUBSONIC PRESSURE RATIO')
             else
                 call self%solve_subar(soln, idx, pc, subar, h_inf, state1, reactant_weights, idx-1, 2, ln_pinf_pt, awt)
@@ -1115,6 +1276,7 @@ contains
         real(dp) :: volume                   ! Volume temporary variable
         logical :: use_acat                  ! Flag to use the contraction ratio for chamber solution (if false, use mdot)
         logical :: frozen                    ! Flag to determine if frozen is used
+        logical :: reactants_frozen          ! Expand the reactant composition without equilibrium solves
         integer :: chamber_iter              ! FAC chamber-closure iteration counter
         real(dp) :: acatsv, pratsv, mat, prat, pjrat, pr, pracat
 
@@ -1161,8 +1323,13 @@ contains
         end if
 
         ! Set the frozen composition flag
+        reactants_frozen = .false.
         if (present(n_frz)) then
-            if (n_frz > 0 .and. n_frz <= num_pts) then
+            if (n_frz == -1) then
+                frozen = .true.
+                reactants_frozen = .true.
+                n_frz_ = 2
+            else if (n_frz > 0 .and. n_frz <= num_pts) then
                 frozen = .true.
                 n_frz_ = n_frz
             else
@@ -1181,15 +1348,21 @@ contains
         idx = 1
         soln%station(idx) = "injector"
 
-        if (has_real_value(tc_est)) then
-            soln%eq_soln(idx) = EqSolution(self%eq_solver, T_init=tc_est)
-            soln%eq_soln(2) = EqSolution(self%eq_solver, T_init=tc_est)  ! Initialize soln at infinity too
+        if (reactants_frozen) then
+            call RocketSolver_set_reactant_frozen_state(self, soln%eq_soln(idx), soln%eq_partials(idx), &
+                reactant_weights, pc, tc_est=tc_est, hc=hc, tc=tc)
         else
-            soln%eq_soln(idx) = EqSolution(self%eq_solver)
-            soln%eq_soln(2) = EqSolution(self%eq_solver)  ! Initialize soln at infinity too
+            if (has_real_value(tc_est)) then
+                soln%eq_soln(idx) = EqSolution(self%eq_solver, T_init=tc_est)
+                soln%eq_soln(2) = EqSolution(self%eq_solver, T_init=tc_est)  ! Initialize soln at infinity too
+            else
+                soln%eq_soln(idx) = EqSolution(self%eq_solver)
+                soln%eq_soln(2) = EqSolution(self%eq_solver)  ! Initialize soln at infinity too
+            end if
+            call log_debug("Starting injector eqsolve")
+            call self%eq_solver%solve(soln%eq_soln(idx), prob_type, state1, pc, reactant_weights, &
+                partials=soln%eq_partials(idx))
         end if
-        call log_debug("Starting injector eqsolve")
-        call self%eq_solver%solve(soln%eq_soln(idx), prob_type, state1, pc, reactant_weights, partials=soln%eq_partials(idx))
 
         ! Set the states
         soln%pressure(idx) = pc
@@ -1200,7 +1373,8 @@ contains
         call mark_completed(soln, idx)
 
         ! Save the injector enthalpy to compute conditions at infinity, which is isenthropic with the injector
-        if (prob_type == "tp") h_inj = dot_product(soln%eq_soln(idx)%nj, soln%eq_soln(idx)%thermo%enthalpy)*soln%eq_soln(idx)%T
+        if (prob_type == "tp" .or. reactants_frozen) &
+            h_inj = dot_product(soln%eq_soln(idx)%nj, soln%eq_soln(idx)%thermo%enthalpy)*soln%eq_soln(idx)%T
 
         ! Initial estimate of pressure at infinity (Eq. 6.30)
         if (use_acat .eqv. .false.) ac_at_ = 2.0d0
@@ -1226,7 +1400,13 @@ contains
             soln%pressure(2) = p_inf
 
             ! Solve conditions at infinity one time
-            call self%eq_solver%solve(soln%eq_soln(2), prob_type, state1, p_inf, reactant_weights, partials=soln%eq_partials(2))
+            if (reactants_frozen) then
+                call RocketSolver_set_reactant_frozen_state(self, soln%eq_soln(2), soln%eq_partials(2), &
+                    reactant_weights, p_inf, tc=soln%eq_soln(1)%T)
+            else
+                call self%eq_solver%solve(soln%eq_soln(2), prob_type, state1, p_inf, reactant_weights, &
+                    partials=soln%eq_partials(2))
+            end if
 
             ! Save the reference enthalpy at infinity
             S_ref = soln%eq_soln(2)%calc_entropy_sum(self%eq_solver)  ! Entropy at infinity
@@ -1239,7 +1419,12 @@ contains
             ! reusing that state as the initial condition.
             soln%eq_soln(3) = soln%eq_soln(2)
             soln%i_save = -2
-            call self%solve_throat(soln, idx, p_inf, h_inj, S_ref, reactant_weights, awt)
+            if (reactants_frozen) then
+                call self%solve_throat_frozen(soln, idx, n_frz_, p_inf, h_inj, awt)
+                if (soln%status_code /= rocket_status_success) return
+            else
+                call self%solve_throat(soln, idx, p_inf, h_inj, S_ref, reactant_weights, awt)
+            end if
 
             ! -----------------------------------------------
             ! Solve combustor once and check convergence
@@ -1263,9 +1448,14 @@ contains
             ! -----------------------------------------------
             do j = 1, max_iter_area
 
-                ! Solve equilibrium at combustor end (isentropic with infinity)
-                call self%eq_solver%solve(soln%eq_soln(idx), "sp", S_ref, soln%pressure(idx), reactant_weights, &
-                    partials=soln%eq_partials(idx))
+                ! Solve at combustor end (isentropic with infinity)
+                if (reactants_frozen) then
+                    call self%frozen(soln, idx, n_frz_)
+                    if (.not. soln%converged) return
+                else
+                    call self%eq_solver%solve(soln%eq_soln(idx), "sp", S_ref, soln%pressure(idx), &
+                        reactant_weights, partials=soln%eq_partials(idx))
+                end if
 
                 ! Compute combustor properties
                 h = dot_product(soln%eq_soln(idx)%nj, soln%eq_soln(idx)%thermo%enthalpy)*soln%eq_soln(idx)%T
@@ -1381,7 +1571,11 @@ contains
 
         if (has_array_values(subar)) then
 
-            if (frozen .and. n_frz_ > 1) then
+            if (reactants_frozen) then
+                ln_pinf_pt = log(soln%pressure(2)/soln%pressure(4))
+                call RocketSolver_solve_subar_frozen(self, soln, idx, n_frz_, soln%pressure(2), &
+                    subar, h_inj, ln_pinf_pt, awt)
+            else if (frozen .and. n_frz_ > 1) then
                 call log_info('RocketSolver: WARNING!!  FREEZING IS NOT ALLOWED AT A SUBSONIC PRESSURE RATIO')
             else
                 ln_pinf_pt = log(soln%pressure(2)/soln%pressure(4))
