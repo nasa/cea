@@ -77,8 +77,8 @@ module cea_equilibrium
             !! Maximum number of times the problem can converge without establishing a set of condensed species
         real(dp) :: T_min = 160.0d0
             !! Minimum mixture temperature (K)
-        real(dp) :: T_max = 6600.0d0
-            !! Maximum mixture temperature (K)
+        real(dp) :: T_max = 22000.0d0
+            !! Maximum mixture temperature (K), including the CEA2 10% margin above the 20000 K gas-fit limit
 
     contains
 

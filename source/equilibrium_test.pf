@@ -931,6 +931,47 @@ contains
     end subroutine
 
     @test
+    subroutine test_high_temperature_ionized_ar_n2_h2
+
+        type(Mixture) :: products
+        type(Mixture) :: reactants
+        type(EqSolver) :: solver
+        type(EqSolution) :: soln
+        character(snl), allocatable :: product_names(:)
+        integer :: idx_ar_plus, idx_h_plus, idx_n_plus, idx_electron
+        real(dp) :: pressure, weights(3)
+        real(dp), parameter :: tol = 1.0d-6
+
+        reactants = Mixture(all_thermo, ['Ar', 'N2', 'H2'], ions=.true.)
+        product_names = reactants%get_products(all_thermo)
+        products = Mixture(all_thermo, product_names, ions=.true.)
+
+        solver = EqSolver(products, reactants, ions=.true.)
+        soln = EqSolution(solver)
+
+        weights = reactants%weights_from_moles([0.75d0, 0.10d0, 0.15d0])
+        pressure = atm_to_bar(1.0d0)
+
+        call solver%solve(soln, 'tp', 20000.0d0, pressure, weights)
+
+        idx_ar_plus = findloc(products%species_names, 'Ar+', dim=1)
+        idx_h_plus = findloc(products%species_names, 'H+', dim=1)
+        idx_n_plus = findloc(products%species_names, 'N+', dim=1)
+        idx_electron = findloc(products%species_names, 'e-', dim=1)
+
+        @assertTrue(soln%converged)
+        @assertRelativelyEqual(20000.0d0, soln%T, tol)
+        @assertRelativelyEqual(7.426681957390653d-2, soln%n, tol)
+
+        ! Major ionized-species mole fractions agree with the CEA2 high-temperature reference case.
+        @assertRelativelyEqual(2.9875203384714055d-1, soln%nj(idx_ar_plus)/soln%n, tol)
+        @assertRelativelyEqual(1.1399947689736623d-1, soln%nj(idx_h_plus)/soln%n, tol)
+        @assertRelativelyEqual(7.8210494984876172d-2, soln%nj(idx_n_plus)/soln%n, tol)
+        @assertRelativelyEqual(4.9096191012797125d-1, soln%nj(idx_electron)/soln%n, tol)
+
+    end subroutine
+
+    @test
     subroutine test_negative_reactant
         type(Mixture) :: products
         type(Mixture) :: reactants
