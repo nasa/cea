@@ -17,6 +17,10 @@ jmp_buf *cea_bindc_abort_jmp_buf(void);
 cea_err cea_init_fortran(void);
 cea_err cea_init_thermo_fortran(const cea_string thermofile);
 cea_err cea_init_trans_fortran(const cea_string transfile);
+cea_err cea_reactant_get_valid_temperature_range_fortran(
+    const cea_string name,
+    cea_real *temperature_min,
+    cea_real *temperature_max);
 
 cea_err cea_mixture_create_fortran(
     cea_mixture *mix,

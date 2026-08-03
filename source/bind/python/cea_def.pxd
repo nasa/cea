@@ -271,6 +271,8 @@ cdef extern from "cea.h":
     cpdef cea_err cea_init_thermo(const cea_string thermofile)
     cpdef cea_err cea_init_trans(const cea_string transfile)
     cpdef cea_err cea_is_initialized(cea_int *initialized)
+    cpdef cea_err cea_reactant_get_valid_temperature_range(const cea_string name, cea_real *temperature_min,
+                                                            cea_real *temperature_max)
 
     # Mixture
     cpdef cea_err cea_mixture_create(cea_mixture *mix, const cea_int nspecies, const cea_string species[])

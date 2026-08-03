@@ -134,6 +134,8 @@ contains
     subroutine test_reactant_thermo()
 
         type(ThermoDB) :: db
+        real(dp) :: T_min, T_max
+        integer :: i
         db = read_thermo("data/thermo.lib")
 
         @assertEqual("(CH2)x(cr)" ,db%reactant_thermo(1)%name)
@@ -146,6 +148,18 @@ contains
         @assertEqual(14.026579999999999d0 ,db%reactant_thermo(1)%molecular_weight)
         @assertEqual(298.14999999999998d0 ,db%reactant_thermo(1)%T_ref)
         @assertEqual(-25600.000000000000d0 ,db%reactant_thermo(1)%enthalpy_ref)
+
+        call db%reactant_thermo(1)%get_valid_temperature_range(T_min, T_max)
+        @assertEqual(288.14999999999998d0, T_min)
+        @assertEqual(308.14999999999998d0, T_max)
+
+        do i = 1, db%num_reactants
+            if (allocated(db%reactant_thermo(i)%T_fit)) exit
+        end do
+        @assertTrue(i <= db%num_reactants)
+        call db%reactant_thermo(i)%get_valid_temperature_range(T_min, T_max)
+        @assertEqual(minval(db%reactant_thermo(i)%T_fit(:, 1)), T_min)
+        @assertEqual(maxval(db%reactant_thermo(i)%T_fit(:, 2)), T_max)
 
         ! @assertEqual("RP-1" ,db%reactant_thermo(62)%name)
         ! @assertEqual("C "  ,db%reactant_thermo(62)%formula%elements(1))

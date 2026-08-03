@@ -194,6 +194,8 @@ class Reactant:
     enthalpy_units: str | None
     temperature: float | None
 
+    def get_valid_temperature_range(self) -> tuple[float, float]: ...
+
     @overload
     def __init__(
         self,

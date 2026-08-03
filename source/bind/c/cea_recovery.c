@@ -44,6 +44,19 @@ cea_err cea_init_trans(const cea_string transfile)
   CEA_GUARD_END(cea_init_trans_fortran(transfile));
 }
 
+cea_err cea_reactant_get_valid_temperature_range(
+    const cea_string name,
+    cea_real *temperature_min,
+    cea_real *temperature_max)
+{
+  if (name == NULL || temperature_min == NULL || temperature_max == NULL)
+  {
+    return CEA_INVALID_SIZE;
+  }
+  CEA_GUARD_BEGIN();
+  CEA_GUARD_END(cea_reactant_get_valid_temperature_range_fortran(name, temperature_min, temperature_max));
+}
+
 cea_err cea_mixture_create(cea_mixture *mix, const cea_int nspecies, const cea_string species[])
 {
   if (mix != NULL)

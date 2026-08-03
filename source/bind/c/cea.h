@@ -135,6 +135,12 @@ extern "C"
   cea_err cea_init_trans(const cea_string transfile);
   cea_err cea_is_initialized(cea_int *initialized);
 
+  // Inclusive valid temperature bounds for a database reactant, in K
+  cea_err cea_reactant_get_valid_temperature_range(
+      const cea_string name,
+      cea_real *temperature_min,
+      cea_real *temperature_max);
+
   //----------------------------------------------------------------------
   // Mixture API
   //----------------------------------------------------------------------

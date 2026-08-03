@@ -417,6 +417,33 @@ contains
         end if
     end function
 
+    function cea_reactant_get_valid_temperature_range(cname, T_min, T_max) result(ierr) &
+        bind(c, name="cea_reactant_get_valid_temperature_range_fortran")
+        integer(c_int) :: ierr
+        character(c_char), intent(in) :: cname(*)
+        real(c_double), intent(out) :: T_min, T_max
+        character(:), allocatable :: name
+        integer :: i
+
+        T_min = 0.0d0
+        T_max = 0.0d0
+        if (.not. thermo_initialized) then
+            ierr = CEA_INVALID_SIZE
+            return
+        end if
+
+        call c_copy(cname, name)
+        do i = 1, global_thermodb%num_reactants
+            if (names_match(name, global_thermodb%reactant_name_list(i))) then
+                call global_thermodb%reactant_thermo(i)%get_valid_temperature_range(T_min, T_max)
+                ierr = CEA_SUCCESS
+                return
+            end if
+        end do
+
+        ierr = CEA_INVALID_INDEX
+    end function
+
 
     !-----------------------------------------------------------------
     ! Mixture

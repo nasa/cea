@@ -49,6 +49,7 @@ module cea_thermo
 
     contains
         procedure :: is_condensed => st_is_condensed
+        procedure :: get_valid_temperature_range => st_get_valid_temperature_range
         procedure :: calc_cv => st_calc_cv
         procedure :: calc_cp => st_calc_cp
         procedure :: calc_energy => st_calc_energy
@@ -112,6 +113,20 @@ contains
         logical :: tf
         tf = (self%i_phase > 0)
     end function
+
+    pure subroutine st_get_valid_temperature_range(self, T_min, T_max)
+        !! Return the inclusive temperature bounds for this species in K
+        class(SpeciesThermo), intent(in) :: self
+        real(dp), intent(out) :: T_min, T_max
+
+        if (allocated(self%T_fit)) then
+            T_min = minval(self%T_fit(:, 1))
+            T_max = maxval(self%T_fit(:, 2))
+        else
+            T_min = self%T_ref - 10.0d0
+            T_max = self%T_ref + 10.0d0
+        end if
+    end subroutine
 
     elemental function st_calc_cv(self, T) result(cv)
         class(SpeciesThermo), intent(in) :: self

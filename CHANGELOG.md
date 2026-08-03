@@ -9,6 +9,8 @@ All notable user-visible changes to this project are documented here.
 ### Fixed
 
 ### Added
+- Added Fortran, C, and Python APIs for querying a database reactant's inclusive
+  valid temperature range in Kelvin before constructing a mixture.
 
 ## [3.3.1] - 2026-07-29
 

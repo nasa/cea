@@ -666,6 +666,40 @@ cdef class Reactant:
         self._enthalpy_core_units = enthalpy_core_units
         self._enthalpy_is_weight_units = bool(enthalpy_is_weight_units)
 
+    def get_valid_temperature_range(self):
+        """
+        Return the inclusive valid temperature bounds for this database reactant.
+
+        Returns
+        -------
+        tuple of float
+            Minimum and maximum valid temperatures in K.
+
+        Raises
+        ------
+        ValueError
+            If ``name`` is not present in the reactant database.
+        RuntimeError
+            If the thermo database is not initialized or the binding call fails.
+
+        Notes
+        -----
+        This is a database-name query. Custom formula, enthalpy, and temperature
+        overrides do not alter the returned bounds.
+        """
+        cdef cea_err ierr
+        cdef cea_real temperature_min
+        cdef cea_real temperature_max
+        cdef _CString encoded_name = _CString(self.name, "Reactant name")
+
+        ierr = cea_reactant_get_valid_temperature_range(
+            encoded_name.ptr, &temperature_min, &temperature_max
+        )
+        if ierr == CEA_INVALID_INDEX:
+            raise ValueError(f"Reactant not found in thermo database: {self.name}")
+        _check_ierr(ierr, "Reactant.get_valid_temperature_range")
+        return float(temperature_min), float(temperature_max)
+
 
 cdef tuple _normalize_enthalpy_units(object enthalpy_units):
     cdef str units_text
