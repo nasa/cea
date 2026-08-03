@@ -1068,12 +1068,15 @@ contains
 
     end function
 
-    function mixture_calc_pressure_single(self, densities, temperature) result(p)
+    function mixture_calc_pressure_single(self, densities, temperature, include_condensed) result(p)
+        ! Condensed species normally have no ideal-gas pressure contribution. The optional
+        ! override supports fixed-mixture volume and density queries for reactants.
 
         ! Arguments
         class(Mixture), intent(in) :: self
         real(dp), intent(in) :: densities(:)
         real(dp), intent(in) :: temperature
+        logical, intent(in), optional :: include_condensed
 
         ! Return
         real(dp) :: p
@@ -1081,12 +1084,16 @@ contains
         ! Locals
         integer :: j
         real(dp) :: n, nj
+        logical :: include_condensed_
 
         call check_array_len(size(densities), self%num_species, 'mixture_calc_pressure_single densities')
 
+        include_condensed_ = .false.
+        if (present(include_condensed)) include_condensed_ = include_condensed
+
         n = 0.0d0
         do j = 1, self%num_species
-            if (self%is_condensed(j)) cycle
+            if (self%is_condensed(j) .and. .not. include_condensed_) cycle
             nj = densities(j)/self%species(j)%molecular_weight
             n = n + nj
         end do
@@ -1094,12 +1101,15 @@ contains
 
     end function
 
-    function mixture_calc_pressure_multi(self, densities, temperatures) result(p)
+    function mixture_calc_pressure_multi(self, densities, temperatures, include_condensed) result(p)
+        ! Condensed species normally have no ideal-gas pressure contribution. The optional
+        ! override supports fixed-mixture volume and density queries for reactants.
 
         ! Arguments
         class(Mixture), intent(in) :: self
         real(dp), intent(in) :: densities(:)
         real(dp), intent(in) :: temperatures(:)
+        logical, intent(in), optional :: include_condensed
 
         ! Return
         real(dp) :: p
@@ -1107,13 +1117,17 @@ contains
         ! Locals
         integer :: j
         real(dp) :: nT, nj
+        logical :: include_condensed_
 
         call check_array_len(size(densities), self%num_species, 'mixture_calc_pressure_multi densities')
         call check_array_len(size(temperatures), self%num_species, 'mixture_calc_pressure_multi temperatures')
 
+        include_condensed_ = .false.
+        if (present(include_condensed)) include_condensed_ = include_condensed
+
         nT = 0.0d0
         do j = 1, self%num_species
-            if (self%is_condensed(j)) cycle
+            if (self%is_condensed(j) .and. .not. include_condensed_) cycle
             nj = densities(j)/self%species(j)%molecular_weight
             nT = nT + nj * temperatures(j)
         end do

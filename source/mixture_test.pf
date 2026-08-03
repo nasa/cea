@@ -293,6 +293,21 @@ contains
     end subroutine
 
     @test
+    subroutine test_calc_pressure_including_condensed
+        type(Mixture) :: mix
+        real(dp), parameter :: tol = 1.d-12
+        real(dp) :: actual, expected
+
+        mix = Mixture(all_thermo, ['CH4(L)', 'O2(L) '])
+
+        expected = gas_constant*(0.2d0*111.0d0/mix%species(1)%molecular_weight + &
+                                 0.8d0*90.0d0/mix%species(2)%molecular_weight)
+        @assertEqual(0.0d0, mix%calc_pressure([0.2d0, 0.8d0], [111.0d0, 90.0d0]))
+        actual = mix%calc_pressure([0.2d0, 0.8d0], [111.0d0, 90.0d0], include_condensed=.true.)
+        @assertRelativelyEqual(expected, actual, tol)
+    end subroutine
+
+    @test
     subroutine test_calc_properties
         ! Taken from output of RP-1311 Example Case 14
 

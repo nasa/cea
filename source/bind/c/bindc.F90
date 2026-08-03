@@ -1151,9 +1151,11 @@ contains
         end if
         select case(prop_type)
             case (CEA_VOLUME)
-                prop_value = 1.d-2*mix%calc_pressure(weights(:ns)/sum(weights(:ns)), temperature)/pressure
+                prop_value = 1.d-2*mix%calc_pressure( &
+                    weights(:ns)/sum(weights(:ns)), temperature, include_condensed=.true.)/pressure
             case (CEA_DENSITY)
-                prop_value = 1.d2*pressure/mix%calc_pressure(weights(:ns)/sum(weights(:ns)), temperature)
+                prop_value = 1.d2*pressure/mix%calc_pressure( &
+                    weights(:ns)/sum(weights(:ns)), temperature, include_condensed=.true.)
             case (CEA_ENTROPY)
                 prop_value = mix%calc_entropy(weights(:ns), temperature, pressure)
             case (CEA_GIBBS_ENERGY)
@@ -1186,9 +1188,11 @@ contains
         end if
         select case(prop_type)
             case (CEA_VOLUME)
-                prop_value = mix%calc_pressure(weights(:ns)/sum(weights(:ns)), temperatures(:ns))/pressure
+                prop_value = 1.d-2*mix%calc_pressure( &
+                    weights(:ns)/sum(weights(:ns)), temperatures(:ns), include_condensed=.true.)/pressure
             case (CEA_DENSITY)
-                prop_value = pressure/mix%calc_pressure(weights(:ns)/sum(weights(:ns)), temperatures(:ns))
+                prop_value = 1.d2*pressure/mix%calc_pressure( &
+                    weights(:ns)/sum(weights(:ns)), temperatures(:ns), include_condensed=.true.)
             case (CEA_ENTROPY)
                 block
                     real(wp) :: pressures(ns)
