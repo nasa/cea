@@ -9,6 +9,19 @@ All notable user-visible changes to this project are documented here.
 ### Fixed
 
 ### Added
+
+## [3.3.2] - 2026-08-05
+
+### Changed
+- Updated the RP-1311 Python documentation examples and quick start to use the
+  current API and match the maintained sample scripts.
+
+### Fixed
+- Fixed volume and density property queries for liquid and other condensed
+  reactant mixtures, including consistent SI conversions for scalar and
+  per-species temperature inputs.
+
+### Added
 - Added Fortran, C, and Python APIs for querying a database reactant's inclusive
   valid temperature range in Kelvin before constructing a mixture.
 
