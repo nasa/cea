@@ -1,7 +1,7 @@
 Example 7 from RP-1311
 ======================
 
-.. note:: The python script for this example is available in the `source/bind/python/cea/samples` directory of the CEA repository.
+.. note:: The Python script for this example is available at `source/bind/python/cea/samples/rp1311/example7.py` in the CEA repository.
 
 Here we describe how to run example 7 from RP-1311 [1]_ using the Python API.
 This is a shock problem example using a mixture of H\ :sub:`2`\ , O\ :sub:`2`\ , and Ar.
@@ -19,7 +19,7 @@ Declare the reactant names, and the moles of each:
 
 .. code-block:: python
 
-    reac_names = [b"H2", b"O2", b"Ar"]
+    reac_names = ["H2", "O2", "Ar"]
     moles = np.array([0.05, 0.05, 0.9])
 
 Define the unshocked temperature and pressure in SI units, as well as the inital shock velocity in m/s.

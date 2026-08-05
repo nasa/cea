@@ -1,6 +1,6 @@
 Example 1 from RP-1311
 ======================
-.. note:: The python script for this example is available in the `source/bind/python/cea/samples` directory of the CEA repository.
+.. note:: The Python script for this example is available at `source/bind/python/cea/samples/rp1311/example1.py` in the CEA repository.
 
 Here we describe how to run example 1 from RP-1311 [1]_ using the Python API. This example is a TP equilibrium problem, with H\ :sub:`2`\  and Air as reactants.
 
@@ -17,16 +17,15 @@ Use :mod:`cea.units` for unit conversions as needed.
 
     # Unit conversions are handled with cea.units helpers.
 
-Declare the product and reactnat species names. Currently, the Python API requires species names to be in bytes format, so we use the `b""` syntax to create byte strings.
-Also note that `prod_names` is optional in general, but in this case, we explicitly define the list of species that we want to be in the final mixture (note for experienced CEA-users: this is akin to the `only` parameter in the legacy interface).
+Declare the product and reactant species names. Also note that `prod_names` is optional in general, but in this case, we explicitly define the list of species that we want to be in the final mixture (note for experienced CEA-users: this is akin to the `only` parameter in the legacy interface).
 
 .. code-block:: python
 
-    reac_names = [b"H2", b"Air"]
-    prod_names = [b"Ar",   b"C",   b"CO",  b"CO2", b"H",
-                  b"H2",   b"H2O", b"HNO", b"HO2", b"HNO2",
-                  b"HNO3", b"N",   b"NH",  b"NO",  b"N2",
-                  b"N2O3", b"O",   b"O2",  b"OH",  b"O3"]
+    reac_names = ["H2", "Air"]
+    prod_names = ["Ar",   "C",   "CO",  "CO2", "H",
+                  "H2",   "H2O", "HNO", "HO2", "HNO2",
+                  "HNO3", "N",   "NH",  "NO",  "N2",
+                  "N2O3", "O",   "O2",  "OH",  "O3"]
 
 Define the thermodynamic states at which we want to solve the equilibrium problem, in SI units.
 
@@ -36,7 +35,7 @@ Define the thermodynamic states at which we want to solve the equilibrium proble
     temperatures = np.array([3000.0, 2000.0])
 
 Define the amounts of each reactant; in this case, a chemical equivalence ratio `chem_eq_ratios` is prescribed (:math:`r_{eq}` in the RP-1311 [2]_).
-The arrays `fuel_moles` and `oxidant_moles` correspond to the `reac_names` list, and sets the mole fraction of each that is part of the fuel and oxidant mixtures, respecttively. In this case, because we are using one fuel and one oxidizer, these are simply `1.0` to indicate which reactant is the fuel and which is the oxidizer.
+The arrays `fuel_moles` and `oxidant_moles` correspond to the `reac_names` list, and set the mole fraction of each that is part of the fuel and oxidant mixtures, respectively. In this case, because we are using one fuel and one oxidizer, these are simply `1.0` to indicate which reactant is the fuel and which is the oxidizer.
 
 .. code-block:: python
 

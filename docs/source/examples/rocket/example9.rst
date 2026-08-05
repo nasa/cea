@@ -1,7 +1,7 @@
 Example 9 from RP-1311
 ======================
 
-.. note:: The python script for this example is available in the `source/bind/python/cea/samples` directory of the CEA repository.
+.. note:: The Python script for this example is available at `source/bind/python/cea/samples/rp1311/example9.py` in the CEA repository.
 
 Here we describe how to run example 9 from RP-1311 [1]_ using the Python API.
 This is a rocket problem assuming a finite-area combustor (FAC), using the contraction ratio :math:`A_c /A_t` to define the combustor area.
@@ -17,7 +17,6 @@ First import the required libraries:
 Use :data:`cea.R` inline when normalizing enthalpy.
 
 Declare the reactants and set their amounts and initial temperatures.
-Currently, the Python API requires species names to be in bytes format, so we use the `b""` syntax to create byte strings.
 The initial reactant temperatures, `T_reactant`, will be used later to compute the chamber enthalpy.
 The amounts of each are specified through the `fuel_weights`, `oxidant_weights`, and `of_ratio` variables specified here.
 Setting the `fuel_weights` array equal to `[1.0, 0.0]` means that `H2(L)` constitutes 100\% of the fuel, and similarly,
@@ -26,7 +25,7 @@ These values will be used in conjunction later with `of_ratio` to compute the ov
 
 .. code-block:: python
 
-    reac_names = [b"H2(L)", b"O2(L)"]
+    reac_names = ["H2(L)", "O2(L)"]
     T_reactant = np.array([20.27, 90.17])  # Reactant temperatures (K)
     fuel_weights = np.array([1.0, 0.0])
     oxidant_weights = np.array([0.0, 1.0])
@@ -62,7 +61,7 @@ Now we will use the reactant :class:`~cea.Mixture` object to compute the overall
 
     weights = reac.of_ratio_to_weights(oxidant_weights, fuel_weights, of_ratio)
 
-And compute the chamber enthalpy value based on the reactants weights and temperatures. We will pass this in later when we call :meth:`~cea.RocketSolver.solve`.
+And compute the chamber enthalpy value based on the reactant weights and temperatures. We will pass this in later when we call :meth:`~cea.RocketSolver.solve`.
 Note that this value is normalized by `R` here.
 
 .. code-block:: python
@@ -75,7 +74,7 @@ Now we can solve the :meth:`~cea.RocketSolver.solve` function:
 
     solver.solve(solution, weights, pc, pi_p, supar=supar, ac_at=ac_at, iac=False, hc=hc)
 
-Finally, querry the solution variables and print them out:
+Finally, query the solution variables and print them out:
 
 .. code-block:: python
 

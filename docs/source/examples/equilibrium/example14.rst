@@ -1,8 +1,8 @@
 Example 14 from RP-1311
 ========================
-.. note:: The python script for this example is available in the `source/bind/python/cea/samples` directory of the CEA repository.
+.. note:: The Python script for this example is available at `source/bind/python/cea/samples/rp1311/example14.py` in the CEA repository.
 
-Here we describe how to run example 14 from RP-1311 [1]_ using the Python API. This example is a TP equilibrium problem with with H\ :sub:`2`\ (L)  and O\ :sub:`2`\ (L)  as reactants.
+Here we describe how to run example 14 from RP-1311 [1]_ using the Python API. This example is a TP equilibrium problem with H\ :sub:`2`\ (L)  and O\ :sub:`2`\ (L)  as reactants.
 This problem results in significant amounts of condensed species in the resulting equilibrium mixture, and is used to illustrate the effects of condensed species on volume and molecular weight.
 
 First import the required libraries:
@@ -22,7 +22,7 @@ Declare the reactant species names:
 
 .. code-block:: python
 
-    reac_names = [b"H2(L)", b"O2(L)"]
+    reac_names = ["H2(L)", "O2(L)"]
 
 Define the thermodynamic states at which we want to solve the equilibrium problem, in SI units.
 

@@ -1,7 +1,7 @@
 Example 12 from RP-1311
 =======================
 
-.. note:: The python script for this example is available in the `source/bind/python/cea/samples` directory of the CEA repository.
+.. note:: The Python script for this example is available at `source/bind/python/cea/samples/rp1311/example12.py` in the CEA repository.
 
 Here we describe how to run example 12 from RP-1311 [1]_ using the Python API.
 
@@ -18,15 +18,14 @@ First import the required libraries:
 Use :mod:`cea.units` for unit conversions and :data:`cea.R` inline when normalizing enthalpy.
 
 Declare the reactants and set their amounts.
-Currently, the Python API requires species names to be in bytes format, so we use the `b""` syntax to create byte strings.
 The amounts of each are specified through the `fuel_weights`, `oxidant_weights`, and `of_ratio` variables specified here.
-Setting the `fuel_weights` array equal to `[1.o, 0.0]` means that CH\ :sub:`6`\ N\ :sub:`2`\ (L)  constitutes 100\% of the fuel,
+Setting the `fuel_weights` array equal to `[1.0, 0.0]` means that CH\ :sub:`6`\ N\ :sub:`2`\ (L)  constitutes 100\% of the fuel,
 and similarly, setting the `oxidant_weights` array equal to `[0.0, 1.0]` means that N\ :sub:`2`\ O\ :sub:`4`\ (L)  constitutes 100\% of the oxidant.
 These values will be used in conjunction later with `of_ratio` to compute the overall weight fraction array of the reactant mixture.
 
 .. code-block:: python
 
-    reac_names = [b"CH6N2(L)", b"N2O4(L)"]
+    reac_names = ["CH6N2(L)", "N2O4(L)"]
     fuel_weights = np.array([1.0, 0.0])
     oxidant_weights = np.array([0.0, 1.0])
     of_ratio = 2.5
@@ -48,10 +47,10 @@ To create the product :class:`~cea.Mixture`, we pass the list of reactant names 
 .. code-block:: python
 
     reac = cea.Mixture(reac_names)
-    prod = cea.Mixture([b"CO", b"CO2", b"H", b"HNO", b"HNO2", b"HO2",
-                        b"H2", b"H2O", b"H2O2", b"N", b"NO", b"NO2",
-                        b"N2", b"N2O", b"O", b"OH", b"O2", b"HCO", b"NH",
-                        b"CH4", b"NH2", b"NH3", b"H2O(L)", b"C(gr)"])
+    prod = cea.Mixture(["CO", "CO2", "H", "HNO", "HNO2", "HO2",
+                        "H2", "H2O", "H2O2", "N", "NO", "NO2",
+                        "N2", "N2O", "O", "OH", "O2", "HCO", "NH",
+                        "CH4", "NH2", "NH3", "H2O(L)", "C(gr)"])
 
 Now initialize the :class:`~cea.RocketSolver` and :class:`~cea.RocketSolution` class instances.
 
@@ -67,7 +66,7 @@ Compute the array of weight fractions for the reactant mixture:
 
     weights = reac.of_ratio_to_weights(oxidant_weights, fuel_weights, of_ratio)
 
-Compute the chamber enthalpy value based on the reactants weights and temperatures. We will pass this in later when we call :meth:`~cea.RocketSolver.solve`.
+Compute the chamber enthalpy value based on the reactant weights and temperatures. We will pass this in later when we call :meth:`~cea.RocketSolver.solve`.
 Note that this value is normalized by `R` here.
 
 .. code-block:: python
@@ -80,7 +79,7 @@ Now we can solve the :meth:`~cea.RocketSolver.solve` function:
 
     solver.solve(solution, weights, pc, pi_p, supar=supar, iac=True, hc=hc, n_frz=n_frz)
 
-Finally, querry the solution variables and print them out:
+Finally, query the solution variables and print them out:
 
 .. code-block:: python
 

@@ -1,6 +1,6 @@
 Example 6 from RP-1311
 ======================
-.. note:: The python script for this example is available in the `source/bind/python/cea/samples` directory of the CEA repository.
+.. note:: The Python script for this example is available at `source/bind/python/cea/samples/rp1311/example6.py` in the CEA repository.
 
 Here we describe how to run example 6 from RP-1311 [1]_ using the Python API.
 This example is a detonation problem with H\ :sub:`2`\  and O\ :sub:`2`\  as reactants, and includes computing transport properties.
@@ -14,11 +14,11 @@ First import the required libraries:
 
 Use :mod:`cea.units` for unit conversions.
 
-Declare the reactant names. Currently, the Python API requires species names to be in bytes format, so we use the `b""` syntax to create byte strings.
+Declare the reactant names.
 
 .. code-block:: python
 
-    reac_names = [b"H2", b"O2"]
+    reac_names = ["H2", "O2"]
 
 Define the temperature and pressure of the initial reactant mixture, in SI units.
 
@@ -28,7 +28,7 @@ Define the temperature and pressure of the initial reactant mixture, in SI units
     T1 = np.array([298.15, 500.0])  # Initial temperature (K)
 
 Define the amounts of each reactant; in this case, a chemical equivalence ratio `eq_ratios` is prescribed (:math:`r_{eq}` in the RP-1311 [2]_).
-The arrays `fuel_weights` and `oxidant_weights` correspond to the `reac_names` list, and sets the weight fraction of each that is part of the fuel and oxidant mixtures, respecttively.
+The arrays `fuel_weights` and `oxidant_weights` correspond to the `reac_names` list, and set the weight fraction of each that is part of the fuel and oxidant mixtures, respectively.
 In this case, because we are using one fuel and one oxidizer, these are simply `1.0` to indicate which reactant is the fuel and which is the oxidizer.
 
 .. code-block:: python

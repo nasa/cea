@@ -1,6 +1,6 @@
 Example 4 from RP-1311
 ======================
-.. note:: The python script for this example is available in the `source/bind/python/cea/samples` directory of the CEA repository.
+.. note:: The Python script for this example is available at `source/bind/python/cea/samples/rp1311/example4.py` in the CEA repository.
 
 Here we describe how to run example 4 from RP-1311 [1]_ using the Python API.
 This is a UV equilibrium problem, which is otherwise identical to :doc:`Example 3 <example3>`.
@@ -15,27 +15,27 @@ For that reason, the comments in this example will be limited to the minor diffe
     trace = 1e-15
 
     # Species
-    reac_names = [b"Air", b"C7H8(L)", b"C8H18(L),n-octa"]
-    omit_names = [b"CCN", b"CNC", b"C2N2", b"C2O",
-                  b"C3H4,allene", b"C3H4,propyne", b"C3H4,cyclo-", b"C3",
-                  b"C3H5,allyl", b"C3H6,propylene", b"C3H6,cyclo-", b"C3H3,propargyl",
-                  b"C3H6O", b"C3H7,n-propyl", b"C3H7,i-propyl", b"Jet-A(g)",
-                  b"C3O2", b"C4", b"C4H2", b"C3H8O,2propanol",
-                  b"C4H4,1,3-cyclo-", b"C4H6,butadiene", b"C4H6,2-butyne", b"C3H8O,1propanol",
-                  b"C4H8,tr2-butene", b"C4H8,isobutene", b"C4H8,cyclo-", b"C4H6,cyclo-",
-                  b"(CH3COOH)2", b"C4H9,n-butyl", b"C4H9,i-butyl", b"C4H8,1-butene",
-                  b"C4H9,s-butyl", b"C4H9,t-butyl", b"C4H10,isobutane", b"C4H8,cis2-buten",
-                  b"C4H10,n-butane", b"C4N2", b"C5", b"C3H8",
-                  b"C5H6,1,3cyclo-", b"C5H8,cyclo-", b"C5H10,1-pentene", b"C10H21,n-decyl",
-                  b"C5H10,cyclo-", b"C5H11,pentyl", b"C5H11,t-pentyl", b"C12H10,biphenyl",
-                  b"C5H12,n-pentane", b"C5H12,i-pentane", b"CH3C(CH3)2CH3", b"C12H9,o-bipheny",
-                  b"C6H6", b"C6H5OH,phenol", b"C6H10,cyclo-", b"C6H2",
-                  b"C6H12,1-hexene", b"C6H12,cyclo-", b"C6H13,n-hexyl", b"C6H5,phenyl",
-                  b"C7H7,benzyl", b"C7H8", b"C7H8O,cresol-mx", b"C6H5O,phenoxy",
-                  b"C7H14,1-heptene", b"C7H15,n-heptyl", b"C7H16,n-heptane", b"C10H8,azulene",
-                  b"C8H8,styrene", b"C8H10,ethylbenz", b"C8H16,1-octene", b"C10H8,napthlene",
-                  b"C8H17,n-octyl", b"C8H18,isooctane", b"C8H18,n-octane", b"C9H19,n-nonyl",
-                  b"Jet-A(L)", b"C6H6(L)", b"H2O(s)", b"H2O(L)"]
+    reac_names = ["Air", "C7H8(L)", "C8H18(L),n-octa"]
+    omit_names = ["CCN", "CNC", "C2N2", "C2O",
+                  "C3H4,allene", "C3H4,propyne", "C3H4,cyclo-", "C3",
+                  "C3H5,allyl", "C3H6,propylene", "C3H6,cyclo-", "C3H3,propargyl",
+                  "C3H6O", "C3H7,n-propyl", "C3H7,i-propyl", "Jet-A(g)",
+                  "C3O2", "C4", "C4H2", "C3H8O,2propanol",
+                  "C4H4,1,3-cyclo-", "C4H6,butadiene", "C4H6,2-butyne", "C3H8O,1propanol",
+                  "C4H8,tr2-butene", "C4H8,isobutene", "C4H8,cyclo-", "C4H6,cyclo-",
+                  "(CH3COOH)2", "C4H9,n-butyl", "C4H9,i-butyl", "C4H8,1-butene",
+                  "C4H9,s-butyl", "C4H9,t-butyl", "C4H10,isobutane", "C4H8,cis2-buten",
+                  "C4H10,n-butane", "C4N2", "C5", "C3H8",
+                  "C5H6,1,3cyclo-", "C5H8,cyclo-", "C5H10,1-pentene", "C10H21,n-decyl",
+                  "C5H10,cyclo-", "C5H11,pentyl", "C5H11,t-pentyl", "C12H10,biphenyl",
+                  "C5H12,n-pentane", "C5H12,i-pentane", "CH3C(CH3)2CH3", "C12H9,o-bipheny",
+                  "C6H6", "C6H5OH,phenol", "C6H10,cyclo-", "C6H2",
+                  "C6H12,1-hexene", "C6H12,cyclo-", "C6H13,n-hexyl", "C6H5,phenyl",
+                  "C7H7,benzyl", "C7H8", "C7H8O,cresol-mx", "C6H5O,phenoxy",
+                  "C7H14,1-heptene", "C7H15,n-heptyl", "C7H16,n-heptane", "C10H8,azulene",
+                  "C8H8,styrene", "C8H10,ethylbenz", "C8H16,1-octene", "C10H8,napthlene",
+                  "C8H17,n-octyl", "C8H18,isooctane", "C8H18,n-octane", "C9H19,n-nonyl",
+                  "Jet-A(L)", "C6H6(L)", "H2O(s)", "H2O(L)"]
 
 Here, the fixed value of :math:`u/R` and :math:`{\rho}` (`density`) are pulled from the output of :doc:`Example 3 <example3>`.
 

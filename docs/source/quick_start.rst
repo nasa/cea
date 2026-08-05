@@ -82,25 +82,24 @@ output naming.
 Quick Python Example
 --------------------
 
-The editable install emitted by ``cmake --build`` exposes the Python API.  From
-the repository root::
+After installing the Python binding, solve a stoichiometric H\ :sub:`2`/O\ :sub:`2`
+constant-enthalpy, constant-pressure (HP) combustion problem as follows::
 
-    pip install -e .
-    python - <<'PY'
     import numpy as np
-    from cea import EqSolver, TP, TEMPERATURE, PRESSURE
+    import cea
 
-    solver = EqSolver()
-    solver.set_problem_type(TP)
-    solver.set_state_property(TEMPERATURE, 3500.0)  # Kelvin
-    solver.set_state_property(PRESSURE, 1.0e6)      # Pa
-    solver.set_reactant_fraction("H2", 2.0)
-    solver.set_reactant_fraction("O2", 1.0)
-    solution = solver.solve()
-    print("Equilibrium temperature:", solution.temperature, "K")
-    print("Major species:", dict(zip(solution.species_names,
-                                     np.round(solution.mass_fractions, 3))))
-    PY
+    reactants = cea.Mixture(["H2", "O2"])
+    products = cea.Mixture(["H2", "O2"], products_from_reactants=True)
+    solver = cea.EqSolver(products, reactants=reactants)
+    solution = cea.EqSolution(solver)
+
+    moles = np.array([2.0, 1.0])
+    weights = reactants.moles_to_weights(moles)
+    initial_enthalpy = reactants.calc_property(cea.ENTHALPY, weights, 298.15)
+    pressure = cea.units.atm_to_bar(1.0)
+
+    solver.solve(solution, cea.HP, initial_enthalpy / cea.R, pressure, weights)
+    print(f"Adiabatic flame temperature: {solution.T:.1f} K")
 
 CEA does not perform unit conversions by default; inputs and outputs are in the
 documented CEA units, and users must convert as needed. Use the conversion

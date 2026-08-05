@@ -1,6 +1,6 @@
 Example 5 from RP-1311
 ======================
-.. note:: The python script for this example is available in the `source/bind/python/cea/samples` directory of the CEA repository.
+.. note:: The Python script for this example is available at `source/bind/python/cea/samples/rp1311/example5.py` in the CEA repository.
 
 Here we describe how to run example 5 from RP-1311 [1]_ using the Python API.
 This is an HP equilibrium problem for a solid propellant blend with five reactants,

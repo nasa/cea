@@ -1,7 +1,7 @@
 Example 11 from RP-1311
 =======================
 
-.. note:: The python script for this example is available in the `source/bind/python/cea/samples` directory of the CEA repository.
+.. note:: The Python script for this example is available at `source/bind/python/cea/samples/rp1311/example11.py` in the CEA repository.
 
 Here we describe how to run example 11 from RP-1311 [1]_ using the Python API.
 This is a rocket problem assuming an infinite-area combustor (IAC), using Li(cr) and F\ :sub:`2`\ (L)  as reactants.
@@ -18,16 +18,24 @@ First import the required libraries:
 Use :mod:`cea.units` for unit conversions and :data:`cea.R` inline when normalizing enthalpy.
 
 Declare the reactants and set their amounts and initial temperatures.
-Currently, the Python API requires species names to be in bytes format, so we use the `b""` syntax to create byte strings.
 The initial reactant temperatures, `T_reactant`, will be used later to compute the chamber enthalpy.
 The amounts of each are specified through the `fuel_moles` and `oxidant_moles` variables specified here.
 
 .. code-block:: python
 
-    reac_names = [b"Li(cr)", b"F2(L)"]
+    reac_names = ["Li(cr)", "F2(L)"]
     T_reactant = np.array([298.15, 85.02])  # Reactant temperatures (K)
     fuel_moles = np.array([1.0, 0.0])
     oxidant_moles = np.array([0.0, 0.5556])
+
+Next, define the chamber pressure, pressure ratio, and subsonic and supersonic area ratios:
+
+.. code-block:: python
+
+    pc = cea.units.psi_to_bar(1000.0)  # Chamber pressure (bar)
+    pi_p = [68.0457]   # Pressure ratio
+    subar = [10.0]
+    supar = [10.0, 20.0, 100.0]  # Supersonic area ratio
 
 Now we will instantiate the reactant and product :class:`~cea.Mixture` objects.
 To create the product :class:`~cea.Mixture`, we pass the list of reactant names along with the flag `products_from_reactants=True`, which will return the full set of possible product species.
@@ -58,7 +66,7 @@ Compute the array of weight fractions for the reactant mixture:
     oxidant_weights = reac.moles_to_weights(oxidant_moles)
     weights = fuel_weights + oxidant_weights
 
-Compute the chamber enthalpy value based on the reactants weights and temperatures. We will pass this in later when we call :meth:`~cea.RocketSolver.solve`.
+Compute the chamber enthalpy value based on the reactant weights and temperatures. We will pass this in later when we call :meth:`~cea.RocketSolver.solve`.
 Note that this value is normalized by `R` here.
 
 .. code-block:: python
@@ -71,7 +79,7 @@ Now we can solve the :meth:`~cea.RocketSolver.solve` function:
 
     solver.solve(solution, weights, pc, pi_p, subar=subar, supar=supar, iac=True, hc=hc)
 
-Finally, querry the solution variables and print them out:
+Finally, query the solution variables and print them out:
 
 .. code-block:: python
 
