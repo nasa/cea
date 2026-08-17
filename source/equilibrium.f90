@@ -2725,18 +2725,12 @@ contains
         type(EqSolver), intent(in) :: solver
         type(EqSolution), intent(inout) :: solution
 
-        if (solver%smooth_truncation) then
-            call EqDerivatives_assemble_effective_jacobian(self, solver, solution)
-        else
-            call solver%assemble_matrix(solution)
-            self%J = solution%G(:self%m, :self%m)
-        end if
+        call EqDerivatives_assemble_effective_jacobian(self, solver, solution)
     end subroutine
 
     subroutine EqDerivatives_assemble_effective_jacobian(self, solver, solution)
-        ! Assemble the derivative-only Jacobian for smooth problems using the
-        ! converged effective residual linearization rather than the forward
-        ! Newton update matrix.
+        ! Assemble the derivative-only Jacobian from the converged effective
+        ! residual rather than reusing the forward Newton update matrix.
 
         ! Arguments
         class(EqDerivatives), intent(inout) :: self
@@ -2752,6 +2746,7 @@ contains
         real(dp) :: ln_n
         real(dp) :: ln_threshold
         real(dp) :: n_delta
+        real(dp) :: hsu_delta
         real(dp) :: tmp(solver%num_gas)
         real(dp) :: mu_g(solver%num_gas)
         real(dp) :: ln_nj_eff(solver%num_gas)
@@ -2811,6 +2806,14 @@ contains
         nj_eval = solution%nj
         nj_eval(:ng) = nj_eff_g
         n_delta = n - sum(nj_eff_g)
+        hsu_delta = 0.0d0
+        if (const_h) then
+            hsu_delta = solution%constraints%state1/solution%T - &
+                        dot_product(nj_eval, solution%thermo%enthalpy)
+        else if (const_u) then
+            hsu_delta = solution%constraints%state1/solution%T - &
+                        dot_product(nj_eval, solution%thermo%energy)
+        end if
 
         self%J = 0.0d0
         r = 0
@@ -2913,9 +2916,9 @@ contains
 
             c = c + 1
             if (const_p) then
-                self%J(r, c) = dot_product(nj_eval, cp) + dot_product(tmp, h_g)
+                self%J(r, c) = dot_product(nj_eval, cp) + dot_product(tmp, h_g) + hsu_delta
             else
-                self%J(r, c) = dot_product(nj_eval, cv) + dot_product(tmp, u_g)
+                self%J(r, c) = dot_product(nj_eval, cv) + dot_product(tmp, u_g) + hsu_delta
                 if (const_s) then
                     self%J(r, c) = self%J(r, c) - dot_product(nj_eff_g, u_g)
                 end if
@@ -3125,9 +3128,6 @@ contains
                 end if
             else
                 self%Rx(r, c) = 0.0d0
-                if (.not. const_p) then
-                    self%Rx(r, c) = self%Rx(r, c) - sum(tmp)/T
-                end if
             end if
 
             ! dR/dx3...n (x3...n: element amounts)

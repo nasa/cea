@@ -143,14 +143,14 @@ contains
     elemental function calc_denthalpy_dT(self,T) result(dh_dT)
         class(ThermoFit), intent(in) :: self
         real(dp), intent(in) :: T
-        real(dp) :: dh_dT  ! h/R
+        real(dp) :: dh_dT  ! d(H/R)/dT = cp/R
         dh_dT = self%a7
         dh_dT = T*dh_dT + self%a6
         dh_dT = T*dh_dT + self%a5
         dh_dT = T*dh_dT + self%a4
         dh_dT = T*dh_dT + self%a3
         dh_dT = T*dh_dT + self%a2
-        dh_dT = T*dh_dT + 2.0d0*self%a1
+        dh_dT = T*dh_dT + self%a1
         dh_dT = dh_dT/(T*T)
     end function
 

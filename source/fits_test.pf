@@ -47,4 +47,14 @@ contains
         @assertRelativelyEqual(g, h - T*s, tol)
     end subroutine
 
+    @test
+    subroutine test_thermo_derivatives
+        real(dp), parameter :: T = 600.0d0
+        real(dp), parameter :: tol = 1.0d-12
+        real(dp) :: cp
+        cp = fit%calc_cp(T)
+        @assertRelativelyEqual(cp, fit%calc_denthalpy_dT(T), tol)
+        @assertRelativelyEqual(cp/T, fit%calc_dentropy_dT(T), tol)
+    end subroutine
+
 end module
