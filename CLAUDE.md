@@ -120,6 +120,12 @@ Test locations:
 - scikit-build-core
 - Ninja (build time)
 
+## Contribution Workflow
+
+- Before opening or drafting an issue, use the appropriate template in `.github/ISSUE_TEMPLATE/` (`bug_report.md` or `feature_request.md`).
+- Before opening or drafting a pull request, follow `.github/pull_request_template.md` — fill in every section (Summary, Changes, Testing, Compatibility/Numerical behavior).
+- See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow, including when to open an issue first vs. going straight to a PR for small, well-scoped changes.
+
 ## References
 
 When in doubt, refer to:
