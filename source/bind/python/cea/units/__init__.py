@@ -71,7 +71,10 @@ def kelvin_to_rankine(value):
 # Pressure --------------------------------------------------------------------
 
 _ATM_TO_BAR = 1.01325
-_PSI_TO_BAR = _ATM_TO_BAR/14.696006
+# 1 atm = 14.695948775513 psi, derived from the exact SI base-unit definitions
+# of the lbf, inch, and atm. Matches the Fortran core's psi_to_bar
+# (source/units.f90) to ~9 significant figures.
+_PSI_TO_BAR = _ATM_TO_BAR/14.695948775513
 _MMHG_TO_BAR = _ATM_TO_BAR/760.0
 
 
