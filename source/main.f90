@@ -556,7 +556,7 @@ contains
         type(ShockSolution) :: solution
         real(dp) :: T0, P0, u1, mach1
         real(dp), allocatable :: weights(:)
-        logical :: incident, input_reflected, frozen, equilibrium, incident_frozen, reflected_frozen, reflected, use_mach
+        logical :: input_reflected, frozen, equilibrium, incident_frozen, reflected_frozen, reflected, use_mach
         logical :: stop_after_branch, branch_failed
         integer :: i, k, idx_P, idx_T, npts, num_u1, num_P, num_T
         integer, parameter :: BR_INCD_EQ = 1
@@ -585,21 +585,12 @@ contains
         products = Mixture(thermo, product_names, ions=prob%problem%include_ions)
 
         ! Get the problem flags
-        if (prob%problem%shk_incident) then
-            incident = .true.
-        else
-            incident = .false.
-        end if
-
         if (prob%problem%shk_reflected) then
             input_reflected = .true.
             reflected = .true.
         else
             input_reflected = .false.
             reflected = .false.
-            if (.not. incident) then
-                incident = .true.  ! Incident by default
-            end if
         end if
 
         if (prob%problem%equilibrium) then
@@ -617,29 +608,16 @@ contains
             end if
         end if
 
-        ! Match the SHCK branch sequencing. When the input explicitly requests
-        ! incident-shock output (`inc`), CEA2 reports only that incident branch,
-        ! with the reflected state attached if requested. The extra mixed
-        ! equilibrium/frozen permutations are only explored for reflected-only
-        ! request patterns.
-        if (incident) then
-            npts = 1
-        else
-            npts = 0
-            if (equilibrium) then
-                npts = npts + 1
-                if (input_reflected .and. frozen) then
-                    npts = npts + 1
-                else if (input_reflected) then
-                    ! Equilibrium-only reflected shock prints incident and reflected states together.
-                end if
-            end if
-            if (frozen) then
-                npts = npts + 1
-                if (input_reflected .and. equilibrium) npts = npts + 1
-            end if
-            if (npts == 0) npts = 1
-        end if
+        ! Match the SHCK branch sequencing. Each requested composition model
+        ! produces an incident branch. A reflected request applies each
+        ! requested model to every incident branch, so requesting both
+        ! equilibrium and frozen models produces four incident/reflected
+        ! combinations.
+        npts = 0
+        if (equilibrium) npts = npts + 1
+        if (frozen) npts = npts + 1
+        if (npts == 0) npts = 1
+        if (input_reflected) npts = npts*npts
 
         ! Get the loop sizes
         num_u1 = 1
@@ -740,7 +718,7 @@ contains
                 if (.not. solution%converged .and. input_reflected) branch_failed = .true.
             end do
 
-            if ((.not. incident) .and. input_reflected .and. frozen) then
+            if (input_reflected .and. frozen) then
                 k = k + 1
                 branch_codes(k) = BR_REFL_EQ_FROM_EQ
                 incident_frozen = .false.
@@ -784,7 +762,7 @@ contains
             if (input_reflected .and. branch_failed) stop_after_branch = .true.
         end if
 
-        if (frozen .and. .not. stop_after_branch .and. (.not. incident .or. .not. equilibrium)) then
+        if (frozen .and. .not. stop_after_branch) then
             k = k + 1
             if (input_reflected) then
                 branch_codes(k) = BR_INCD_FRZ_REFL_FRZ
@@ -1101,7 +1079,9 @@ contains
             have_reflected_state = .false.
             do i = 1, m
                 if (solutions(i, 1, k)%eq_soln(2)%T > 0.0d0) have_incident_state = .true.
-                if (solutions(i, 1, k)%eq_soln(3)%T > 0.0d0) have_reflected_state = .true.
+                if (size(solutions(i, 1, k)%eq_soln) >= 3) then
+                    if (solutions(i, 1, k)%eq_soln(3)%T > 0.0d0) have_reflected_state = .true.
+                end if
             end do
             if (.not. have_incident_state) then
                 write_incd_frz = .false.

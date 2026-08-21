@@ -75,6 +75,8 @@ def parse_output(fname):
     trace_next = False  # Trace species get parsed on the next line
     frozen = False  # Transport property type
     count_blank = 0  # Number of blank lines in a row
+    shock_mode = "unknown"
+    shock_state = "unknown"
 
     # Parse the file
     f = open(fname, "r")
@@ -94,6 +96,17 @@ def parse_output(fname):
         if vals[0] == "!":
             continue
 
+        if vals[0].startswith("WARNING") or vals[0] == "ANSWERS":
+            continue
+
+        upper_line = line.upper()
+        if "EQUILIBRIUM COMPOSITION FOR INCIDENT SHOCKED" in upper_line:
+            shock_mode = "equilibrium"
+            continue
+        if "FROZEN COMPOSITION FOR INCIDENT SHOCKED" in upper_line:
+            shock_mode = "frozen"
+            continue
+
         # Check for data headings
         if vals[0] == "THERMODYNAMIC":
             if len(vals) > 1:
@@ -105,8 +118,18 @@ def parse_output(fname):
             parse_flag = Parse.THERMO
             continue
 
-        if (vals[0] == "INITIAL") or (vals[0] == "SHOCKED"):
+        if vals[0] == "INITIAL":
             parse_flag = Parse.SHOCK
+            shock_state = "initial"
+            continue
+
+        if vals[0] == "SHOCKED":
+            parse_flag = Parse.SHOCK
+            shock_state = "reflected" if "REFLECTED" in upper_line else "incident"
+            if "EQUILIBRIUM" in upper_line:
+                shock_mode = "equilibrium"
+            elif "FROZEN" in upper_line:
+                shock_mode = "frozen"
             continue
 
         if (vals[0] == "UNBURNED") or (vals[0] == "BURNED"):
@@ -200,11 +223,13 @@ def parse_output(fname):
             for i in range(len(vals)):
                 vals[i] = parse_numeric(vals[i])
 
+            property_key = f"{shock_mode}:{shock_state}:{property_name}"
+
             # Check if these values are already in the results dict; we are just adding more points
-            if (property_name in shock):  # Adding new entries to existing values
-                shock[property_name]["vals"] = np.append(shock[property_name]["vals"], np.array(vals))
+            if (property_key in shock):  # Adding new entries to existing values
+                shock[property_key]["vals"] = np.append(shock[property_key]["vals"], np.array(vals))
             else:  # Adding a new property type
-                shock[property_name] = {"units":unit_name, "vals":np.array(vals)}
+                shock[property_key] = {"units":unit_name, "vals":np.array(vals)}
 
         if parse_flag == Parse.DETON:
             # Parse the name and the units
@@ -250,6 +275,12 @@ def parse_output(fname):
                 elif (name_vals[0] == "SHOCKED"):
                     trace_next = False
                     parse_flag = Parse.SHOCK
+                    upper_line = line.upper()
+                    shock_state = "reflected" if "REFLECTED" in upper_line else "incident"
+                    if "EQUILIBRIUM" in upper_line:
+                        shock_mode = "equilibrium"
+                    elif "FROZEN" in upper_line:
+                        shock_mode = "frozen"
                     continue
                 else:
                     for species_name in name_vals:

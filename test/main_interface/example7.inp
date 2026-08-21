@@ -6,22 +6,21 @@
 !          reactants at the temperature given (300 K) using the thermo.lib
 !          coefficients.
 !     (c)  Reactants are given in moles (moles = ...).
-!     (d)  Initial gas pressures are 10 and 20 mm Hg (p,mmhg=10,20,)
-!     (e)  Seven initial gas velocities are assigned (u1=1000,1100,1200,
-!          1250,1300,1350,1400,).  Note units of u1 are always m/s.
+!     (d)  The initial gas pressure is 10 mm Hg (p,mmhg=10,).
+!     (e)  Six initial gas velocities are assigned (u1=1100,1200,1250,
+!          1300,1350,1400,).  Note units of u1 are always m/s.
 !     (f)  Equilibrium calculations are to be performed for incident shock
 !          conditions (incd  eql).
 !     (g)  Frozen calculations are to be performed for incident shock
 !          conditions (incd  froz).
-!     (h)  No 'outp' dataset is given since the default values of the
-!          the parameters have the desired  values (e.g. SI units).
+!     (h)  Long-format output is requested for validation.
 
 reac   name= H2  moles= 0.050  t(k) 300.00
        name= O2  moles= 0.050  t(k) 300.00
        name= Ar  moles= 0.900  t(k) 300.00
 
 problem  case=7 p,mmhg=10, shock u1=1100,1200,1250,1300,1350,1400,
-  incd refl eql
+  incd eql froz
 output long
 
 end

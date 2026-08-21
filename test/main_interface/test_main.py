@@ -70,10 +70,14 @@ thermo_val_to_test = {"P":"P", "T":"T", "RHO":"Density", "H":"H", "U":"U", "G":"
 trans_val_to_test = {"VISC":"Visc", "Cp_fr":"Cp_fr", "CONDUCTIVITY_fr":"Conductivity_fr", "PRANDTL NUMBER_fr":"Prandtl Number_fr",
                      "Cp_eq":"Cp_eq", "CONDUCTIVITY_eq":"Conductivity_eq", "PRANDTL NUMBER_eq":"Prandtl Number_eq"}
 rocket_val_to_test = {"Ae/At":"Ae/At", "CSTAR":"C*", "CF":"Cf", "Ivac":"Ivac", "Isp":"Isp"}
-shock_val_to_test = thermo_val_to_test | {"MACH NUMBER1":"Mach1", "U1":"u1",
-                      "P2/P1":"P2/P1", "T2/T1":"T2/T1", "M2/M1":"M2/M1", "RHO2/RHO1":"rho2/rho1", "V2":"v2",
-                      "U5":"u5",
-                      "P5/P2":"P5/P2", "T5/T2":"T5/T2", "M5/M2":"M5/M2", "RHO5/RHO2":"rho5/rho2", "U5+V2":"u5+u2"}
+shock_val_to_test = {
+    "MACH NUMBER1":"Mach1", "U1":"u1", "P":"P", "T":"T", "H":"H", "U":"U", "G":"G", "S":"S",
+    "M":"M", "(dLV/dLP)t":"(dln(V)/dln(P))t", "(dLV/dLT)p":"(dln(V)/dln(T))p",
+    "Cp":"Cp", "GAMMAs":"Gamma_s", "SON VEL":"Son. Vel.", "U2":"u2",
+    "P2/P1":"P2/P1", "T2/T1":"T2/T1", "M2/M1":"M2/M1", "RHO2/RHO1":"rho2/rho1", "V2":"v2",
+    "U5":"u5", "P5/P2":"P5/P2", "T5/T2":"T5/T2", "M5/M2":"M5/M2",
+    "RHO5/RHO2":"rho5/rho2", "U5+V2":"u5+v2",
+}
 deton_val_to_test = thermo_val_to_test | {"P1":"P1", "T1":"T1", "H1":"H1", "M1":"M1", "GAMMA1":"Gamma1", "SON VEL1":"Son. Vel.1",
                                           "P/P1":"P/P1", "T/T1":"T/T1", "M/M1":"M/M1", "RHO/RHO1":"rho/rho1",
                                           "DET MACH NUMBER":"Det. Mach Number", "DET VEL":"Det. Vel."}
@@ -434,6 +438,63 @@ for test in test_names:
                         print(f"{var:18s}: {ref_val:12.4f} | {test_val:12.4e} | {100*rel_err:11.3f}%")
                     else:
                         print(f"{var:18s}: {ref_val:12.4f} | {test_val:12.4f} | {100*rel_err:11.3f}%")
+
+    # Compare shock output
+    # --------------------
+    for ref_key in shock_ref:
+        mode, state, ref_var = ref_key.split(":", 2)
+        if ref_var == "RHO":
+            test_var = "rho1" if state == "initial" else "rho"
+        else:
+            test_var = shock_val_to_test.get(ref_var)
+        if test_var is None:
+            test_passed = False
+            warnings.warn(f"Shock property {ref_key} has no comparison mapping. SKIPPING.")
+            continue
+
+        test_key = f"{mode}:{state}:{test_var}"
+        if test_key not in shock:
+            test_passed = False
+            warnings.warn(f"Shock property {ref_key} not found as {test_key} in test output. SKIPPING.")
+            continue
+
+        ref_vals = shock_ref[ref_key]["vals"]
+        test_vals = shock[test_key]["vals"]
+        ref_len = len(ref_vals)
+        test_len = len(test_vals)
+        if ref_len != test_len:
+            test_passed = False
+            warnings.warn(
+                f"Shock property {ref_key} has reference length of {ref_len}; "
+                f"test array has length of {test_len}. SKIPPING."
+            )
+            continue
+
+        for i in range(ref_len):
+            ref_val = ref_vals[i]
+            test_val = test_vals[i]
+            if round_vals:
+                test_val = ref_round(ref_val, test_val)
+
+            abs_err = abs(test_val - ref_val)
+            rel_err = abs_err
+            if abs(ref_val) > 1e-20:
+                rel_err /= abs(ref_val)
+
+            test_names_csv.append(test)
+            variable.append(ref_key)
+            value.append(test_val)
+            reference.append(ref_val)
+            value_type.append("shock")
+            abs_error.append(abs_err)
+            rel_error.append(rel_err)
+
+            if (rel_err > rtol) or print_all:
+                if test_passed:
+                    print("                    Reference    | Test         | Rel. Error ")
+                    print("--------------------------------------------------------------")
+                test_passed = False
+                print(f"{ref_key:36s}: {ref_val:12.4e} | {test_val:12.4e} | {100*rel_err:11.3f}%")
 
     # Compare species output
     # ----------------------
