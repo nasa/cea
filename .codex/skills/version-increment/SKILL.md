@@ -17,13 +17,15 @@ Use this skill when the user provides a new version number and wants the repo pr
 - `CMakeLists.txt` (`project(... VERSION x.y.z)`).
 - `source/bind/python/cea/__init__.py` (`__version__ = "x.y.z"`).
 - `docs/source/conf.py` (`release = '...'`).
+- `project.md` (`version: x.y.z`) — FORD doc-generator metadata; currently unreferenced elsewhere in the repo/CI, kept accurate in case FORD is reintroduced.
+- `Doxyfile` (`PROJECT_NUMBER = x.y.z`) — Doxygen config invoked by docs.yml; feeds the Doxygen->Breathe->Sphinx pipeline but the value itself doesn't appear to render on the published site.
 
 Update these locations and verify no additional hard-coded version literals remain outside generated docs.
 
 ## Workflow
 
 1. Validate `new_version` format and ensure it is greater than the current version.
-2. Update the three known hard-coded version locations.
+2. Update the five known hard-coded version locations.
 3. Search for additional stale literals:
    - Prefer `rg -n "<old_version>|release\s*=|__version__\s*=|VERSION\s+[0-9]+\.[0-9]+\.[0-9]+"`
    - Exclude generated docs: `docs/_build/`, `docs/doxygen/`.
