@@ -5,6 +5,14 @@ All notable user-visible changes to this project are documented here.
 ## [Unreleased]
 
 ### Changed
+
+### Fixed
+
+### Added
+
+## [3.3.3] - 2026-08-24
+
+### Changed
 - Reworked equilibrium total-derivative post-processing as a vector-valued
   response Jacobian and reused one Jacobian factorization across all direct
   sensitivity right-hand sides. Smooth-mode derivatives now analytically

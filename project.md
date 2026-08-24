@@ -1,6 +1,6 @@
 ---
 project: CEA
-version: 3.3.2
+version: 3.3.3
 src_dir: ./source
 output_dir: ./docs
 project_github: https://github.com/nasa/cea
