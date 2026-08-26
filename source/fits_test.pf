@@ -55,6 +55,7 @@ contains
         cp = fit%calc_cp(T)
         @assertRelativelyEqual(cp, fit%calc_denthalpy_dT(T), tol)
         @assertRelativelyEqual(cp/T, fit%calc_dentropy_dT(T), tol)
+        @assertRelativelyEqual(fit%calc_dcp_dT(T), fit%calc_dcv_dT(T), tol)
     end subroutine
 
 end module

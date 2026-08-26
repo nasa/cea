@@ -112,11 +112,11 @@ contains
         g = g/T + (self%a2 - T*self%a3)*logT
     end function
 
-    elemental function calc_dcv_dT(self,T) result(cv)
+    elemental function calc_dcv_dT(self,T) result(dcv_dT)
         class(ThermoFit), intent(in) :: self
         real(dp), intent(in) :: T
-        real(dp) :: cv
-        cv = self%calc_cp(T) - 1.0d0
+        real(dp) :: dcv_dT
+        dcv_dT = self%calc_dcp_dT(T)
     end function
 
     elemental function calc_dcp_dT(self,T) result(dcp_dT)
