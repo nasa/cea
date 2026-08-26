@@ -256,13 +256,19 @@ source directory, run::
 
     powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\install_windows_oneapi.ps1
 
-The script loads the standard Intel oneAPI environment automatically when
-needed and uses the active ``python`` by default. To select another interpreter
-or installation directory::
+The script detects both Intel's component layout (``setvars.bat``) and unified
+layout (``<version>\oneapi-vars.bat``), then loads the oneAPI environment when
+needed. GNU M4 is also required by pFUnit's gFTL dependency; the script detects
+it on ``PATH`` and in common MSYS2, Git, and Conda locations. It uses the active
+``python`` by default. To select another interpreter or installation directory::
 
     powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\install_windows_oneapi.ps1 `
         -Python C:\Python314\python.exe `
         -InstallPrefix C:\cea
+
+If GNU M4 is installed in another location, pass it explicitly::
+
+    .\scripts\install_windows_oneapi.ps1 -M4Executable C:\msys64\usr\bin\m4.exe
 
 Run ``Get-Help .\scripts\install_windows_oneapi.ps1 -Detailed`` for all
 options. Existing build directories are reused, so repeating the command is an

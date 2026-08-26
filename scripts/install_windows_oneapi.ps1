@@ -27,8 +27,12 @@ source tree.
 CEA installation directory. Defaults to <BuildDir>\install.
 
 .PARAMETER OneApiSetVars
-Optional absolute path to Intel oneAPI setvars.bat. The standard installation
-locations are searched when this is omitted.
+Optional absolute path to Intel oneAPI setvars.bat or oneapi-vars.bat. Both the
+component and unified standard installation layouts are searched when omitted.
+
+.PARAMETER M4Executable
+Optional absolute path to GNU M4. The active PATH and common MSYS2, Git, and
+Conda installation locations are searched when omitted.
 
 .PARAMETER Parallel
 Maximum number of parallel build jobs. Defaults to 4.
@@ -53,6 +57,7 @@ param(
     [string]$BuildDir = "",
     [string]$InstallPrefix = "",
     [string]$OneApiSetVars = "",
+    [string]$M4Executable = "",
     [ValidateRange(1, 128)]
     [int]$Parallel = 4,
     [switch]$SkipPythonPrerequisites,
@@ -114,17 +119,34 @@ function Find-OneApiSetVars {
         return [System.IO.Path]::GetFullPath($RequestedPath)
     }
 
-    $Candidates = @()
+    $InstallRoots = @()
     if (${env:ProgramFiles(x86)}) {
-        $Candidates += Join-Path ${env:ProgramFiles(x86)} "Intel\oneAPI\setvars.bat"
+        $InstallRoots += Join-Path ${env:ProgramFiles(x86)} "Intel\oneAPI"
     }
     if ($env:ProgramFiles) {
-        $Candidates += Join-Path $env:ProgramFiles "Intel\oneAPI\setvars.bat"
+        $InstallRoots += Join-Path $env:ProgramFiles "Intel\oneAPI"
     }
 
-    foreach ($Candidate in $Candidates) {
+    foreach ($InstallRoot in $InstallRoots) {
+        $Candidate = Join-Path $InstallRoot "setvars.bat"
         if (Test-Path -LiteralPath $Candidate -PathType Leaf) {
             return $Candidate
+        }
+    }
+
+    # Intel's unified directory layout stores oneapi-vars.bat below a toolkit
+    # version directory, for example oneAPI\2025.3\oneapi-vars.bat.
+    foreach ($InstallRoot in $InstallRoots) {
+        if (-not (Test-Path -LiteralPath $InstallRoot -PathType Container)) {
+            continue
+        }
+        $VersionDirectories = Get-ChildItem -LiteralPath $InstallRoot -Directory |
+            Sort-Object -Property Name -Descending
+        foreach ($VersionDirectory in $VersionDirectories) {
+            $Candidate = Join-Path $VersionDirectory.FullName "oneapi-vars.bat"
+            if (Test-Path -LiteralPath $Candidate -PathType Leaf) {
+                return $Candidate
+            }
         }
     }
     return $null
@@ -167,6 +189,45 @@ function Require-Command {
     Write-Host "Found $Name at $($Command.Source)"
 }
 
+function Find-M4Executable {
+    param([string]$RequestedPath)
+
+    if ($RequestedPath) {
+        if (-not (Test-Path -LiteralPath $RequestedPath -PathType Leaf)) {
+            throw "GNU M4 executable was not found: $RequestedPath"
+        }
+        return [System.IO.Path]::GetFullPath($RequestedPath)
+    }
+
+    foreach ($Name in @("gm4", "m4", "m4.exe")) {
+        $Command = Get-Command $Name -ErrorAction SilentlyContinue
+        if ($Command -and $Command.Source) {
+            return $Command.Source
+        }
+    }
+
+    $Candidates = @(
+        "C:\msys64\usr\bin\m4.exe",
+        "C:\msys32\usr\bin\m4.exe"
+    )
+    if ($env:ProgramFiles) {
+        $Candidates += Join-Path $env:ProgramFiles "Git\usr\bin\m4.exe"
+    }
+    if (${env:ProgramFiles(x86)}) {
+        $Candidates += Join-Path ${env:ProgramFiles(x86)} "Git\usr\bin\m4.exe"
+    }
+    if ($env:CONDA_PREFIX) {
+        $Candidates += Join-Path $env:CONDA_PREFIX "Library\usr\bin\m4.exe"
+    }
+
+    foreach ($Candidate in $Candidates) {
+        if (Test-Path -LiteralPath $Candidate -PathType Leaf) {
+            return [System.IO.Path]::GetFullPath($Candidate)
+        }
+    }
+    return $null
+}
+
 if (-not (Test-Path -LiteralPath (Join-Path $RepoRoot "CMakeLists.txt") -PathType Leaf)) {
     throw "CEA source root could not be determined from $PSScriptRoot."
 }
@@ -180,7 +241,7 @@ $Cl = Get-Command "cl" -ErrorAction SilentlyContinue
 if (-not $Ifx -or -not $Cl) {
     $SetVars = Find-OneApiSetVars -RequestedPath $OneApiSetVars
     if (-not $SetVars) {
-        throw "ifx/cl are unavailable and Intel oneAPI setvars.bat was not found. Install the oneAPI HPC Toolkit and Visual Studio C++ tools, or pass -OneApiSetVars."
+        throw "ifx/cl are unavailable and neither setvars.bat nor oneapi-vars.bat was found in the standard Intel oneAPI locations. Install the oneAPI HPC Toolkit and Visual Studio C++ tools, or pass the environment script's full path with -OneApiSetVars."
     }
     Write-Host "Loading Intel oneAPI environment from $SetVars" -ForegroundColor Cyan
     Import-OneApiEnvironment -SetVarsPath $SetVars
@@ -235,6 +296,28 @@ if (Test-Path -LiteralPath $PythonScriptsDir -PathType Container) {
 
 Require-Command -Name "cmake"
 Require-Command -Name "ninja"
+
+$ResolvedM4 = Find-M4Executable -RequestedPath $M4Executable
+if (-not $ResolvedM4) {
+    throw @"
+GNU M4 is required to build pFUnit's gFTL dependency but was not found.
+
+Install MSYS2, then run:
+  & C:\msys64\usr\bin\pacman.exe -S --needed m4
+
+Rerun this installer with:
+  -M4Executable C:\msys64\usr\bin\m4.exe
+"@
+}
+$M4Version = & $ResolvedM4 --version 2>&1 | Out-String
+if ($LASTEXITCODE -ne 0) {
+    throw "Unable to run M4: $ResolvedM4"
+}
+if ($M4Version -notmatch "GNU M4") {
+    throw "pFUnit requires GNU M4, but '$ResolvedM4' did not identify itself as GNU M4."
+}
+Write-Host "Using GNU M4 at $ResolvedM4" -ForegroundColor Cyan
+
 New-Item -ItemType Directory -Force $BuildDir | Out-Null
 
 if (-not (Test-Path -LiteralPath $PFUnitSourceDir -PathType Container)) {
@@ -264,6 +347,7 @@ $PFUnitConfigureArgs = @(
     "-DCMAKE_C_COMPILER=cl",
     "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded",
     "-DPython_EXECUTABLE=$PythonExecutable",
+    "-DM4=$ResolvedM4",
     "-DENABLE_TESTS=OFF",
     "-DSKIP_MPI=ON",
     "-DSKIP_OPENMP=ON",
