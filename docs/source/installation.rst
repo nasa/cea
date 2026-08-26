@@ -331,8 +331,8 @@ Validation checks:
 
 * Core interface regression (from the CEA root)::
 
-      cd build-intel\source
-      python ..\..\test\main_interface\test_main.py
+      set "CEA_EXE=<cea_source_dir>\build-intel\source\cea.exe"
+      python test\main_interface\test_main.py
 
   Expected result for this check is 14/14 passing.
 

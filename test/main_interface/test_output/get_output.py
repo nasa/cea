@@ -10,16 +10,24 @@ def resolve_cea_exe(repo_root: Path) -> str:
         return cea_exe
 
     candidate_exes = []
+    executable_names = ("cea.exe", "cea") if os.name == "nt" else ("cea",)
 
     run_dir = os.environ.get("CEA_RUN_DIR")
     if run_dir is not None:
-        candidate_exes.append(Path(run_dir).expanduser() / "cea")
+        candidate_exes.extend(
+            Path(run_dir).expanduser() / name for name in executable_names
+        )
 
     # Prefer binaries built from this checkout to avoid stale external builds.
-    candidate_exes.extend(sorted(repo_root.glob("build*/source/cea")))
+    for name in executable_names:
+        candidate_exes.extend(sorted(repo_root.glob(f"build*/source/{name}")))
+        candidate_exes.extend(sorted(repo_root.glob(f"build*/**/source/{name}")))
 
     # Keep the historical default location as a final fallback.
-    candidate_exes.append(Path("~/git/cea/build-dev/source/cea").expanduser())
+    candidate_exes.extend(
+        Path(f"~/git/cea/build-dev/source/{name}").expanduser()
+        for name in executable_names
+    )
 
     existing_exes = [path for path in candidate_exes if path.exists()]
     if existing_exes:
@@ -30,7 +38,7 @@ def resolve_cea_exe(repo_root: Path) -> str:
         return cea_exe
 
     raise FileNotFoundError(
-        "Could not locate `cea` executable. Set CEA_EXE/CEA_RUN_DIR or build `build*/source/cea` in this repository."
+        "Could not locate the `cea` executable. Set CEA_EXE/CEA_RUN_DIR or build CEA in this repository."
     )
 
 
