@@ -246,6 +246,31 @@ Windows + Intel oneAPI (Step-by-Step)
 This workflow was validated with Intel oneAPI 2025.3 and Visual Studio 2019 or
 later. It covers the core application plus C and Python bindings.
 
+Automated install
+^^^^^^^^^^^^^^^^^
+
+The repository includes a PowerShell installer that downloads and installs
+pFUnit, builds the Fortran, C, Python, and MATLAB-compatible interfaces, runs
+CTest and the Python tests, and installs CEA. Excel is disabled. From the CEA
+source directory, run::
+
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\install_windows_oneapi.ps1
+
+The script loads the standard Intel oneAPI environment automatically when
+needed and uses the active ``python`` by default. To select another interpreter
+or installation directory::
+
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\install_windows_oneapi.ps1 `
+        -Python C:\Python314\python.exe `
+        -InstallPrefix C:\cea
+
+Run ``Get-Help .\scripts\install_windows_oneapi.ps1 -Detailed`` for all
+options. Existing build directories are reused, so repeating the command is an
+incremental rebuild.
+
+Manual install
+^^^^^^^^^^^^^^
+
 Prerequisites:
 
 * Visual Studio 2019 or later.
