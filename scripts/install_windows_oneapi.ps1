@@ -228,6 +228,40 @@ function Find-M4Executable {
     return $null
 }
 
+function Disable-GFTLDependencySelfTests {
+    param([string]$PFUnitSource)
+
+    $CMakeFile = Join-Path $PFUnitSource (
+        "extern\fArgParse\extern\gFTL-shared\extern\gFTL\include\v2\parameters\CMakeLists.txt"
+    )
+    if (-not (Test-Path -LiteralPath $CMakeFile -PathType Leaf)) {
+        throw "Unable to locate the bundled gFTL CMake file: $CMakeFile"
+    }
+
+    $Content = [System.IO.File]::ReadAllText($CMakeFile)
+    $TestDirective = "add_subdirectory(tests EXCLUDE_FROM_ALL)"
+    $GuardedDirective = @(
+        "if (ENABLE_TESTS)",
+        "  $TestDirective",
+        "endif ()"
+    ) -join [Environment]::NewLine
+
+    if ($Content.Contains($GuardedDirective)) {
+        return
+    }
+    if (-not $Content.Contains($TestDirective)) {
+        throw "The bundled gFTL test configuration has an unexpected format: $CMakeFile"
+    }
+
+    # gFTL configures its parameter-generation self-tests unconditionally. On
+    # Windows those self-tests require AWK and cpp even when pFUnit was
+    # configured with ENABLE_TESTS=OFF. Guard only that dependency test folder;
+    # the gFTL libraries and all downstream CEA tests remain enabled.
+    $Content = $Content.Replace($TestDirective, $GuardedDirective)
+    [System.IO.File]::WriteAllText($CMakeFile, $Content)
+    Write-Host "Disabled unused gFTL dependency self-tests in $CMakeFile" -ForegroundColor Cyan
+}
+
 if (-not (Test-Path -LiteralPath (Join-Path $RepoRoot "CMakeLists.txt") -PathType Leaf)) {
     throw "CEA source root could not be determined from $PSScriptRoot."
 }
@@ -336,6 +370,7 @@ elseif (-not (Test-Path -LiteralPath (Join-Path $PFUnitSourceDir ".git") -PathTy
 Invoke-External -FilePath "git" -WorkingDirectory $PFUnitSourceDir -ArgumentList @(
     "submodule", "update", "--init", "--recursive"
 )
+Disable-GFTLDependencySelfTests -PFUnitSource $PFUnitSourceDir
 
 $PFUnitConfigureArgs = @(
     "-S", $PFUnitSourceDir,

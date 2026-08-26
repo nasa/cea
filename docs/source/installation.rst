@@ -270,6 +270,10 @@ If GNU M4 is installed in another location, pass it explicitly::
 
     .\scripts\install_windows_oneapi.ps1 -M4Executable C:\msys64\usr\bin\m4.exe
 
+The installer skips gFTL's own dependency self-tests, which otherwise require
+GNU AWK and ``cpp`` on Windows even when pFUnit testing is disabled. This does
+not disable the CEA pFUnit, CLI, C-interface, or Python test suites.
+
 Run ``Get-Help .\scripts\install_windows_oneapi.ps1 -Detailed`` for all
 options. Existing build directories are reused, so repeating the command is an
 incremental rebuild.
