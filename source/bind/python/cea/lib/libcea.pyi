@@ -316,7 +316,9 @@ class EqSolver:
         state1: float,
         state2: float,
         amounts: VectorLike,
-    ) -> None: ...
+    ) -> None:
+        """Solve with both thermodynamic state inputs preserved in double precision."""
+        ...
 
 
 class EqSolution:

@@ -1241,7 +1241,17 @@ contains
         ! --------------------------------------------------------------------
         do i = 1, ne
             if (b0(i) > b_tol) then
-                if (abs(b_delta(i)) > b_tol*maxval(b0)) then
+                ! Scale by this element's inventory. The largest inventory
+                ! permits premature convergence of minor elements (e.g. the
+                ! carbon in database Air) and corrupts finite-difference slopes.
+                if (abs(b_delta(i)) > b_tol*b0(i)) then
+                    soln%element_converged = .false.
+                    return
+                end if
+                ! Also require the gas updates to be small relative to the
+                ! element they carry. A small post-update balance residual
+                ! alone can still leave step-dependent errors in minor species.
+                if (dot_product(abs(A_g(:, i)), nj_g*abs(dln_nj)) > nj_tol*b0(i)) then
                     soln%element_converged = .false.
                     return
                 end if
@@ -2818,13 +2828,12 @@ contains
         n = solution%n
         P = solution%calc_pressure()
         ln_n = log(n)
-        derivative_tsize = solver%tsize
-        if (solver%smooth_truncation) derivative_tsize = solution%converged_tsize
+        derivative_tsize = solution%converged_tsize
 
         do i = 1, ng
             ion_species = solver%ions .and. solver%active_ions .and. ne_full > 0 .and. &
                           A_g(i, ne_full) /= 0.0d0
-            ! Smooth solves converge at size, then switch tsize to xsize for
+            ! Solves converge at size, then switch tsize to xsize for
             ! final reporting without another nonlinear solve. Differentiate
             ! the threshold used by the residual that actually converged.
             ln_threshold = gas_amount_ln_threshold(ln_n, derivative_tsize, solver%esize, ion_species)
@@ -3026,8 +3035,7 @@ contains
         ! Get the mixture pressure and temperature
         P = solution%calc_pressure()
         T = solution%T
-        derivative_tsize = solver%tsize
-        if (solver%smooth_truncation) derivative_tsize = solution%converged_tsize
+        derivative_tsize = solution%converged_tsize
 
         ! Compute gas phase chemical potentials
         do i = 1, ng
@@ -3270,8 +3278,7 @@ contains
         fac = R / 1.0d3
         ln_n = log(n)
         log_p_over_n = log(P/n)
-        derivative_tsize = solver%tsize
-        if (solver%smooth_truncation) derivative_tsize = solution%converged_tsize
+        derivative_tsize = solution%converged_tsize
 
         do i = 1, ng
             dh_g_dT(i) = solver%products%species(i)%calc_denthalpy_dT(T)/T - h_g(i)/T

@@ -1476,7 +1476,7 @@ cdef class EqSolver:
             ierr = cea_eqsolver_get_size(self.ptr, MAX_EQUATIONS, &size_val)
             return size_val
 
-    def solve(self, EqSolution soln, cea_equilibrium_type eq_type, float state1, float state2, np.ndarray amounts):
+    def solve(self, EqSolution soln, cea_equilibrium_type eq_type, double state1, double state2, np.ndarray amounts):
         """
         Solve equilibrium problem with specified constraints.
         NOTE: only mass fractions are accepted; other values must be converted to mass fractions first.
@@ -1488,9 +1488,9 @@ cdef class EqSolver:
         eq_type : int
             Equilibrium type constant (TP, HP, SP, TV, UV, SV)
         state1 : float
-            First thermodynamic state variable (e.g., T, H, S, or U)
+            First thermodynamic state variable (e.g., T, H, S, or U), passed in double precision
         state2 : float
-            Second thermodynamic state variable (e.g., P or V)
+            Second thermodynamic state variable (e.g., P or V), passed in double precision
         amounts : np.ndarray
             Initial reactant mass fractions
         """

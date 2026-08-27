@@ -120,6 +120,17 @@ an equilibrium point has been reached. There are tests for each of:
 * Entropy: :math:`s`
 * Modified Lagrange multipliers: :math:`\pi_{i}, i=1,...,NE`
 
+For positive element inventories above :math:`10^{-6}` kmol/kg, the element-balance
+residual is scaled by that element's own inventory, not the largest inventory.
+The sum of absolute gas-species updates carrying that element must also be small
+relative to its inventory. This prevents premature convergence of minor elements.
+
+Equilibrium sensitivities use the species-activation threshold saved at convergence.
+Final reporting can expose smaller species without another equilibrium solve; its
+threshold must not replace the one used by the differentiated residual. With hard
+activation, derivatives describe a fixed activity branch and need not agree with
+finite differences that cross an activation boundary.
+
 Next we will address the treatment for a number of special cases in the equilibrium problem:
 
 Condensed Species

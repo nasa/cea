@@ -7,8 +7,19 @@ All notable user-visible changes to this project are documented here.
 ### Changed
 
 ### Fixed
+- Fixed premature convergence of minor elements such as carbon in database Air
+  by checking element-relative balances and gas updates. This can add Newton
+  iterations and slightly change equilibrium results.
+- Hard-mode equilibrium sensitivities now use the species threshold saved at
+  convergence, rather than the final reporting threshold. Combined with the
+  convergence correction, this resolves the H2/Air CO/CO2 pressure discrepancy.
+- Preserved double precision for both state inputs to Python `EqSolver.solve`,
+  removing single-precision rounding from finite-difference perturbations.
 
 ### Added
+- Database-Air derivative regression cases and a reproducible paper/optimization
+  audit; see [the investigation](docs/validation/database_air_derivatives.md),
+  including the remaining limitations at hard species-activation boundaries.
 
 ## [3.3.3] - 2026-08-24
 

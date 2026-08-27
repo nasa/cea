@@ -29,6 +29,25 @@ contains
         rel = abs(an - fd) / max(max(abs(an), abs(fd)), scale)
     end function
 
+    subroutine assert_element_relative_convergence(solver, solution)
+        type(EqSolver), intent(in) :: solver
+        type(EqSolution), intent(in) :: solution
+        real(dp) :: nj_eval(solver%num_products), delta(solver%num_elements)
+        integer :: i
+
+        @assertTrue(solution%converged)
+        nj_eval = solution%nj
+        do i = 1, solver%num_gas
+            call compute_nj_effective(solution%ln_nj(i), log(solution%n)-solution%converged_tsize, &
+                                      solver%smooth_truncation, solver%truncation_width, nj_eval(i))
+        end do
+        delta = solver%products%elements_from_species(nj_eval)-solution%constraints%b0
+        do i = 1, solver%num_elements
+            if (solution%constraints%b0(i) <= 1.0d-6) cycle
+            @assertLessThan(abs(delta(i))/solution%constraints%b0(i), 1.0d-6)
+        end do
+    end subroutine
+
     subroutine assert_fixed_temperature_output_row(totals)
         type(EqDerivatives), intent(in) :: totals
 
@@ -578,9 +597,11 @@ contains
 
         ! Check the solution
         @assertRelativelyEqual(-8.0656088776551407d0, solution%ln_nj(1), tol)
-        @assertRelativelyEqual(-34.448758571083658d0, solution%ln_nj(2), tol)
-        @assertRelativelyEqual(-11.793089100129002d0, solution%ln_nj(3), tol)
-        @assertRelativelyEqual(-12.669441114146762d0, solution%ln_nj(4), tol)
+        ! Minor-carbon references after element-relative convergence.
+        call assert_element_relative_convergence(solver, solution)
+        @assertRelativelyEqual(-34.448868841430254d0, solution%ln_nj(2), tol)
+        @assertRelativelyEqual(-11.793199370475579d0, solution%ln_nj(3), tol)
+        @assertRelativelyEqual(-12.669551384493321d0, solution%ln_nj(4), tol)
 
     end subroutine
 
@@ -1089,7 +1110,8 @@ contains
 
         @assertRelativelyEqual(1.0d0/27.415d0, solution%n, 1.d-5)
         @assertRelativelyEqual(2.9323946327273809d-4,   solution%nj(3), tol)
-        @assertRelativelyEqual(9.9891136342931817d-6, solution%nj(114), tol)
+        call assert_element_relative_convergence(solver, solution)
+        @assertRelativelyEqual(9.9886160185893425d-6, solution%nj(114), tol)
         @assertRelativelyEqual(5.1642986488878171d-3, solution%nj(118), tol)
         @assertRelativelyEqual(2.4449868424820789d-2, solution%nj(134), tol)
         @assertRelativelyEqual(6.5591518211682090d-3, solution%nj(155), tol)
@@ -1198,6 +1220,70 @@ contains
             @assertLessThan(maxval(abs(totals%delta_check(:, i))), tol)
         end do
 
+    end subroutine
+
+    subroutine assert_hp_air_pressure_derivative(weights, temperature, pressure, species)
+        real(dp), intent(in) :: weights(2), temperature, pressure
+        character(*), intent(in) :: species
+        type(Mixture) :: reactants, products
+        type(EqSolver) :: solver
+        type(EqSolution) :: solution, plus, minus
+        type(EqDerivatives) :: totals
+        real(dp) :: h_reac, step, analytic, numerical
+        real(dp) :: nj_eff, carbon, carbon0
+        real(dp), parameter :: steps(3) = [1.0d-3, 1.0d-4, 1.0d-5]
+        integer :: i, k, idx_species, idx_c
+
+        ! State 2 from the H2/database-Air independent-input probe, seed 20260827.
+        ! The old max(b0)-scaled element tolerance accepted a carbon residual
+        ! near 1.74e-9 and a CO2 log-pressure FD slope 25% below the analytic one.
+        reactants = Mixture(all_thermo, ['H2 ', 'Air'])
+        products = Mixture(all_thermo, reactant_names=['H2 ', 'Air'])
+        solver = EqSolver(products, reactants)
+        h_reac = reactants%calc_enthalpy(weights, temperature)/R
+        idx_species = findloc(products%species_names, species, 1)
+        idx_c = findloc(products%element_names, 'C', 1)
+        solution = EqSolution(solver)
+        call solver%solve(solution, 'hp', h_reac, pressure, weights)
+        @assertTrue(solution%converged)
+        @assertGreaterThan(solution%nj(idx_species)/solution%n, 1.0d-4)
+
+        ! Test the inventory used by the nonlinear residual, not final reporting
+        ! (which also exposes amounts below the solve-path activity threshold).
+        carbon = 0.0d0
+        do i = 1, solver%num_gas
+            call compute_nj_effective(solution%ln_nj(i), log(solution%n)-solution%converged_tsize, &
+                                      .false., solver%truncation_width, nj_eff)
+            carbon = carbon + nj_eff*products%stoich_matrix(i, idx_c)
+        end do
+        carbon0 = solution%constraints%b0(idx_c)
+        @assertLessThan(abs(carbon-carbon0)/carbon0, 1.0d-6)
+
+        totals = EqDerivatives(solver, solution)
+        call totals%compute_derivatives(solver, solution)
+        call totals%unpack_values(solver, solution)
+        analytic = totals%dnj_dstate2(idx_species)*pressure*log(30.0d0)
+        do k = 1, size(steps)
+            step = steps(k)
+            plus = EqSolution(solver)
+            minus = EqSolution(solver)
+            call solver%solve(plus, 'hp', h_reac, pressure*exp(log(30.0d0)*step), weights)
+            call solver%solve(minus, 'hp', h_reac, pressure*exp(-log(30.0d0)*step), weights)
+            @assertTrue(plus%converged)
+            @assertTrue(minus%converged)
+            numerical = (plus%nj(idx_species)-minus%nj(idx_species))/(2.0d0*step)
+            @assertLessThan(relative_error(analytic, numerical), 1.0d-3)
+        end do
+    end subroutine
+
+    @test
+    subroutine test_hp_database_air_minor_element_pressure_derivative
+        call assert_hp_air_pressure_derivative([0.021289451195033934d0, 0.97871054880496611d0], &
+                                               661.5455168487204d0, 7.242735337192802d0, 'CO2')
+        ! State 201 has a small CO pressure slope: a row-scaled error metric
+        ! masks a componentwise error even after tightening balance residuals.
+        call assert_hp_air_pressure_derivative([0.036477263400782799d0, 0.96352273659921728d0], &
+                                               740.6753399520376d0, 6.642358333801742d0, 'CO')
     end subroutine
 
     @test
@@ -3261,8 +3347,9 @@ contains
         @assertTrue(solution%converged)
         @assertRelativelyEqual(3000.0d0, solution%T, tol)
         @assertRelativelyEqual(3.1415977104767563d-4, solution%nj(1), tol)
-        @assertRelativelyEqual(7.5566009270660714d-6, solution%nj(3), tol)
-        @assertRelativelyEqual(3.1458036914441603d-6, solution%nj(4), tol)
+        call assert_element_relative_convergence(solver, solution)
+        @assertRelativelyEqual(7.5557676949601852d-6, solution%nj(3), tol)
+        @assertRelativelyEqual(3.1454568179412088d-6, solution%nj(4), tol)
 
     end subroutine
 
@@ -3764,8 +3851,9 @@ contains
         ! Check the solution
         @assertTrue(solution%converged)
         @assertRelativelyEqual(3.1415977104767677d-4, solution%nj(1), tol)
-        @assertRelativelyEqual(7.5550939604896579d-6, solution%nj(3), tol)
-        @assertRelativelyEqual(3.1462180783843418d-6, solution%nj(4), tol)
+        call assert_element_relative_convergence(solver, solution)
+        @assertRelativelyEqual(7.5550321217326543d-6, solution%nj(3), tol)
+        @assertRelativelyEqual(3.1461923264601023d-6, solution%nj(4), tol)
 
     end subroutine
 

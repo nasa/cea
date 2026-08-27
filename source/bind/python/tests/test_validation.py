@@ -16,6 +16,18 @@ def test_eqsolver_rejects_non_mixture_reactants(cea_module):
         cea_module.EqSolver(products, reactants=["H2", "O2"])
 
 
+def test_eqsolver_preserves_double_precision_states(cea_module):
+    reactants, products, weights = _basic_reactants(cea_module)
+    solver = cea_module.EqSolver(products, reactants=reactants)
+    temperature = 2359.2343858155864
+    pressure = 7.242735337192802
+    soln = cea_module.EqSolution(solver)
+    solver.solve(soln, cea_module.TP, temperature, pressure, weights)
+    assert soln.converged
+    assert soln.T == temperature
+    assert soln.P == pressure
+
+
 def test_rocket_solver_rejects_conflicting_hc_tc(cea_module):
     reactants_mix, products_mix, weights = _basic_reactants(cea_module)
     solver = cea_module.RocketSolver(products_mix, reactants=reactants_mix)
