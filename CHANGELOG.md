@@ -7,6 +7,11 @@ All notable user-visible changes to this project are documented here.
 ### Changed
 
 ### Fixed
+- Python `RocketSolver.solve` now rejects weight arrays with the wrong shape or
+  reactant count before calling native code, preventing out-of-bounds reads,
+  NaNs, and nondeterministic results when `reactants` is accidentally omitted.
+  The error points to `reactants=reac`; valid products-as-reactants calls remain
+  supported, with no numerical changes for valid inputs.
 
 ### Added
 

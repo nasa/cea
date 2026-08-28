@@ -508,6 +508,8 @@ class EqDerivatives:
 
 
 class RocketSolver:
+    """Rocket solver; omitted reactants defaults to the products mixture."""
+
     @overload
     def __init__(
         self,
@@ -558,7 +560,13 @@ class RocketSolver:
         mdot: float | None = None,
         ac_at: float | None = None,
         tc_est: float | None = None,
-    ) -> None: ...
+    ) -> None:
+        """Require 1D weights of length num_reactants in reactant species order.
+
+        If reactants was omitted, weights must follow products.species_names.
+        Invalid weight shapes or lengths raise ValueError.
+        """
+        ...
 
 
 class RocketSolution:

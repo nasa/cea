@@ -35,6 +35,13 @@ EqSolution
 RocketSolver
 ------------
 
+Pass ``reactants=reac`` to ``cea.RocketSolver(prod, reactants=reac)`` when the
+reactant and product mixtures differ. If ``reactants`` is omitted, the solver
+uses ``prod`` as both mixtures. In that case, ``solve`` requires one weight for
+every species in ``prod.species_names`` order, including zeros for absent species.
+The weights must be a one-dimensional array of length ``solver.num_reactants``;
+an invalid shape or length raises ``ValueError`` before the native solver runs.
+
 .. autoclass:: cea.RocketSolver
    :members:
 

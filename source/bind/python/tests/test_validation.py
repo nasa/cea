@@ -36,6 +36,63 @@ def test_rocket_solver_rejects_conflicting_hc_tc(cea_module):
         solver.solve(soln, weights, pc=10.0, pi_p=2.0, hc=100.0, tc=3000.0)
 
 
+@pytest.mark.parametrize("iac", [True, False])
+def test_rocket_solver_rejects_weights_for_omitted_reactants(cea_module, iac):
+    _, products, weights = _basic_reactants(cea_module)
+    solver = cea_module.RocketSolver(products)
+    soln = cea_module.RocketSolution(solver)
+    assert solver.num_reactants > len(weights)
+
+    with pytest.raises(ValueError, match="reactants=reac") as exc:
+        solver.solve(soln, weights, pc=10.0, pi_p=2.0, tc=3000.0, iac=iac, ac_at=2.0)
+    assert f"expected {solver.num_reactants}, got {len(weights)}" in str(exc.value)
+
+
+@pytest.mark.parametrize("iac", [True, False])
+@pytest.mark.parametrize("weight_count", [0, 1, 3])
+def test_rocket_solver_rejects_wrong_weight_count(cea_module, iac, weight_count):
+    reactants, products, weights = _basic_reactants(cea_module)
+    solver = cea_module.RocketSolver(products, reactants=reactants)
+    soln = cea_module.RocketSolution(solver)
+    invalid_weights = np.zeros(weight_count)
+    count = min(weight_count, len(weights))
+    invalid_weights[:count] = weights[:count]
+
+    with pytest.raises(ValueError, match=f"expected 2, got {weight_count}"):
+        solver.solve(soln, invalid_weights, pc=10.0, pi_p=2.0, tc=3000.0, iac=iac, ac_at=2.0)
+
+
+@pytest.mark.parametrize("weights", [None, np.array(1.0), np.ones((1, 2)), np.ones((2, 1))])
+def test_rocket_solver_rejects_non_vector_weights(cea_module, weights):
+    reactants, products, _ = _basic_reactants(cea_module)
+    solver = cea_module.RocketSolver(products, reactants=reactants)
+    soln = cea_module.RocketSolution(solver)
+
+    with pytest.raises(ValueError, match="weights must be a one-dimensional array"):
+        solver.solve(soln, weights, pc=10.0, pi_p=2.0, tc=3000.0)
+
+
+@pytest.mark.parametrize("iac", [True, False])
+def test_rocket_solver_defaults_to_product_reactants(cea_module, iac):
+    reactants, products, weights = _basic_reactants(cea_module)
+    product_weights = np.zeros(products.num_species)
+    for species, weight in zip(reactants.species_names, weights):
+        product_weights[products.species_names.index(species)] = weight
+
+    default_solver = cea_module.RocketSolver(products)
+    explicit_solver = cea_module.RocketSolver(products, reactants=products)
+    default_soln = cea_module.RocketSolution(default_solver)
+    explicit_soln = cea_module.RocketSolution(explicit_solver)
+    for solver, soln in ((default_solver, default_soln), (explicit_solver, explicit_soln)):
+        solver.solve(soln, product_weights, pc=10.0, pi_p=2.0, tc=3000.0, iac=iac, ac_at=2.0)
+        assert soln.converged
+
+    for prop in ("T", "P", "Isp", "Mach", "nj"):
+        actual = getattr(default_soln, prop)
+        assert np.all(np.isfinite(actual))
+        np.testing.assert_array_equal(actual, getattr(explicit_soln, prop))
+
+
 def test_shock_solver_requires_one_input(cea_module):
     reactants_mix, products_mix, weights = _basic_reactants(cea_module)
     solver = cea_module.ShockSolver(products_mix, reactants=reactants_mix)

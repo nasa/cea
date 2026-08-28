@@ -2295,7 +2295,9 @@ cdef class RocketSolver:
         Mixture object containing product species
     **kwargs
         reactants : Mixture, optional
-            Mixture object containing reactant species
+            Mixture object containing reactant species. If omitted, products is
+            also used as the reactant mixture; solve weights must then include
+            one entry per product species in products.species_names order.
         transport : bool, default False
             Enable transport property calculations
         ions : bool, default False
@@ -2454,7 +2456,10 @@ cdef class RocketSolver:
         soln : RocketSolution
             Solution object to store results
         weights : np.ndarray
-            Reactant mass fractions
+            One-dimensional reactant mass fractions, with exactly num_reactants
+            entries in the reactant mixture's species_names order. If reactants
+            was omitted when constructing the solver, use products.species_names
+            order and include an entry for every product species.
         pc : float
             Chamber pressure in bar
         pi_p : float, list, or np.ndarray, optional
@@ -2481,10 +2486,22 @@ cdef class RocketSolver:
         Raises
         ------
         ValueError
-            If conflicting parameters are provided
+            If weights is not one-dimensional, its length does not match
+            num_reactants, or conflicting parameters are provided
         """
         cdef cea_err ierr
+        if weights is None or weights.ndim != 1:
+            raise ValueError("RocketSolver.solve: weights must be a one-dimensional array")
+
         cdef int nweights = <int>len(weights)
+        cdef int nreactants = self.num_reactants
+        if nweights != nreactants:
+            raise ValueError(
+                f"RocketSolver.solve: weights must contain one entry per reactant species "
+                f"(expected {nreactants}, got {nweights}). "
+                "Pass reactants=reac when constructing RocketSolver if the weights "
+                "refer to a separate reactant mixture."
+            )
 
         cdef cea_array wts = <cea_array>malloc(nweights * sizeof(double))
         if wts == NULL:
