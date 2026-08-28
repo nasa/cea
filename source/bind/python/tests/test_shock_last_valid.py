@@ -38,7 +38,7 @@ def _find_last_valid_incident_case(cea):
             solver.solve(soln, weights, T0, p0, u1=u1, reflected=False)
         outcomes.append((u1, soln.last_error, soln.converged))
         if soln.last_error == cea.LAST_VALID_SOLUTION:
-            return soln, caught
+            return solver, soln, weights, T0, p0, u1, caught
 
     details = ", ".join(
         f"u1={u1:.0f}: last_error={last_error}, converged={converged}"
@@ -49,7 +49,7 @@ def _find_last_valid_incident_case(cea):
 
 def test_shock_last_valid_solution_warns_and_preserves_state(cea_module):
     cea = cea_module
-    soln, caught = _find_last_valid_incident_case(cea)
+    solver, soln, weights, T0, p0, u1, caught = _find_last_valid_incident_case(cea)
 
     pattern = re.compile(
         r"CEA_LAST_VALID_SOLUTION.*last valid shock state retained.*converged is False"
@@ -65,3 +65,49 @@ def test_shock_last_valid_solution_warns_and_preserves_state(cea_module):
     assert soln.T[1] > 0.0
     assert soln.velocity[1] > 0.0
     assert soln.sonic_velocity[1] > 0.0
+    np.testing.assert_allclose(soln.Mach, soln.velocity / soln.sonic_velocity, rtol=1.0e-13)
+
+    # A retained state is inspectable, not a converged normal shock. Do not
+    # impose subsonic/conservation assertions on its unconverged downstream state.
+    retained_mach = soln.Mach.copy()
+    solver.solve(soln, weights, T0, p0, u1=1100.0, reflected=False, incident_frozen=True)
+    assert soln.converged
+    assert soln.last_error == cea.SUCCESS
+    np.testing.assert_allclose(soln.Mach, soln.velocity / soln.sonic_velocity, rtol=1.0e-13)
+    with pytest.warns(RuntimeWarning, match="CEA_LAST_VALID_SOLUTION"):
+        solver.solve(soln, weights, T0, p0, u1=u1, reflected=False)
+    assert not soln.converged
+    assert soln.last_error == cea.LAST_VALID_SOLUTION
+    np.testing.assert_array_equal(soln.Mach, retained_mach)
+
+
+@pytest.mark.parametrize("frozen", [False, True])
+@pytest.mark.parametrize("reflected", [False, True])
+def test_shock_reuse_after_failure(cea_module, frozen, reflected):
+    cea = cea_module
+    argon = cea.Mixture(["Ar"])
+    solver = cea.ShockSolver(argon, reactants=argon)
+    soln = cea.ShockSolution(solver, reflected=reflected)
+    weights = argon.moles_to_weights(np.array([1.0]))
+    kwargs = dict(reflected=reflected, incident_frozen=frozen, reflected_frozen=frozen)
+
+    solver.solve(soln, weights, 300.0, 1.0, Mach1=3.0, **kwargs)
+    assert soln.converged
+    expected = soln.Mach.copy()
+    # Mach 12 fails at the reflected temperature cap; Mach 100 at the incident cap.
+    failures = [(12.0, 2), (100.0, 1)] if reflected else [(100.0, 1)]
+    for mach1, failed_index in failures:
+        with pytest.warns(RuntimeWarning, match="CEA_NOT_CONVERGED"):
+            solver.solve(soln, weights, 300.0, 1.0, Mach1=mach1, **kwargs)
+        assert not soln.converged
+        assert soln.last_error == cea.NOT_CONVERGED
+        for values in (soln.Mach, soln.velocity, soln.sonic_velocity):
+            np.testing.assert_array_equal(values[failed_index:], 0.0)
+        np.testing.assert_allclose(
+            soln.Mach[:failed_index],
+            soln.velocity[:failed_index] / soln.sonic_velocity[:failed_index], rtol=1.0e-13,
+        )
+        solver.solve(soln, weights, 300.0, 1.0, Mach1=3.0, **kwargs)
+        assert soln.converged
+        assert soln.last_error == cea.SUCCESS
+        np.testing.assert_array_equal(soln.Mach, expected)

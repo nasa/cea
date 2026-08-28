@@ -49,11 +49,17 @@ module cea_shock
         real(dp), allocatable :: pressure(:)
             !! Pressure [bar]
         real(dp), allocatable :: mach(:)
-            !! Mach
+            !! u/v_sonic at stations [1, 2, 5], in the same shock frames as u.
         real(dp), allocatable :: u(:)
-            !! Gas velocity [m/s]
+            !! Gas speed [m/s]: stations 1 and 2 in the incident-shock frame;
+            !! station 5 in the reflected-shock frame. Station 5 is at rest
+            !! in the wall frame, so u(3) also equals the reflected wave-speed
+            !! magnitude. These are speeds, not signed wall-frame velocities.
         real(dp), allocatable :: v_sonic(:)
-            !! Sonic velocity [m/s]
+            !! Reported sound speed [m/s], sqrt(R*T*gamma_s/M).
+            !! Initial/incident-frozen: frozen Cp; equilibrium: equilibrium
+            !! isentropic exponent. Reflected-frozen retains the legacy
+            !! incident-state frozen Cp basis at the reflected temperature.
 
         ! Solution variables
         real(dp) :: rho12, rho52 = 0.0d0
@@ -63,11 +69,12 @@ module cea_shock
         real(dp) :: t21, t52 = 0.0d0
             !! Temperature ratios across the incident and reflected shocks
         real(dp) :: M21, M52 = 0.0d0
-            !! Mach number ratios across the incident and reflected shocks
+            !! Molecular-weight ratios M2/M1 and M5/M2 (legacy CEA2 output), not Mach ratios.
         real(dp) :: v2 = 0.0d0
-            !! Relative velocity of the incident shock [m/s]
+            !! Station-2 gas speed in the wall/unshocked-gas frame: u(1)-u(2) [m/s].
         real(dp) :: u5_p_v2 = 0.0d0
-            !! u5 + v2 [m/s]
+            !! Upstream gas speed in the reflected-shock frame: u(3)+v2 [m/s].
+            !! Also the reflected wave speed relative to station-2 gas, not the wall.
 
         ! Convergence variables
         logical :: converged = .false.
@@ -372,6 +379,8 @@ contains
         soln%eq_partials(idx)%gamma_s = cp_dimless/(cp_dimless - 1.0d0/wmx)
         soln%eq_soln(idx)%gamma_s = soln%eq_partials(idx)%gamma_s
         soln%v_sonic(idx) = sqrt(R*soln%eq_soln(idx)%T*soln%eq_soln(idx)%gamma_s/wmx)
+        ! This legacy sound-speed basis overwrites the iteration value.
+        soln%mach(idx) = soln%u(idx)/soln%v_sonic(idx)
 
         soln%eq_soln(idx)%M = wmx
         soln%eq_soln(idx)%MW = wmx*(1.0d0 - sum(soln%eq_soln(idx)%mole_fractions(ng+1:)))
@@ -526,9 +535,9 @@ contains
                 soln%t21 = t21
                 soln%u(idx) = u1*rho12
                 soln%M21 = wm_k/wm
-                soln%mach(idx) = soln%M21*mach1
                 soln%v2 = u1 - soln%u(idx)
                 soln%v_sonic(idx) = (R*T2*soln%eq_soln(idx)%gamma_s/wm_k)**0.5d0
+                soln%mach(idx) = soln%u(idx)/soln%v_sonic(idx)
                 exit
             end if
 
@@ -557,9 +566,9 @@ contains
                 soln%t21 = t21
                 soln%u(idx) = u1*rho12
                 soln%M21 = wm_k/wm
-                soln%mach(idx) = soln%M21*mach1
                 soln%v2 = u1 - soln%u(idx)
                 soln%v_sonic(idx) = (R*T2*soln%eq_soln(idx)%gamma_s/wm_k)**0.5d0
+                soln%mach(idx) = soln%u(idx)/soln%v_sonic(idx)
             else
                 call ShockSolver_fail_state(soln, idx, "ShockSolver_solve_incident: incident equilibrium solve did not converge.")
             end if
@@ -699,11 +708,11 @@ contains
                 soln%t21 = t21
                 soln%u(idx) = u1*rho12
                 soln%M21 = wm_k/wm
-                soln%mach(idx) = soln%M21*mach1
                 soln%v2 = u1 - soln%u(idx)
                 soln%eq_partials(idx)%gamma_s = gamma2
                 soln%eq_soln(idx)%gamma_s = gamma2
                 soln%v_sonic(idx) = (R*T2*gamma2/wm_k)**0.5d0
+                soln%mach(idx) = soln%u(idx)/soln%v_sonic(idx)
                 exit
             end if
 
@@ -717,7 +726,7 @@ contains
     end subroutine
 
     subroutine ShockSolver_solve_reflected(self, soln, weights, T0, P0)
-        ! Solve the incident shock conditions
+        ! Solve the reflected shock conditions
 
         ! Arguments
         class(ShockSolver), intent(in) :: self
@@ -729,12 +738,12 @@ contains
         ! Locals
         integer :: idx  ! Solution index for the incident conditions
         integer :: i                      ! Loop index
-        real(dp) :: gamma1                ! Ratio of specific heats at initial condition
+        real(dp) :: gamma1                ! Ratio of specific heats at incident condition
         real(dp) :: cp                    ! Mixture heat capacity
         real(dp) :: wm, wm_k              ! Mixture molecular weight (initial, k-th iteration)
         real(dp) :: h_init, h0            ! Mixture enthalpy (initial, <all other points>)
         real(dp) :: u1                    ! Incident shock velocity
-        real(dp) :: a1                    ! Incident speed of sound
+        real(dp) :: a1                    ! Provisional sound speed
         real(dp) :: T2, T5                ! Temperature after incident, reflected shocks [K]
         real(dp) :: p52, t52, ttmax       ! Pressure/temperature ratio across the reflected shock
         real(dp) :: b5                    ! Intermediate variable for reflected shock initial state
@@ -793,10 +802,10 @@ contains
             dlnV_dlnP = soln%eq_partials(idx)%dlnV_dlnP
             dlnV_dlnT = soln%eq_partials(idx)%dlnV_dlnT
 
-            ! Compute and store the velocity and Mach number
+            ! Retain the legacy provisional values during iteration. Final
+            ! reflected-frame speed, sound speed, and Mach are set on convergence.
             a1 = (R*gamma1*T0/wm)**0.5d0
             soln%u(idx) = u1*rho12
-            soln%mach(idx) = u1*rho12/a1
             soln%v_sonic(idx) = a1
 
             rho52 = 1./(wm*t52/(p52*wm_k))
@@ -834,9 +843,9 @@ contains
                 soln%t52 = t52
                 soln%u(idx) = (u1 - u1*rho12)/(rho52 - 1.0d0)
                 soln%M52 = wm_k/wm
-                soln%mach(idx) = soln%M52*soln%mach(2)
                 soln%u5_p_v2 = (u1 - u1*rho12)*rho52/(rho52 - 1.0d0)
                 soln%v_sonic(idx) = (R*T5*soln%eq_soln(idx)%gamma_s/wm_k)**0.5d0
+                soln%mach(idx) = soln%u(idx)/soln%v_sonic(idx)
                 exit
             end if
 
@@ -980,11 +989,11 @@ contains
                 soln%t52 = t52
                 soln%u(idx) = soln%v2/(rho52 - 1.0d0)
                 soln%M52 = wm_k/wm
-                soln%mach(idx) = soln%M52*soln%mach(2)
                 soln%u5_p_v2 = (u1 - u1*rho12)*rho52/(rho52 - 1.0d0)
                 soln%eq_partials(idx)%gamma_s = gamma5
                 soln%eq_soln(idx)%gamma_s = gamma5
                 soln%v_sonic(idx) = (R*T5*gamma5/wm_k)**0.5d0
+                soln%mach(idx) = soln%u(idx)/soln%v_sonic(idx)
                 exit
             end if
 

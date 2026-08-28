@@ -111,6 +111,15 @@
     CEA_ROCKET_FROZEN_PRANDTL           = 25, \
     CEA_ROCKET_EQUILIBRIUM_PRANDTL      = 26
 
+/* Shock arrays are ordered [initial, incident, reflected] (stations 1, 2, 5).
+ * VELOCITY gives gas speeds in the incident frame (1, 2) and reflected frame (5).
+ * Station 5 is at rest at the wall; its speed also equals the reflected wave-speed
+ * magnitude in the wall frame. V2 = u1-u2 is wall-frame gas speed at station 2;
+ * U5_P_V2 is upstream gas speed relative to the reflected wave, not the wall.
+ * MACH = VELOCITY/SONIC_VELOCITY. Reflected-frozen sound speed retains the legacy
+ * incident frozen-Cp basis at reflected T. M21/M52 are molecular-weight ratios,
+ * not Mach ratios. See docs/source/examples/shock_examples.rst for conventions.
+ */
 #define CEA_SHOCK_PROPERTY_TYPE_ENUM \
     CEA_SHOCK_TEMPERATURE              = 0, \
     CEA_SHOCK_PRESSURE                 = 1, \

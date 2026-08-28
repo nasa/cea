@@ -7,6 +7,11 @@ All notable user-visible changes to this project are documented here.
 ### Changed
 
 ### Fixed
+- Corrected downstream shock Mach numbers to use finalized gas speeds and
+  reported sound speeds, including frozen and retained last-valid states.
+  Documented shock reference frames and the legacy reflected-frozen sound-speed
+  basis; `M21`/`M52` remain molecular-weight ratios, with no thermochemical or
+  legacy output changes.
 - Fixed premature convergence of minor elements such as carbon in database Air
   by checking element-relative balances and gas updates. This can add Newton
   iterations and slightly change equilibrium results.

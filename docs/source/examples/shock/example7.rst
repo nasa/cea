@@ -154,7 +154,7 @@ is still not a converged shock point.
             v_sonic2[i] = solution.sonic_velocity[1]
             P2_P1[i] = solution.P21
             T2_T1[i] = solution.T21
-            M2_M1[i] = solution.M21
+            M2_M1[i] = solution.M21  # Legacy molecular-weight ratio, not a Mach ratio
             rho2_rho1[i] = 1.0/solution.rho12
             v2[i] = solution.v2
 
@@ -172,7 +172,7 @@ is still not a converged shock point.
             v_sonic5[i] = solution.sonic_velocity[2]
             P5_P2[i] = solution.P52
             T5_T2[i] = solution.T52
-            M5_M2[i] = solution.M52
+            M5_M2[i] = solution.M52  # Legacy molecular-weight ratio, not a Mach ratio
             rho5_rho2[i] = solution.rho52
             u5_p_v2[i] = solution.u5_p_v2
 

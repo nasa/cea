@@ -3391,7 +3391,8 @@ cdef class ShockSolver:
         p0 : float
             Unshocked pressure in bar
         u1 : float, optional
-            Shock velocity in m/s (mutually exclusive with Mach1)
+            Incident wave speed relative to the stationary unshocked gas in m/s
+            (mutually exclusive with Mach1)
         Mach1 : float, optional
             Shock Mach number (mutually exclusive with u1)
         reflected : bool, default True
@@ -3453,7 +3454,12 @@ cdef class ShockSolution:
     Solution object containing shock wave calculation results.
 
     Stores shock properties at initial, incident, and optionally
-    reflected shock states.
+    reflected shock states (legacy stations 1, 2, and 5).
+
+    Gas speeds and Mach numbers use the incident-shock frame at stations 1
+    and 2 and the reflected-shock frame at station 5; they do not share a
+    single laboratory frame. The unshocked gas and reflecting wall are at
+    rest in the laboratory frame.
 
     Parameters
     ----------
@@ -3509,7 +3515,13 @@ cdef class ShockSolution:
 
     property velocity:
         """
-        Velocity at each shock state in m/s.
+        Gas speed in m/s, in each station's shock frame.
+
+        Entries 0 and 1 are upstream/downstream speeds relative to the incident
+        shock. Entry 2 is downstream speed relative to the reflected shock.
+        Reflected downstream gas is stationary at the wall, so entry 2 also
+        equals the magnitude of the reflected wave speed in the wall frame.
+        The upstream reflected-frame gas speed is ``u5_p_v2``, not entry 1.
 
         Returns
         -------
@@ -3521,7 +3533,12 @@ cdef class ShockSolution:
 
     property Mach:
         """
-        Mach number at each shock state.
+        Gas Mach number: ``velocity / sonic_velocity`` at each shock state.
+
+        Uses the incident-shock frame for entries 0 and 1 and the reflected-shock
+        frame for entry 2. Entry 2 is neither a wall-frame gas Mach number (zero)
+        nor the upstream reflected-shock Mach number. See ``sonic_velocity``
+        for the retained reflected-frozen sound-speed convention.
 
         Returns
         -------
@@ -3533,7 +3550,14 @@ cdef class ShockSolution:
 
     property sonic_velocity:
         """
-        Sonic velocity at each shock state in m/s.
+        Reported sound speed in m/s: ``sqrt(R * T * gamma_s / M)``.
+
+        Initial and incident-frozen states use frozen heat capacities;
+        equilibrium states use the equilibrium isentropic exponent.
+        For compatibility, reflected-frozen output uses the incident state's
+        frozen heat-capacity basis and molecular weight at the reflected
+        temperature. This legacy convention can differ from the local frozen
+        sound speed for a gas with temperature-dependent heat capacities.
 
         Returns
         -------
@@ -3545,7 +3569,7 @@ cdef class ShockSolution:
 
     property rho12:
         """
-        Density ratio across the incident shock (ρ2/ρ1).
+        Density ratio across the incident shock (ρ1/ρ2).
 
         Returns
         -------
@@ -3617,43 +3641,48 @@ cdef class ShockSolution:
 
     property M21:
         """
-        Mach number ratio across the incident shock (M2/M1).
+        Molecular-weight ratio across the incident shock (M2/M1), not a Mach ratio.
 
         Returns
         -------
         float
-            Mach number ratio across the incident shock
+            Legacy CEA2 molecular-weight ratio across the incident shock
         """
         def __get__(self):
             return self._get_scalar_property(SHOCK_M21)
 
     property M52:
         """
-        Mach number ratio across the reflected shock (M5/M2).
+        Molecular-weight ratio across the reflected shock (M5/M2), not a Mach ratio.
 
         Returns
         -------
         float
-            Mach number ratio across the reflected shock
+            Legacy CEA2 molecular-weight ratio across the reflected shock
         """
         def __get__(self):
             return self._get_scalar_property(SHOCK_M52)
 
     property v2:
         """
-        Velocity at the incident shock state in m/s.
+        Station-2 gas speed in the wall/unshocked-gas frame in m/s.
+
+        Equals ``velocity[0] - velocity[1]``; this is not a shock wave speed.
 
         Returns
         -------
         float
-            Velocity at the incident shock state
+            Gas speed behind the incident shock relative to the wall
         """
         def __get__(self):
             return self._get_scalar_property(SHOCK_V2)
 
     property u5_p_v2:
         """
-        Velocity of the reflected shock wave in m/s.
+        Upstream gas speed relative to the reflected shock in m/s.
+
+        Equals ``velocity[2] + v2``. This is also the reflected wave speed
+        relative to station-2 gas, not the wave speed relative to the wall.
 
         Returns
         -------

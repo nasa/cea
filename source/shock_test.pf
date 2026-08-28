@@ -39,7 +39,10 @@ contains
         t_reac = 300.0d0
 
         solver = ShockSolver(products, reactants)
-        soln = solver%solve(weights, t_reac, p_reac, u1=1400.0d0, reflected=.true., incident_frozen=.false., reflected_frozen=.false.)
+        soln = solver%solve(weights, t_reac, p_reac, u1=1400.0d0, reflected=.true., &
+                            incident_frozen=.false., reflected_frozen=.false.)
+        @assertTrue(soln%converged)
+        @assertEqual(soln%u/soln%v_sonic, soln%mach)
 
         ! Products order: Ar, H, H2, H2O, H2O2, HO2, O, O2, O3, OH, H2O(L), H2O(cr)
 
@@ -110,6 +113,8 @@ contains
 
         solver = ShockSolver(products, reactants)
         soln = solver%solve(weights, t_reac, p_reac, u1=1400.0d0, reflected=.true., incident_frozen=.true., reflected_frozen=.true.)
+        @assertTrue(soln%converged)
+        @assertEqual(soln%u/soln%v_sonic, soln%mach)
 
         ! Products order: Ar, H, H2, H2O, H2O2, HO2, O, O2, O3, OH, H2O(L), H2O(cr)
 
@@ -291,7 +296,118 @@ contains
         @assertTrue(soln%eq_soln(2)%T > 0.0d0)
         @assertTrue(soln%u(2) > 0.0d0)
         @assertTrue(soln%v_sonic(2) > 0.0d0)
+        @assertEqual(soln%u/soln%v_sonic, soln%mach)
+        @assertRelativelyEqual(1.0d0/(soln%eq_soln(2)%n*sum(weights)), soln%M21, 1.d-13)
 
+    end subroutine
+
+    @test
+    subroutine test_shock_mach_reproducer
+        type(Mixture) :: reactants, products
+        type(ShockSolver) :: solver
+        type(ShockSolution) :: soln
+        real(dp) :: weights(3)
+
+        reactants = Mixture(all_thermo, ['H2', 'O2', 'Ar'])
+        products = Mixture(all_thermo, reactants%get_products(all_thermo))
+        solver = ShockSolver(products, reactants)
+        weights = reactants%weights_from_moles([0.05d0, 0.05d0, 0.90d0])
+        soln = solver%solve(weights, 250.d0, 5.d0*1.01325d0/760.d0, u1=1250.d0, &
+                            reflected=.true., incident_frozen=.false., reflected_frozen=.false.)
+        @assertTrue(soln%converged)
+        @assertRelativelyEqual(4.1715730754d0, soln%mach(1), 2.d-8)
+        @assertRelativelyEqual(0.6895985501d0, soln%mach(2), 2.d-8)
+        @assertRelativelyEqual(0.6629497971d0, soln%mach(3), 2.d-8)
+        @assertEqual(soln%u/soln%v_sonic, soln%mach)
+        @assertRelativelyEqual(soln%eq_soln(2)%M/soln%eq_soln(1)%M, soln%M21, 1.d-13)
+        @assertRelativelyEqual(soln%eq_soln(3)%M/soln%eq_soln(2)%M, soln%M52, 1.d-13)
+    end subroutine
+
+    @test
+    subroutine test_shock_monatomic_mach_and_frames
+        type(Mixture) :: argon
+        type(ShockSolver) :: solver
+        type(ShockSolution) :: soln
+        real(dp) :: weights(1), a1, a2, u1, v2, b, mr, r21, p21, r52, p52
+        real(dp) :: expected_mach(3), expected_u(3), expected_a(3)
+        real(dp), parameter :: gamma = 5.d0/3.d0, mach1 = 3.d0, T1 = 300.d0
+        integer :: inc, refl, input, j
+
+        argon = Mixture(all_thermo, ['Ar'])
+        solver = ShockSolver(argon, argon)
+        weights = argon%weights_from_moles([1.d0])
+        ! Independent calorically perfect normal-shock relations (gamma=5/3).
+        ! https://www.grc.nasa.gov/WWW/k-12/airplane/normal.html
+        a1 = sqrt(gamma*R*T1/sum(weights))
+        u1 = mach1*a1
+        r21 = (gamma+1.d0)*mach1**2/((gamma-1.d0)*mach1**2+2.d0)
+        p21 = (2.d0*gamma*mach1**2-(gamma-1.d0))/(gamma+1.d0)
+        a2 = a1*sqrt(p21/r21)
+        v2 = u1*(1.d0-1.d0/r21)
+        ! Reflection from a stationary wall: w2r-w5r=v2, w5r=w2r/r52.
+        b = (gamma+1.d0)*v2/(2.d0*a2)
+        mr = (b+sqrt(b**2+4.d0))/2.d0
+        r52 = (gamma+1.d0)*mr**2/((gamma-1.d0)*mr**2+2.d0)
+        p52 = (2.d0*gamma*mr**2-(gamma-1.d0))/(gamma+1.d0)
+        expected_mach = [mach1, sqrt(((gamma-1.d0)*mach1**2+2.d0)/(2.d0*gamma*mach1**2-(gamma-1.d0))), &
+                               sqrt(((gamma-1.d0)*mr**2+2.d0)/(2.d0*gamma*mr**2-(gamma-1.d0)))]
+        expected_u = [u1, u1/r21, mr*a2/r52]
+        expected_a = [a1, a2, a2*sqrt(p52/r52)]
+
+        do inc = 0, 1
+            do refl = 0, 2
+                do input = 0, 1
+                    if (input == 0) then
+                        soln = solver%solve(weights, T1, 1.d0, u1=u1, reflected=refl>0, &
+                                            incident_frozen=inc==1, reflected_frozen=refl==2)
+                    else
+                        soln = solver%solve(weights, T1, 1.d0, mach1=mach1, reflected=refl>0, &
+                                            incident_frozen=inc==1, reflected_frozen=refl==2)
+                    end if
+                    @assertTrue(soln%converged)
+                    do j = 1, soln%num_pts
+                        @assertRelativelyEqual(expected_mach(j), soln%mach(j), 5.d-5)
+                        @assertRelativelyEqual(expected_u(j), soln%u(j), 5.d-5)
+                        @assertRelativelyEqual(expected_a(j), soln%v_sonic(j), 5.d-5)
+                    end do
+                    @assertRelativelyEqual(1.d0, soln%M21, 1.d-12)
+                    if (refl > 0) then
+                        @assertRelativelyEqual(1.d0, soln%M52, 1.d-12)
+                        @assertRelativelyEqual(mr*a2, soln%u5_p_v2, 5.d-5)
+                    end if
+                end do
+            end do
+        end do
+    end subroutine
+
+    @test
+    subroutine test_shock_mach_failure_clears_invalid_points
+        type(Mixture) :: argon
+        type(ShockSolver) :: solver
+        type(ShockSolution) :: soln
+        real(dp) :: weights(1)
+        integer :: mode
+
+        argon = Mixture(all_thermo, ['Ar'])
+        solver = ShockSolver(argon, argon)
+        weights = argon%weights_from_moles([1.d0])
+        do mode = 0, 1
+            soln = solver%solve(weights, 300.d0, 1.d0, mach1=12.d0, reflected=.true., &
+                                incident_frozen=mode==1, reflected_frozen=mode==1)
+            @assertFalse(soln%converged)
+            @assertEqual(SHOCK_SOLVE_STATUS_NOT_CONVERGED, soln%solve_status)
+            @assertTrue(soln%mach(2) > 0.d0)
+            @assertEqual(soln%u(2)/soln%v_sonic(2), soln%mach(2))
+            @assertEqual(0.d0, soln%mach(3))
+            @assertEqual(0.d0, soln%u(3))
+            @assertEqual(0.d0, soln%v_sonic(3))
+            soln = solver%solve(weights, 300.d0, 1.d0, mach1=100.d0, reflected=.true., &
+                                incident_frozen=mode==1, reflected_frozen=mode==1)
+            @assertFalse(soln%converged)
+            @assertEqual([0.d0, 0.d0], soln%mach(2:3))
+            @assertEqual([0.d0, 0.d0], soln%u(2:3))
+            @assertEqual([0.d0, 0.d0], soln%v_sonic(2:3))
+        end do
     end subroutine
 
 end module
