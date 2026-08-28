@@ -17,113 +17,128 @@ module cea_atomic_data
 
     end type
 
-    type(Atomic), parameter :: AtomicData(106) = [ &
-        Atomic("H ", 1.00794d0   ,  1.), &
-        Atomic("IH", 1.00794d0   ,  1.), &
-        Atomic("D ", 2.014102d0  ,  1.), &
-        Atomic("HE", 4.002602d0  ,  0.), &
-        Atomic("LI", 6.941d0     ,  1.), &
-        Atomic("BE", 9.012182d0  ,  2.), &
-        Atomic("B ", 10.811d0    ,  3.), &
-        Atomic("C ", 12.0107d0   ,  4.), &
-        Atomic("IC", 12.0107d0   ,  4.), &
-        Atomic("N ", 14.0067d0   ,  0.), &
-        Atomic("O ", 15.9994d0   , -2.), &
-        Atomic("IO", 15.9994d0   , -2.), &
-        Atomic("F ", 18.9984032d0, -1.), &
-        Atomic("NE", 20.1797d0   ,  0.), &
-        Atomic("NA", 22.989770d0 ,  1.), &
+    type(Atomic), parameter :: AtomicData(103) = [ &
+        !! Standard atomic weights are IUPAC/CIAAW's current values (accessed
+        !! 2026-08-24): https://www.ciaaw.org/abridged-atomic-weights.htm
+        !! Deliberately kept at CIAAW's own 5-significant-digit abridged
+        !! precision throughout (their recommendation since 2013) rather than
+        !! the more precise unabridged table -- see the PR for why.
+        !!
+        !! Interval-notation elements (e.g. Li, H, Cl) reflect real natural
+        !! variation, not measurement uncertainty -- don't "fix" one by averaging
+        !! it. The value here is IUPAC's own conventional recommendation, not
+        !! the interval's midpoint.
+        !!
+        !! Elements with no standard atomic weight (plus D) use CIAAW's
+        !! recommended isotope's mass instead
+        !! (https://www.ciaaw.org/radioactive-elements.htm), at AME2020's full
+        !! published precision (https://www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt)
+        !! -- unlike standard atomic weights, isotope masses have no abridged
+        !! form to defer to, so full precision is used rather than an invented
+        !! shorter one; see the PR for why.
+        Atomic("H ", 1.008d0     ,  1.), &
+        Atomic("IH", 1.008d0     ,  1.), &   ! Inert hydrogen
+        Atomic("D ", 2.014101777844d0 ,  1.), &   ! Deuterium atomic mass (not a standard atomic weight); ciaaw.org/hydrogen.htm
+        Atomic("HE", 4.0026d0    ,  0.), &
+        Atomic("LI", 6.94d0      ,  1.), &
+        Atomic("BE", 9.0122d0    ,  2.), &
+        Atomic("B ", 10.81d0     ,  3.), &
+        Atomic("C ", 12.011d0    ,  4.), &
+        Atomic("IC", 12.011d0    ,  4.), &   ! Inert carbon
+        Atomic("N ", 14.007d0    ,  0.), &
+        Atomic("O ", 15.999d0    , -2.), &
+        Atomic("IO", 15.999d0    , -2.), &   ! Inert oxygen
+        Atomic("F ", 18.998d0    , -1.), &
+        Atomic("NE", 20.180d0    ,  0.), &
+        Atomic("NA", 22.990d0    ,  1.), &
         Atomic("MG", 24.305d0    ,  2.), &
-        Atomic("AL", 26.981538d0 ,  3.), &
-        Atomic("SI", 28.0855d0   ,  4.), &
-        Atomic("P ", 30.973761d0 ,  5.), &
-        Atomic("S ", 32.065d0    ,  4.), &
-        Atomic("CL", 35.453d0    , -1.), &
-        Atomic("AR", 39.948d0    ,  0.), &
-        Atomic("K ", 39.0983d0   ,  1.), &
+        Atomic("AL", 26.982d0    ,  3.), &
+        Atomic("SI", 28.085d0    ,  4.), &
+        Atomic("P ", 30.974d0    ,  5.), &
+        Atomic("S ", 32.06d0     ,  4.), &
+        Atomic("CL", 35.45d0     , -1.), &
+        Atomic("AR", 39.95d0     ,  0.), &
+        Atomic("K ", 39.098d0    ,  1.), &
         Atomic("CA", 40.078d0    ,  2.), &
-        Atomic("SC", 44.95591d0  ,  3.), &
+        Atomic("SC", 44.956d0    ,  3.), &
         Atomic("TI", 47.867d0    ,  4.), &
-        Atomic("V ", 50.9415d0   ,  5.), &
-        Atomic("CR", 51.9961d0   ,  3.), &
-        Atomic("MN", 54.938049d0 ,  2.), &
+        Atomic("V ", 50.942d0    ,  5.), &
+        Atomic("CR", 51.996d0    ,  3.), &
+        Atomic("MN", 54.938d0    ,  2.), &
         Atomic("FE", 55.845d0    ,  3.), &
-        Atomic("CO", 58.933200d0 ,  2.), &
-        Atomic("NI", 58.6934d0   ,  2.), &
+        Atomic("CO", 58.933d0    ,  2.), &
+        Atomic("NI", 58.693d0    ,  2.), &
         Atomic("CU", 63.546d0    ,  2.), &
-        Atomic("ZN", 65.39d0     ,  2.), &
+        Atomic("ZN", 65.38d0     ,  2.), &
         Atomic("GA", 69.723d0    ,  3.), &
-        Atomic("GE", 72.64d0     ,  4.), &
-        Atomic("AS", 74.92160d0  ,  3.), &
-        Atomic("SE", 78.96d0     ,  4.), &
+        Atomic("GE", 72.630d0    ,  4.), &
+        Atomic("AS", 74.922d0    ,  3.), &
+        Atomic("SE", 78.971d0    ,  4.), &
         Atomic("BR", 79.904d0    , -1.), &
-        Atomic("KR", 83.80d0     ,  0.), &
-        Atomic("RB", 85.4678d0   ,  1.), &
+        Atomic("KR", 83.798d0    ,  0.), &
+        Atomic("RB", 85.468d0    ,  1.), &
         Atomic("SR", 87.62d0     ,  2.), &
-        Atomic("Y ", 88.90585d0  ,  3.), &
-        Atomic("ZR", 91.224d0    ,  4.), &
-        Atomic("NB", 92.90638d0  ,  5.), &
-        Atomic("MO", 95.94d0     ,  6.), &
-        Atomic("TC", 97.9072d0   ,  7.), &
+        Atomic("Y ", 88.906d0    ,  3.), &
+        Atomic("ZR", 91.222d0    ,  4.), &
+        Atomic("NB", 92.906d0    ,  5.), &
+        Atomic("MO", 95.95d0     ,  6.), &
+        Atomic("TC", 97.907211206d0 ,  7.), &   ! No standard weight; mass of Tc-98 (CIAAW: Tc-97/Tc-98 equally stable)
         Atomic("RU", 101.07d0    ,  3.), &
-        Atomic("RH", 102.9055d0  ,  3.), &
+        Atomic("RH", 102.91d0    ,  3.), &
         Atomic("PD", 106.42d0    ,  2.), &
-        Atomic("AG", 107.8682d0  ,  1.), &
-        Atomic("CD", 112.411d0   ,  2.), &
-        Atomic("IN", 114.818d0   ,  3.), &
-        Atomic("SN", 118.710d0   ,  4.), &
-        Atomic("SB", 121.760d0   ,  3.), &
+        Atomic("AG", 107.87d0    ,  1.), &
+        Atomic("CD", 112.41d0    ,  2.), &
+        Atomic("IN", 114.82d0    ,  3.), &
+        Atomic("SN", 118.71d0    ,  4.), &
+        Atomic("SB", 121.76d0    ,  3.), &
         Atomic("TE", 127.6d0     ,  4.), &
-        Atomic("I ", 126.90447d0 , -1.), &
-        Atomic("XE", 131.293d0   ,  0.), &
-        Atomic("CS", 132.90545d0 ,  1.), &
-        Atomic("BA", 137.327d0   ,  2.), &
-        Atomic("LA", 138.9055d0  ,  3.), &
-        Atomic("CE", 140.116d0   ,  3.), &
-        Atomic("PR", 140.90765d0 ,  3.), &
-        Atomic("ND", 144.9127d0  ,  3.), &
-        Atomic("PM", 145.d0      ,  3.), &
+        Atomic("I ", 126.90d0    , -1.), &
+        Atomic("XE", 131.29d0    ,  0.), &
+        Atomic("CS", 132.91d0    ,  1.), &
+        Atomic("BA", 137.33d0    ,  2.), &
+        Atomic("LA", 138.91d0    ,  3.), &
+        Atomic("CE", 140.12d0    ,  3.), &
+        Atomic("PR", 140.91d0    ,  3.), &
+        Atomic("ND", 144.24d0    ,  3.), &
+        Atomic("PM", 144.912755748d0 ,  3.), &   ! No standard weight; mass of Pm-145
         Atomic("SM", 150.36d0    ,  3.), &
-        Atomic("EU", 151.964d0   ,  3.), &
+        Atomic("EU", 151.96d0    ,  3.), &
         Atomic("GD", 157.25d0    ,  3.), &
-        Atomic("TB", 158.92534d0 ,  3.), &
+        Atomic("TB", 158.93d0    ,  3.), &
         Atomic("DY", 162.50d0    ,  3.), &
-        Atomic("HO", 164.93032d0 ,  3.), &
-        Atomic("ER", 167.259d0   ,  3.), &
-        Atomic("TM", 168.93421d0 ,  3.), &
-        Atomic("YB", 173.04d0    ,  3.), &
-        Atomic("LU", 174.967d0   ,  3.), &
+        Atomic("HO", 164.93d0    ,  3.), &
+        Atomic("ER", 167.26d0    ,  3.), &
+        Atomic("TM", 168.93d0    ,  3.), &
+        Atomic("YB", 173.05d0    ,  3.), &
+        Atomic("LU", 174.97d0    ,  3.), &
         Atomic("HF", 178.49d0    ,  4.), &
-        Atomic("TA", 180.9479d0  ,  5.), &
+        Atomic("TA", 180.95d0    ,  5.), &
         Atomic("W ", 183.84d0    ,  6.), &
-        Atomic("RE", 186.207d0   ,  7.), &
+        Atomic("RE", 186.21d0    ,  7.), &
         Atomic("OS", 190.23d0    ,  4.), &
-        Atomic("IR", 192.217d0   ,  4.), &
-        Atomic("PT", 195.078d0   ,  4.), &
-        Atomic("AU", 196.96655d0 ,  3.), &
+        Atomic("IR", 192.22d0    ,  4.), &
+        Atomic("PT", 195.08d0    ,  4.), &
+        Atomic("AU", 196.97d0    ,  3.), &
         Atomic("HG", 200.59d0    ,  2.), &
-        Atomic("TL", 204.3833d0  ,  1.), &
+        Atomic("TL", 204.38d0    ,  1.), &
         Atomic("PB", 207.2d0     ,  2.), &
-        Atomic("BI", 208.98038d0 ,  3.), &
-        Atomic("PO", 208.9824d0  ,  2.), &
-        Atomic("AT", 209.9871d0  , -1.), &
-        Atomic("RN", 222.0176d0  ,  0.), &
-        Atomic("FR", 223.0197d0  ,  1.), &
-        Atomic("RA", 226.0254d0  ,  2.), &
-        Atomic("AC", 227.0278d0  ,  3.), &
-        Atomic("TH", 232.0381d0  ,  4.), &
-        Atomic("PA", 231.03588d0 ,  5.), &
-        Atomic("U ", 238.02891d0 ,  6.), &
-        Atomic("NP", 237.0482d0  ,  5.), &
-        Atomic("PU", 244.0642d0  ,  4.), &
-        Atomic("AM", 243.0614d0  ,  3.), &
-        Atomic("CM", 247.0703d0  ,  3.), &
-        Atomic("BK", 247.0703d0  ,  3.), &
-        Atomic("CF", 251.0587d0  ,  3.), &
-        Atomic("ES", 252.083d0   ,  3.), &
-        Atomic("IH", 1.00794d0   ,  1.), &
-        Atomic("IC", 12.0107d0   ,  4.), &
-        Atomic("IO", 15.9994d0   , -2.) &
+        Atomic("BI", 208.98d0    ,  3.), &
+        Atomic("PO", 208.982430361d0 ,  2.), &   ! No standard weight; mass of Po-209
+        Atomic("AT", 209.987147423d0 , -1.), &   ! No standard weight; mass of At-210
+        Atomic("RN", 222.017576017d0 ,  0.), &   ! No standard weight; mass of Rn-222
+        Atomic("FR", 223.019734241d0 ,  1.), &   ! No standard weight; mass of Fr-223
+        Atomic("RA", 226.025408186d0 ,  2.), &   ! No standard weight; mass of Ra-226
+        Atomic("AC", 227.027750594d0 ,  3.), &   ! No standard weight; mass of Ac-227
+        Atomic("TH", 232.04d0    ,  4.), &
+        Atomic("PA", 231.04d0    ,  5.), &
+        Atomic("U ", 238.03d0    ,  6.), &
+        Atomic("NP", 237.048171640d0 ,  5.), &   ! No standard weight; mass of Np-237
+        Atomic("PU", 244.064204401d0 ,  4.), &   ! No standard weight; mass of Pu-244
+        Atomic("AM", 243.061379889d0 ,  3.), &   ! No standard weight; mass of Am-243
+        Atomic("CM", 247.070352678d0 ,  3.), &   ! No standard weight; mass of Cm-247
+        Atomic("BK", 247.070305889d0 ,  3.), &   ! No standard weight; mass of Bk-247
+        Atomic("CF", 251.079587171d0 ,  3.), &   ! No standard weight; mass of Cf-251
+        Atomic("ES", 252.082979173d0 ,  3.) &    ! No standard weight; mass of Es-252
     ]
 
 contains
