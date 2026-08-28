@@ -7,6 +7,14 @@ All notable user-visible changes to this project are documented here.
 ### Changed
 
 ### Fixed
+
+### Added
+
+## [3.3.4] - 2026-08-28
+
+### Changed
+
+### Fixed
 - Corrected downstream shock Mach numbers to use finalized gas speeds and
   reported sound speeds, including frozen and retained last-valid states.
   Documented shock reference frames and the legacy reflected-frozen sound-speed
@@ -22,9 +30,7 @@ All notable user-visible changes to this project are documented here.
   removing single-precision rounding from finite-difference perturbations.
 
 ### Added
-- Database-Air derivative regression cases and a reproducible paper/optimization
-  audit; see [the investigation](docs/validation/database_air_derivatives.md),
-  including the remaining limitations at hard species-activation boundaries.
+- Added regression coverage for equilibrium derivatives in mixtures using database Air.
 
 ## [3.3.3] - 2026-08-24
 
