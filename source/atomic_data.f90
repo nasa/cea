@@ -152,7 +152,7 @@ contains
 
         ! Error if symbol not found
         if (idx(1) < 1) then
-            call abort("Symbol "//symbol//" not found in the element list.")
+            call abort("Symbol "//trim(symbol)//" not found in the element list.")
         end if
 
         ! Select the Atomic object
