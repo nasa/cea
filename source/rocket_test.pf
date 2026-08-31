@@ -533,6 +533,12 @@ contains
         @assertRelativelyEqual(38.038d0, soln%pressure(2), tol)
         @assertRelativelyEqual(1.0d0, soln%mach(2), tol)
         @assertRelativelyEqual(1466.5d0, soln%c_star(2), tol)
+
+        ! C(gr) is active (nj ~ 3.4e-3) at the frozen point, and points 1-2
+        ! above complete before point 3 fails -- so the frozen thermo-interval
+        ! check exercises its success path (in_range = .true.) for an active
+        ! condensed species here, not just the failure path above.
+        @assertTrue(soln%eq_soln(1)%is_active(1))
     end subroutine
 
     @test

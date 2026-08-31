@@ -345,9 +345,8 @@ contains
                 ! composition point, not the species' overall span.
                 in_range = .true.
                 do j = 1, self%eq_solver%num_condensed
-                    ! TODO(smooth_truncation): smooth gating means species are rarely exactly zero.
-                    ! Frozen-mode checks intentionally use a practical-zero tolerance.
-                    if (abs(soln%eq_soln(n_frz)%nj(ng+j)) <= approx_zero_tol) cycle
+                    ! Only validate species actually present in the frozen composition.
+                    if (.not. soln%eq_soln(n_frz)%is_active(j)) cycle
                     call frozen_fit_bounds(self%eq_solver%products%species(ng+j), soln%eq_soln(n_frz)%T, T_low, T_high)
                     if (soln%eq_soln(idx)%T < (T_low-phase_gap) .or. soln%eq_soln(idx)%T > (T_high+phase_gap)) then
                         in_range = .false.
