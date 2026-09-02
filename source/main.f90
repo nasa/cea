@@ -3047,7 +3047,6 @@ contains
                             trace_names(num_trace) = solver%eq_solver%products%species_names(ii)
                         end if
                     end do
-                    trace_names = trace_names(:num_trace)
 
                     ! Print the mole or mass fractions
                     write(ioout, *) ""
@@ -3471,7 +3470,6 @@ contains
                                 trace_names(num_trace) = solver%eq_solver%products%species_names(ii)
                             end if
                         end do
-                        trace_names = trace_names(:num_trace)
 
                         ! Print the mole or mass fractions
                         write(ioout, *) ""
