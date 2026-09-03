@@ -1717,7 +1717,7 @@ contains
                         if (abs(d_phase) > 1) then
                             ! Switch phase
                             call log_info("Phase change: replace "//trim(self%products%species_names(ng+i))//&
-                                          " with "//self%products%species_names(ng+idx_other_phase(j)))
+                                          " with "//trim(self%products%species_names(ng+idx_other_phase(j))))
                             call soln%replace_active_condensed(i, idx_other_phase(j))
                             soln%nj(ng+idx_other_phase(j)) = soln%nj(ng+i)
                             soln%nj(ng+i) = 0.0d0
@@ -1756,7 +1756,7 @@ contains
                         if (soln%T < (T_low_i-dT_phase) .or. soln%T > (T_high_i+dT_phase)) then
                             ! Switch phase
                             call log_info("Phase change: replace "//trim(self%products%species_names(ng+i))//&
-                                          " with "//self%products%species_names(ng+idx_other_phase(j)))
+                                          " with "//trim(self%products%species_names(ng+idx_other_phase(j))))
                             call soln%replace_active_condensed(i, idx_other_phase(j))
                             soln%nj(ng+idx_other_phase(j)) = soln%nj(ng+i)
                             soln%nj(ng+i) = 0.0d0
@@ -1770,7 +1770,7 @@ contains
                         end if
 
                         ! else
-                        call log_debug("Adding "//self%products%species_names(ng+idx_other_phase(j)))
+                        call log_debug("Adding "//trim(self%products%species_names(ng+idx_other_phase(j))))
                         soln%T = min(T_high_i, T_high_j)  ! Set T as the melting temperature
                         if (T_high_i > T_high_j) then
                             soln%j_sol = idx_other_phase(j)
@@ -1795,7 +1795,7 @@ contains
 
             if (soln%T > 1.2d0*max_T_j) then
                 ! Remove condensed species
-                call log_info("Removing condensed species: "//self%products%species_names(ng+i))
+                call log_info("Removing condensed species: "//trim(self%products%species_names(ng+i)))
                 call soln%deactivate_condensed(i)
                 soln%nj(ng+i) = 0.0d0
                 soln%converged = .false.
@@ -1891,7 +1891,7 @@ contains
                 soln%nj(ng+cond_idx) = 0.0d0
                 soln%converged = .false.
                 iter = -1
-                call log_info("Removing "//self%products%species_names(ng+cond_idx))
+                call log_info("Removing "//trim(self%products%species_names(ng+cond_idx)))
                 return
             end if
 
@@ -1940,11 +1940,11 @@ contains
             soln%converged = .false.
             iter = -1
             soln%last_cond_idx = cond_idx
-            call log_info("Adding "//self%products%species_names(ng+cond_idx))
+            call log_info("Adding "//trim(self%products%species_names(ng+cond_idx)))
             return
         else
             call abort('EqSolver_test_condensed: Re-insertion of '// &
-                self%products%species_names(ng+singular_index_)//' likely to cause singular matrix.')
+                trim(self%products%species_names(ng+singular_index_))//' likely to cause singular matrix.')
         end if
 
     end subroutine
@@ -2019,7 +2019,7 @@ contains
             end do
             ! Remove condensed species contributing to singular matrix
             if (idx > 0) then
-                call log_info("Removing condensed species "//self%products%species_names(ng+idx)// &
+                call log_info("Removing condensed species "//trim(self%products%species_names(ng+idx))// &
                               " to correct singular matrix")
                 call soln%deactivate_condensed(idx)
                 soln%nj(ng+idx) = 0.0d0
@@ -2046,7 +2046,7 @@ contains
             end do
 
             if (idx > 0) then
-                call log_info("Removing condensed species "//self%products%species_names(ng+idx)// &
+                call log_info("Removing condensed species "//trim(self%products%species_names(ng+idx))// &
                               " to correct element-row singularity")
                 call soln%deactivate_condensed(idx)
                 soln%nj(ng+idx) = 0.0d0
@@ -3934,16 +3934,16 @@ contains
                 if (solution%nj(i) > 1.0d-10) then
                     abs_err = abs(self%dnj_dstate1_fd(i) - self%dnj_dstate1(i))
                     rel_err = abs_err / max(abs(self%dnj_dstate1(i)), 1.0d-30)
-                    write(*,*) "dnj/dstate1 (", solver%products%species_names(i), "): abs=", abs_err, " rel=", rel_err
+                    write(*,*) "dnj/dstate1 (", trim(solver%products%species_names(i)), "): abs=", abs_err, " rel=", rel_err
 
                     abs_err = abs(self%dnj_dstate2_fd(i) - self%dnj_dstate2(i))
                     rel_err = abs_err / max(abs(self%dnj_dstate2(i)), 1.0d-30)
-                    write(*,*) "dnj/dstate2 (", solver%products%species_names(i), "): abs=", abs_err, " rel=", rel_err
+                    write(*,*) "dnj/dstate2 (", trim(solver%products%species_names(i)), "): abs=", abs_err, " rel=", rel_err
 
                     if (nr > 0) then
                         abs_err = maxval(abs(self%dnj_dw0_fd(i, :) - self%dnj_dw0(i, :)))
                         rel_err = maxval(abs(self%dnj_dw0_fd(i, :) - self%dnj_dw0(i, :)) / max(abs(self%dnj_dw0(i, :)), 1.0d-30))
-                        write(*,*) "dnj/dw0 (", solver%products%species_names(i), ") (max): abs=", abs_err, " rel=", rel_err
+                        write(*,*) "dnj/dw0 (", trim(solver%products%species_names(i)), ") (max): abs=", abs_err, " rel=", rel_err
                     end if
                 end if
             end do
@@ -4197,7 +4197,7 @@ contains
                 if (j > 0) then
                     ! Only count this as an "insert" if it is condensed; no effect otherwise
                     if (solver%products%species(j)%i_phase > 0) then
-                        call log_info("Inserting "//solver%products%species_names(j))
+                        call log_info("Inserting "//trim(solver%products%species_names(j)))
                         call self%activate_condensed_front(j-solver%num_gas)
                     end if
                 end if
@@ -5328,7 +5328,7 @@ contains
                 selected_local_idx(j) = i
                 transport_to_local(idx(1)) = i
             else
-                call log_info('compute_transport_properties: Species '//eq_solver%products%species_names(idx_list(i))//&
+                call log_info('compute_transport_properties: Species '//trim(eq_solver%products%species_names(idx_list(i)))//&
                               ' not found in transport database.')
             end if
         end do
