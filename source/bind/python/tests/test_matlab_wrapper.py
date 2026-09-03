@@ -118,6 +118,46 @@ def test_matlab_eq_solve_matches_compiled_eq_solve(cea_module):
     assert wrapper_soln.mole_fractions == compiled_soln.mole_fractions
 
 
+def test_eq_solve_hp_state1_divides_by_gas_constant(cea_module):
+    # eq_solve's HP/SP/UV `state1` must be in the H/R convention the Fortran
+    # core expects, both when T_reac drives the enthalpy calculation and when
+    # H is passed directly. Before the fix, both paths passed the raw
+    # (non-/R) enthalpy through and failed to converge.
+    import cea.matlab
+
+    reactants = ["H2", "O2"]
+    fuel_amounts = np.array([1.0, 0.0], dtype=np.float64)
+    oxid_amounts = np.array([0.0, 1.0], dtype=np.float64)
+
+    soln_t_reac = cea.matlab.eq_solve(
+        cea_module.HP,
+        reactants,
+        P=1.0,
+        T_reac=1000.0,
+        fuel_amounts=fuel_amounts,
+        oxid_amounts=oxid_amounts,
+        of_ratio=8.0,
+    )
+    assert soln_t_reac.converged
+    np.testing.assert_allclose(soln_t_reac.T, 3155.4878196910463, rtol=1e-9)
+
+    reactants_mix = cea_module.Mixture(reactants)
+    weights = reactants_mix.of_ratio_to_weights(oxid_amounts, fuel_amounts, 8.0)
+    h0 = reactants_mix.calc_property(cea_module.ENTHALPY, weights, 1000.0)
+
+    soln_h = cea.matlab.eq_solve(
+        cea_module.HP,
+        reactants,
+        P=1.0,
+        H=h0,
+        fuel_amounts=fuel_amounts,
+        oxid_amounts=oxid_amounts,
+        of_ratio=8.0,
+    )
+    assert soln_h.converged
+    np.testing.assert_allclose(soln_h.T, soln_t_reac.T, rtol=0.0, atol=0.0)
+
+
 def test_root_eq_solve_shim_warns_and_forwards(cea_module):
     reactants, fuel_amounts, oxid_amounts = _wrapper_case_inputs()
     with pytest.warns(

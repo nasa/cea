@@ -4908,6 +4908,10 @@ cdef class DetonationSolution:
 # Matlab interface
 # ----------------
 
+# Universal gas constant in J/(kmol*K); must match cea_param.gas_constant
+# (source/param.f90.in) and cea.constants.R.
+GAS_CONSTANT = 8314.51
+
 def eq_solve(cea_equilibrium_type eq_type,
              list reactants,
              T: Optional[double] = None, H: Optional[double] = None, S: Optional[double] = None, U: Optional[double] = None,
@@ -4932,11 +4936,15 @@ def eq_solve(cea_equilibrium_type eq_type,
     T : float, optional
         Temperature value in K (mutually exclusive with H, S, U)
     H : float, optional
-        Enthalpy value in J/kg (mutually exclusive with T, S, U)
+        Enthalpy value in J/kg (mutually exclusive with T, S, U). Internally
+        divided by the gas constant R to match the solver's expected H/R
+        convention, same as the T_reac-derived value for HP problems.
     S : float, optional
-        Entropy value in J/(kg·K) (mutually exclusive with T, H, U)
+        Entropy value in J/(kg·K) (mutually exclusive with T, H, U). Internally
+        divided by R, same as the T_reac-derived value for SP/SV problems.
     U : float, optional
-        Internal energy value in J/kg (mutually exclusive with T, H, S)
+        Internal energy value in J/kg (mutually exclusive with T, H, S). Internally
+        divided by R, same as the T_reac-derived value for UV problems.
     P : float, optional
         Pressure value in bar (mutually exclusive with V)
     V : float, optional
@@ -5003,11 +5011,11 @@ def eq_solve(cea_equilibrium_type eq_type,
     if (T is not None):
         state1 = T
     elif (H is not None):
-        state1 = H
+        state1 = H / GAS_CONSTANT
     elif (S is not None):
-        state1 = S
+        state1 = S / GAS_CONSTANT
     elif (U is not None):
-        state1 = U
+        state1 = U / GAS_CONSTANT
 
     if (P is not None):
         state2 = P
@@ -5061,11 +5069,11 @@ def eq_solve(cea_equilibrium_type eq_type,
                 state1 = T_reac[0] if type(T_reac) in [list, np.ndarray] else T_reac
                 warnings.warn("Problem temperature not defined; using first reactant temperature")
             elif eq_type == HP:
-                state1 = reactants_mix.calc_property(ENTHALPY, weights, T_reac)
+                state1 = reactants_mix.calc_property(ENTHALPY, weights, T_reac) / GAS_CONSTANT
             elif eq_type == SP or eq_type == SV:
-                state1 = reactants_mix.calc_property(ENTROPY, weights, T_reac)
+                state1 = reactants_mix.calc_property(ENTROPY, weights, T_reac) / GAS_CONSTANT
             elif eq_type == UV:
-                state1 = reactants_mix.calc_property(ENERGY, weights, T_reac)
+                state1 = reactants_mix.calc_property(ENERGY, weights, T_reac) / GAS_CONSTANT
         else:
             raise TypeError("Reactant temperature not defined")
 
