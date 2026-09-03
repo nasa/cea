@@ -20,13 +20,9 @@ Recommended approach:
   ``ShockSolution`` / ``DetonationSolution`` object.
 - The wrapper module is pure Python. The ``CEA_ENABLE_BIND_MATLAB`` CMake
   option is a compatibility knob for MATLAB-via-Python workflows; it does not
-  build a separate supported ``ceam`` extension.
+  build a separate native MATLAB extension.
 - Example scripts live in ``source/bind/matlab/samples/``:
   ``equilibrium_example.m``, ``rocket_example.m``, ``shock_example.m``,
   ``detonation_example.m``.
-
-Legacy note:
-- ``source/bind/matlab/ceam.pyx`` is an old experimental artifact and is not the
-  supported interface path.
 
 If you need a native MATLAB interface, please open an issue or contribute fixes.
