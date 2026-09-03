@@ -1,6 +1,7 @@
 import os
 import shutil
 import subprocess
+import sys
 import warnings
 import csv
 from pathlib import Path
@@ -580,3 +581,5 @@ with open("test_results.csv", "w", newline="") as csv_file:
     writer.writerow(["test_name", "value_type", "variable", "value", "reference", "abs_error", "rel_error"])
     for row in zip(test_names_csv, value_type, variable, value, reference, abs_error, rel_error):
         writer.writerow(row)
+
+sys.exit(0 if passed_count == num_tests else 1)
