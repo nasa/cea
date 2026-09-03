@@ -725,7 +725,7 @@ contains
 
     end subroutine
 
-    subroutine ShockSolver_solve_reflected(self, soln, weights, T0, P0)
+    subroutine ShockSolver_solve_reflected(self, soln, weights, T0)
         ! Solve the reflected shock conditions
 
         ! Arguments
@@ -733,7 +733,6 @@ contains
         class(ShockSolution), intent(inout) :: soln
         real(dp), intent(in) :: weights(:)
         real(dp), intent(in) :: T0                     ! Initial reactant temperature [K]
-        real(dp), intent(in) :: P0                     ! Initial reactant pressure [bar]
 
         ! Locals
         integer :: idx  ! Solution index for the incident conditions
@@ -758,7 +757,6 @@ contains
         real(dp), parameter :: T_gas_max = 20000.d0  ! Max gas temperature in the thermo database [K]
 
         ! Initialize
-        if (.false.) print *, P0
         idx = 3
         G = 0.0d0  ! Reset the matrix
         soln%converged = .false.
@@ -1158,7 +1156,7 @@ contains
             if (reflected_frozen_) then
                 call self%solve_reflected_frozen(soln, reactant_weights, T0, P0)
             else  ! Equilibrium
-                call self%solve_reflected(soln, reactant_weights, T0, P0)
+                call self%solve_reflected(soln, reactant_weights, T0)
             end if
             if (soln%eq_soln(3)%T <= 0.0d0) then
                 return
