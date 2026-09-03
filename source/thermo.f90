@@ -128,11 +128,27 @@ contains
         end if
     end subroutine
 
+    elemental function st_select_interval(self, T) result(idx)
+        !! Select the index of the temperature-fit interval containing T
+        class(SpeciesThermo), intent(in) :: self
+        real(dp), intent(in) :: T
+        integer :: idx
+        integer :: i
+
+        idx = 1
+        do i = 1,self%num_intervals
+            if (T > self%T_fit(i, 1)) then
+                idx = i
+            end if
+        end do
+
+    end function
+
     elemental function st_calc_cv(self, T) result(cv)
         class(SpeciesThermo), intent(in) :: self
         real(dp), intent(in) :: T
         real(dp) :: cv
-        integer :: i, idx
+        integer :: idx
 
         if (.not. allocated(self%fits)) then
             cv = 0.0d0
@@ -140,12 +156,7 @@ contains
         end if
 
         ! Select temperature range
-        idx = 1
-        do i = 1,self%num_intervals
-            if (T > self%T_fit(i, 1)) then
-                idx = i
-            end if
-        end do
+        idx = st_select_interval(self, T)
 
         ! Evaluate selected fit
         cv = self%fits(idx)%calc_cv(T)
@@ -156,7 +167,7 @@ contains
         class(SpeciesThermo), intent(in) :: self
         real(dp), intent(in) :: T
         real(dp) :: cp
-        integer :: i, idx
+        integer :: idx
 
         if (.not. allocated(self%fits)) then
             cp = 0.0d0
@@ -164,12 +175,7 @@ contains
         end if
 
         ! Select temperature range
-        idx = 1
-        do i = 1,self%num_intervals
-            if (T > self%T_fit(i, 1)) then
-                idx = i
-            end if
-        end do
+        idx = st_select_interval(self, T)
 
         ! Evaluate selected fit
         cp = self%fits(idx)%calc_cp(T)
@@ -180,7 +186,7 @@ contains
         class(SpeciesThermo), intent(in) :: self
         real(dp), intent(in) :: T
         real(dp) :: u_R
-        integer :: i, idx
+        integer :: idx
 
         if (.not. allocated(self%fits)) then
             u_R = self%calc_enthalpy(T) - T
@@ -188,12 +194,7 @@ contains
         end if
 
         ! Select temperature range
-        idx = 1
-        do i = 1,self%num_intervals
-            if (T > self%T_fit(i, 1)) then
-                idx = i
-            end if
-        end do
+        idx = st_select_interval(self, T)
 
         ! Evaluate selected fit
         u_R = self%fits(idx)%calc_energy(T, log(T))
@@ -204,17 +205,12 @@ contains
         class(SpeciesThermo), intent(in) :: self
         real(dp), intent(in) :: T
         real(dp) :: h_R
-        integer :: i, idx
+        integer :: idx
 
         if (allocated(self%fits)) then
 
             ! Select temperature range
-            idx = 1
-            do i = 1,self%num_intervals
-                if (T > self%T_fit(i, 1)) then
-                    idx = i
-                end if
-            end do
+            idx = st_select_interval(self, T)
 
             ! Evaluate selected fit
             h_R = self%fits(idx)%calc_enthalpy(T, log(T))
@@ -229,7 +225,7 @@ contains
         class(SpeciesThermo), intent(in) :: self
         real(dp), intent(in) :: T
         real(dp) :: s_R
-        integer :: i, idx
+        integer :: idx
 
         if (.not. allocated(self%fits)) then
             s_R = 0.0d0
@@ -237,12 +233,7 @@ contains
         end if
 
         ! Select temperature range
-        idx = 1
-        do i = 1,self%num_intervals
-            if (T > self%T_fit(i, 1)) then
-                idx = i
-            end if
-        end do
+        idx = st_select_interval(self, T)
 
         ! Evaluate selected fit
         s_R = self%fits(idx)%calc_entropy(T, log(T))
@@ -253,7 +244,7 @@ contains
         class(SpeciesThermo), intent(in) :: self
         real(dp), intent(in) :: T
         real(dp) :: g
-        integer :: i, idx
+        integer :: idx
 
         if (.not. allocated(self%fits)) then
             g = self%calc_enthalpy(T)
@@ -261,12 +252,7 @@ contains
         end if
 
         ! Select temperature range
-        idx = 1
-        do i = 1,self%num_intervals
-            if (T > self%T_fit(i, 1)) then
-                idx = i
-            end if
-        end do
+        idx = st_select_interval(self, T)
 
         ! Evaluate selected fit
         g = self%fits(idx)%calc_gibbs_energy(T, log(T))
@@ -306,15 +292,10 @@ contains
         class(SpeciesThermo), intent(in) :: self
         real(dp), intent(in) :: T
         real(dp) :: dcv_dT
-        integer :: i, idx
+        integer :: idx
 
         ! Select temperature range
-        idx = 1
-        do i = 1,self%num_intervals
-            if (T > self%T_fit(i, 1)) then
-                idx = i
-            end if
-        end do
+        idx = st_select_interval(self, T)
 
         ! Evaluate selected fit
         dcv_dT = self%fits(idx)%calc_dcv_dT(T)
@@ -325,15 +306,10 @@ contains
         class(SpeciesThermo), intent(in) :: self
         real(dp), intent(in) :: T
         real(dp) :: dcp_dT
-        integer :: i, idx
+        integer :: idx
 
         ! Select temperature range
-        idx = 1
-        do i = 1,self%num_intervals
-            if (T > self%T_fit(i, 1)) then
-                idx = i
-            end if
-        end do
+        idx = st_select_interval(self, T)
 
         ! Evaluate selected fit
         dcp_dT = self%fits(idx)%calc_dcp_dT(T)
@@ -344,15 +320,10 @@ contains
         class(SpeciesThermo), intent(in) :: self
         real(dp), intent(in) :: T
         real(dp) :: du_dT
-        integer :: i, idx
+        integer :: idx
 
         ! Select temperature range
-        idx = 1
-        do i = 1,self%num_intervals
-            if (T > self%T_fit(i, 1)) then
-                idx = i
-            end if
-        end do
+        idx = st_select_interval(self, T)
 
         ! Evaluate selected fit
         du_dT = self%fits(idx)%calc_denergy_dT(T)
@@ -363,15 +334,10 @@ contains
         class(SpeciesThermo), intent(in) :: self
         real(dp), intent(in) :: T
         real(dp) :: dh_dT
-        integer :: i, idx
+        integer :: idx
 
         ! Select temperature range
-        idx = 1
-        do i = 1,self%num_intervals
-            if (T > self%T_fit(i, 1)) then
-                idx = i
-            end if
-        end do
+        idx = st_select_interval(self, T)
 
         ! Evaluate selected fit
         dh_dT = self%fits(idx)%calc_denthalpy_dT(T)
@@ -382,15 +348,10 @@ contains
         class(SpeciesThermo), intent(in) :: self
         real(dp), intent(in) :: T
         real(dp) :: ds_dT
-        integer :: i, idx
+        integer :: idx
 
         ! Select temperature range
-        idx = 1
-        do i = 1,self%num_intervals
-            if (T > self%T_fit(i, 1)) then
-                idx = i
-            end if
-        end do
+        idx = st_select_interval(self, T)
 
         ! Evaluate selected fit
         ds_dT = self%fits(idx)%calc_dentropy_dT(T)
