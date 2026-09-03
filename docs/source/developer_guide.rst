@@ -55,7 +55,9 @@ Prerequisites
 * Optional but strongly recommended: `Doxygen <https://www.doxygen.nl/>`_ to
   regenerate the XML that feeds the Sphinx API docs, and `PFUnit
   <https://github.com/Goddard-Fortran-Ecosystem/pFUnit>`_ support libraries for
-  unit testing (vendored in ``extern/GFE``).
+  unit testing, available via the vendored `GFE
+  <https://github.com/Goddard-Fortran-Ecosystem/GFE>`_ dependency (built into
+  ``extern/gfe``; see :ref:`testing` below).
 
 We provide a ``environment.yml`` file for quickly provisioning a ``conda`` /
 ``mamba`` environment with the complete toolchain::
@@ -128,6 +130,8 @@ Because the binding links against the ``libcea`` artifacts produced by CMake,
 rebuild the project whenever you touch Fortran sources before rerunning Python
 tests.
 
+.. _testing:
+
 Testing
 -------
 
@@ -141,9 +145,12 @@ whenever you modify solver behavior.
 
   (execute from the corresponding build directory).
 
-  PFUnit is a maintainer-only dependency; to run these tests locally, install
-  PFUnit (https://github.com/Goddard-Fortran-Ecosystem/pFUnit) and set ``PFUNIT_DIR``
-  to its install prefix.
+  Building this suite requires PFUnit, which is available via the vendored
+  GFE dependency. See `CONTRIBUTING.md <../../CONTRIBUTING.md>`_'s "Running
+  Tests" section for the full clone/build/install procedure
+  (``scripts/develop.sh`` automates it).
+  If you already have PFUnit installed separately, set ``PFUNIT_DIR`` to its
+  install prefix instead of building the vendored copy.
 
 * **CLI regression test** – ``ctest`` also registers ``cea_main_test`` which
   runs every RP‑1311 example input in ``samples/`` and checks the exit status of
