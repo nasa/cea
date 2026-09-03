@@ -893,7 +893,7 @@ contains
             if (supar(i) < 2.0d0) then
                 ln_pinf_pe = ln_pinf_pt + sqrt(3.294d0*(log(supar(i))**2.0d0) + 1.535d0*log(supar(i)))
             else if (supar(i) >= 2.0d0) then
-                ln_pinf_pe = soln%eq_partials(2)%gamma_s + 1.4d0*log(supar(i))
+                ln_pinf_pe = soln%eq_partials(soln%throat_idx)%gamma_s + 1.4d0*log(supar(i))
             end if
 
             do j = 1, max_iter_area
@@ -987,7 +987,7 @@ contains
             if (supar(i) < 2.0d0) then
                 ln_pinf_pe = ln_pinf_pt + sqrt(3.294d0*(log(supar(i))**2.0d0) + 1.535d0*log(supar(i)))
             else if (supar(i) >= 2.0d0) then
-                ln_pinf_pe = soln%eq_partials(2)%gamma_s + 1.4d0*log(supar(i))
+                ln_pinf_pe = soln%eq_partials(soln%throat_idx)%gamma_s + 1.4d0*log(supar(i))
             end if
 
             do j = 1, max_iter_area
