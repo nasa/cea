@@ -5168,7 +5168,10 @@ contains
         logical, allocatable :: selected_species(:)
 
         logical :: frozen_transport_only
-        real(dp), parameter :: transport_log_cutoff = 25.328436d0
+        real(dp) :: ln_n                      ! log of total gas moles, for the trace-species reactivation threshold
+        real(dp) :: ln_threshold              ! Species-amount activity threshold (tsize/esize-based)
+        real(dp) :: nj_eff_tmp                ! Smooth-truncation-aware effective species amount
+        logical :: ion_species                ! True if gas species is charged and ions are active
 
         frozen_transport_only = .false.
         if (present(frozen_shock)) frozen_transport_only = frozen_shock
@@ -5208,13 +5211,38 @@ contains
         if (eq_solver%ions) max_elem_idx = max_elem_idx - 1
         nj_el = 0.0d0
 
+        ! Revive gas species already zeroed for reporting if they remain active by the
+        ! same tsize/esize threshold (and smooth_truncation gate) used elsewhere in the solve,
+        ! so trace-species screening for the transport-species list stays consistent
+        ! with the rest of the smooth-truncation machinery.
+        !
+        ! NOTE: In the typical converged path, eq_soln%nj(i) was already zeroed by
+        ! compute_reported_nj using the far more permissive log_min (~-87) floor, while
+        ! tsize/esize offsets are only ~18-32 -- so in practice this loop rarely has any
+        ! species to revive; it mainly matters in the singular-matrix fallback path,
+        ! where nj is still gated directly by tsize. A future, tighter or user-configurable
+        ! reporting floor (replacing the fixed log_min) would make this loop load-bearing
+        ! far more often.
+        ln_n = log(eq_soln%n)
         do i = 1, ng
-            ! TODO(smooth_truncation): transport species screening currently uses hard-zero semantics.
-            ! Revisit whether smooth mode should use a practical-zero cutoff instead.
+            ! Only species already reported as zero are candidates for revival here;
+            ! species still positive keep whatever value they already have.
             if (eq_soln%nj(i) <= 0.0d0) then
-                if (eq_soln%ln_nj(i) - log(eq_soln%n) + transport_log_cutoff > 0.0d0) then
-                    eq_soln%nj(i) = exp(eq_soln%ln_nj(i))
-                end if
+                ! Ions get the looser esize threshold instead of tsize, matching every
+                ! other activity check in this file
+                ion_species = eq_solver%ions .and. eq_solver%active_ions .and. ne > 0 .and. A(i, ne) /= 0.0d0
+                ! Species-amount threshold below which species i is treated as inactive:
+                ! ln_threshold = ln_n - tsize (or - esize for ions).
+                ln_threshold = gas_amount_ln_threshold(ln_n, eq_solver%tsize, eq_solver%esize, ion_species)
+                ! Hard mode: nj_eff_tmp is exp(ln_nj) if above threshold, else exactly 0.
+                !
+                ! Smooth mode: nj_eff_tmp is exp(ln_nj) scaled by a logistic gate that ramps
+                ! from 0 to 1 across truncation_width, rather than snapping on at the threshold.
+                call compute_nj_effective(eq_soln%ln_nj(i), ln_threshold, eq_solver%smooth_truncation, &
+                                          eq_solver%truncation_width, nj_eff_tmp)
+                ! Only overwrite nj(i) when the gate actually revives it; never write an
+                ! explicit 0.0 here so an already-reported 0 is left untouched.
+                if (nj_eff_tmp > 0.0d0) eq_soln%nj(i) = nj_eff_tmp
             end if
         end do
 
