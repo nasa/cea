@@ -616,6 +616,10 @@ contains
         call soln%eq_soln(idx)%constraints%set(type, T0, P0, &
             self%eq_solver%reactants%element_amounts_from_weights(weights))
 
+        ! Compute the molecular weight of the initial mixture
+        wm = sum(weights)
+        wm_k = wm
+
         ! Set the reactant weights as the species amount
         soln%eq_soln(idx)%converged = .true.
         soln%eq_soln(idx)%nj(:) = 0.0d0
@@ -623,7 +627,7 @@ contains
         do i = 1, self%eq_solver%num_reactants
             j = findloc(self%eq_solver%products%species_names, self%eq_solver%reactants%species_names(i), 1)
             if (j > 0) then
-                soln%eq_soln(idx)%nj(j) = (weights(i)/self%eq_solver%reactants%species(i)%molecular_weight)/sum(weights)
+                soln%eq_soln(idx)%nj(j) = (weights(i)/self%eq_solver%reactants%species(i)%molecular_weight)/wm
                 soln%eq_soln(idx)%ln_nj(j) = log(soln%eq_soln(idx)%nj(j))
             else
                 call log_warning("ShockSolver_solve_incident_frozen: Reactant not found in products.")
@@ -632,10 +636,6 @@ contains
 
         soln%eq_partials(idx)%dlnV_dlnP = -1.0d0
         soln%eq_partials(idx)%dlnV_dlnT = 1.0d0
-
-        ! Compute the molecular weight of the initial mixture
-        wm = sum(weights)
-        wm_k = wm
         soln%eq_soln(idx)%n = 1.0d0/wm
 
         ! Compute properties of the initial mixture
@@ -1127,7 +1127,7 @@ contains
             j = findloc(self%eq_solver%products%species_names, self%eq_solver%reactants%species_names(i), 1)
             if (j > 0) then
                 soln%eq_soln(1)%nj(j) = (reactant_weights(i)/ &
-                    self%eq_solver%reactants%species(i)%molecular_weight)/sum(reactant_weights)
+                    self%eq_solver%reactants%species(i)%molecular_weight)/wm
                 soln%eq_soln(1)%ln_nj(j) = log(soln%eq_soln(1)%nj(j))
             else
                 call log_warning("ShockSolver_solve_incident_frozen: Reactant not found in products.")
