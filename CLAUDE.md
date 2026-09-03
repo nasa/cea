@@ -60,6 +60,33 @@ When modifying Python bindings:
 4. Test command: `pytest source/bind/python/tests`
 5. Ensure `numpy` is installed in the active Python environment
 
+### Windows: AI Agent Shell Sessions
+
+AI coding agents typically run each shell command as an independent,
+non-interactive process. On Windows this creates friction that a human
+running one persistent terminal never sees:
+
+- **PATH/environment activation does not persist between commands.**
+  `conda activate <env>` (see `environment.yml` for the env name) only
+  affects the process it runs in. Since cmake, gfortran, and ctest are
+  commonly installed only inside that conda environment on Windows, each
+  individual command that needs them must activate the environment or
+  prepend its `Library/bin`, base, and `Scripts` directories to `PATH`
+  within that same command — don't assume a prior "activate" call carries
+  forward to the next one.
+- **Avoid `python3` in Git Bash.** Windows intercepts unqualified
+  `python3` calls with an app-execution alias that prompts to install
+  Python from the Microsoft Store instead of running the real
+  interpreter. Use `python` instead.
+- **Avoid heredoc-to-stdin patterns in Git Bash** (e.g. `cmd <<'EOF'
+  ... EOF` piped via `/dev/stdin`, or `cmd | python -c "..."` relying on
+  piped stdin through `/proc/self/fd/0`). Git Bash's stdin/fd emulation
+  is unreliable for this on Windows; write the input to a temp file and
+  reference that instead.
+- If a build tool isn't found on PATH, check the project's conda
+  environment directory directly rather than running a broad filesystem
+  search — those are slow and prone to timing out.
+
 ## Testing
 
 - **Run existing tests** before and after changes
