@@ -616,6 +616,10 @@ contains
         call soln%eq_soln(idx)%constraints%set(type, T0, P0, &
             self%eq_solver%reactants%element_amounts_from_weights(weights))
 
+        ! Compute the molecular weight of the initial mixture
+        wm = sum(weights)
+        wm_k = wm
+
         ! Set the reactant weights as the species amount
         soln%eq_soln(idx)%converged = .true.
         soln%eq_soln(idx)%nj(:) = 0.0d0
@@ -623,7 +627,7 @@ contains
         do i = 1, self%eq_solver%num_reactants
             j = findloc(self%eq_solver%products%species_names, self%eq_solver%reactants%species_names(i), 1)
             if (j > 0) then
-                soln%eq_soln(idx)%nj(j) = (weights(i)/self%eq_solver%reactants%species(i)%molecular_weight)/sum(weights)
+                soln%eq_soln(idx)%nj(j) = (weights(i)/self%eq_solver%reactants%species(i)%molecular_weight)/wm
                 soln%eq_soln(idx)%ln_nj(j) = log(soln%eq_soln(idx)%nj(j))
             else
                 call log_warning("ShockSolver_solve_incident_frozen: Reactant not found in products.")
@@ -632,10 +636,6 @@ contains
 
         soln%eq_partials(idx)%dlnV_dlnP = -1.0d0
         soln%eq_partials(idx)%dlnV_dlnT = 1.0d0
-
-        ! Compute the molecular weight of the initial mixture
-        wm = sum(weights)
-        wm_k = wm
         soln%eq_soln(idx)%n = 1.0d0/wm
 
         ! Compute properties of the initial mixture
@@ -725,7 +725,7 @@ contains
 
     end subroutine
 
-    subroutine ShockSolver_solve_reflected(self, soln, weights, T0, P0)
+    subroutine ShockSolver_solve_reflected(self, soln, weights, T0)
         ! Solve the reflected shock conditions
 
         ! Arguments
@@ -733,7 +733,6 @@ contains
         class(ShockSolution), intent(inout) :: soln
         real(dp), intent(in) :: weights(:)
         real(dp), intent(in) :: T0                     ! Initial reactant temperature [K]
-        real(dp), intent(in) :: P0                     ! Initial reactant pressure [bar]
 
         ! Locals
         integer :: idx  ! Solution index for the incident conditions
@@ -758,7 +757,6 @@ contains
         real(dp), parameter :: T_gas_max = 20000.d0  ! Max gas temperature in the thermo database [K]
 
         ! Initialize
-        if (.false.) print *, P0
         idx = 3
         G = 0.0d0  ! Reset the matrix
         soln%converged = .false.
@@ -1127,7 +1125,7 @@ contains
             j = findloc(self%eq_solver%products%species_names, self%eq_solver%reactants%species_names(i), 1)
             if (j > 0) then
                 soln%eq_soln(1)%nj(j) = (reactant_weights(i)/ &
-                    self%eq_solver%reactants%species(i)%molecular_weight)/sum(reactant_weights)
+                    self%eq_solver%reactants%species(i)%molecular_weight)/wm
                 soln%eq_soln(1)%ln_nj(j) = log(soln%eq_soln(1)%nj(j))
             else
                 call log_warning("ShockSolver_solve_incident_frozen: Reactant not found in products.")
@@ -1158,7 +1156,7 @@ contains
             if (reflected_frozen_) then
                 call self%solve_reflected_frozen(soln, reactant_weights, T0, P0)
             else  ! Equilibrium
-                call self%solve_reflected(soln, reactant_weights, T0, P0)
+                call self%solve_reflected(soln, reactant_weights, T0)
             end if
             if (soln%eq_soln(3)%T <= 0.0d0) then
                 return

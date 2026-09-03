@@ -1717,7 +1717,7 @@ contains
                         if (abs(d_phase) > 1) then
                             ! Switch phase
                             call log_info("Phase change: replace "//trim(self%products%species_names(ng+i))//&
-                                          " with "//self%products%species_names(ng+idx_other_phase(j)))
+                                          " with "//trim(self%products%species_names(ng+idx_other_phase(j))))
                             call soln%replace_active_condensed(i, idx_other_phase(j))
                             soln%nj(ng+idx_other_phase(j)) = soln%nj(ng+i)
                             soln%nj(ng+i) = 0.0d0
@@ -1756,7 +1756,7 @@ contains
                         if (soln%T < (T_low_i-dT_phase) .or. soln%T > (T_high_i+dT_phase)) then
                             ! Switch phase
                             call log_info("Phase change: replace "//trim(self%products%species_names(ng+i))//&
-                                          " with "//self%products%species_names(ng+idx_other_phase(j)))
+                                          " with "//trim(self%products%species_names(ng+idx_other_phase(j))))
                             call soln%replace_active_condensed(i, idx_other_phase(j))
                             soln%nj(ng+idx_other_phase(j)) = soln%nj(ng+i)
                             soln%nj(ng+i) = 0.0d0
@@ -1770,7 +1770,7 @@ contains
                         end if
 
                         ! else
-                        call log_debug("Adding "//self%products%species_names(ng+idx_other_phase(j)))
+                        call log_debug("Adding "//trim(self%products%species_names(ng+idx_other_phase(j))))
                         soln%T = min(T_high_i, T_high_j)  ! Set T as the melting temperature
                         if (T_high_i > T_high_j) then
                             soln%j_sol = idx_other_phase(j)
@@ -1795,7 +1795,7 @@ contains
 
             if (soln%T > 1.2d0*max_T_j) then
                 ! Remove condensed species
-                call log_info("Removing condensed species: "//self%products%species_names(ng+i))
+                call log_info("Removing condensed species: "//trim(self%products%species_names(ng+i)))
                 call soln%deactivate_condensed(i)
                 soln%nj(ng+i) = 0.0d0
                 soln%converged = .false.
@@ -1891,7 +1891,7 @@ contains
                 soln%nj(ng+cond_idx) = 0.0d0
                 soln%converged = .false.
                 iter = -1
-                call log_info("Removing "//self%products%species_names(ng+cond_idx))
+                call log_info("Removing "//trim(self%products%species_names(ng+cond_idx)))
                 return
             end if
 
@@ -1940,11 +1940,11 @@ contains
             soln%converged = .false.
             iter = -1
             soln%last_cond_idx = cond_idx
-            call log_info("Adding "//self%products%species_names(ng+cond_idx))
+            call log_info("Adding "//trim(self%products%species_names(ng+cond_idx)))
             return
         else
             call abort('EqSolver_test_condensed: Re-insertion of '// &
-                self%products%species_names(ng+singular_index_)//' likely to cause singular matrix.')
+                trim(self%products%species_names(ng+singular_index_))//' likely to cause singular matrix.')
         end if
 
     end subroutine
@@ -2019,7 +2019,7 @@ contains
             end do
             ! Remove condensed species contributing to singular matrix
             if (idx > 0) then
-                call log_info("Removing condensed species "//self%products%species_names(ng+idx)// &
+                call log_info("Removing condensed species "//trim(self%products%species_names(ng+idx))// &
                               " to correct singular matrix")
                 call soln%deactivate_condensed(idx)
                 soln%nj(ng+idx) = 0.0d0
@@ -2046,7 +2046,7 @@ contains
             end do
 
             if (idx > 0) then
-                call log_info("Removing condensed species "//self%products%species_names(ng+idx)// &
+                call log_info("Removing condensed species "//trim(self%products%species_names(ng+idx))// &
                               " to correct element-row singularity")
                 call soln%deactivate_condensed(idx)
                 soln%nj(ng+idx) = 0.0d0
@@ -2305,6 +2305,8 @@ contains
         logical :: computed_partials_
         real(dp) :: entropy_sum
         real(dp) :: log_p_over_n
+        real(dp) :: cp_dot_nj
+        logical :: need_cp_fr, need_cp_eq
 
         computed_partials_ = .false.
         if (present(computed_partials)) computed_partials_ = computed_partials
@@ -2328,10 +2330,11 @@ contains
         soln%entropy = entropy_sum * R / 1.d3
         soln%gibbs_energy = (soln%enthalpy - soln%T*soln%entropy)
 
-        if (soln%cp_fr < 1.d-10) soln%cp_fr = dot_product(soln%thermo%cp, soln%nj) * R / 1.d3
-        if (.not. computed_partials_ .and. soln%cp_eq < 1.d-10) then
-            soln%cp_eq = dot_product(soln%thermo%cp, soln%nj) * R / 1.d3
-        end if
+        need_cp_fr = soln%cp_fr < 1.d-10
+        need_cp_eq = .not. computed_partials_ .and. soln%cp_eq < 1.d-10
+        if (need_cp_fr .or. need_cp_eq) cp_dot_nj = dot_product(soln%thermo%cp, soln%nj)
+        if (need_cp_fr) soln%cp_fr = cp_dot_nj * R / 1.d3
+        if (need_cp_eq) soln%cp_eq = cp_dot_nj * R / 1.d3
 
         ! Calculate molecular weights
         soln%M = 1.0d0/soln%n
@@ -3934,16 +3937,16 @@ contains
                 if (solution%nj(i) > 1.0d-10) then
                     abs_err = abs(self%dnj_dstate1_fd(i) - self%dnj_dstate1(i))
                     rel_err = abs_err / max(abs(self%dnj_dstate1(i)), 1.0d-30)
-                    write(*,*) "dnj/dstate1 (", solver%products%species_names(i), "): abs=", abs_err, " rel=", rel_err
+                    write(*,*) "dnj/dstate1 (", trim(solver%products%species_names(i)), "): abs=", abs_err, " rel=", rel_err
 
                     abs_err = abs(self%dnj_dstate2_fd(i) - self%dnj_dstate2(i))
                     rel_err = abs_err / max(abs(self%dnj_dstate2(i)), 1.0d-30)
-                    write(*,*) "dnj/dstate2 (", solver%products%species_names(i), "): abs=", abs_err, " rel=", rel_err
+                    write(*,*) "dnj/dstate2 (", trim(solver%products%species_names(i)), "): abs=", abs_err, " rel=", rel_err
 
                     if (nr > 0) then
                         abs_err = maxval(abs(self%dnj_dw0_fd(i, :) - self%dnj_dw0(i, :)))
                         rel_err = maxval(abs(self%dnj_dw0_fd(i, :) - self%dnj_dw0(i, :)) / max(abs(self%dnj_dw0(i, :)), 1.0d-30))
-                        write(*,*) "dnj/dw0 (", solver%products%species_names(i), ") (max): abs=", abs_err, " rel=", rel_err
+                        write(*,*) "dnj/dw0 (", trim(solver%products%species_names(i)), ") (max): abs=", abs_err, " rel=", rel_err
                     end if
                 end if
             end do
@@ -4197,7 +4200,7 @@ contains
                 if (j > 0) then
                     ! Only count this as an "insert" if it is condensed; no effect otherwise
                     if (solver%products%species(j)%i_phase > 0) then
-                        call log_info("Inserting "//solver%products%species_names(j))
+                        call log_info("Inserting "//trim(solver%products%species_names(j)))
                         call self%activate_condensed_front(j-solver%num_gas)
                     end if
                 end if
@@ -4703,6 +4706,7 @@ contains
         ! Locals
         real(dp), allocatable :: J(:,:)
         real(dp) :: nj_solid ! Temporary variables for condensed species
+        real(dp) :: cp_dot_nj
         integer :: ng, ne, nc, na, ierr, i, idx, liq_rank
         integer, allocatable :: active_idx(:)
         real(dp), pointer :: nj(:), nj_g(:)     ! Total/gas species concentrations [kmol-per-kg]
@@ -4733,8 +4737,9 @@ contains
         self%cp_eq = 0.0d0
 
         ! Term 4: ∑_j^ns n_j*Cp_j/R
-        self%cp_eq = self%cp_eq + dot_product(soln%thermo%cp, soln%nj)
-        soln%cp_fr = dot_product(soln%thermo%cp, soln%nj)*(R/1.d3)
+        cp_dot_nj = dot_product(soln%thermo%cp, soln%nj)
+        self%cp_eq = self%cp_eq + cp_dot_nj
+        soln%cp_fr = cp_dot_nj*(R/1.d3)
 
         ! If both solid and liquid present, temporarily remove liquid to prevent singular matrix
         if (soln%j_sol /= 0) then
@@ -5168,7 +5173,10 @@ contains
         logical, allocatable :: selected_species(:)
 
         logical :: frozen_transport_only
-        real(dp), parameter :: transport_log_cutoff = 25.328436d0
+        real(dp) :: ln_n                      ! log of total gas moles, for the trace-species reactivation threshold
+        real(dp) :: ln_threshold              ! Species-amount activity threshold (tsize/esize-based)
+        real(dp) :: nj_eff_tmp                ! Smooth-truncation-aware effective species amount
+        logical :: ion_species                ! True if gas species is charged and ions are active
 
         frozen_transport_only = .false.
         if (present(frozen_shock)) frozen_transport_only = frozen_shock
@@ -5208,13 +5216,38 @@ contains
         if (eq_solver%ions) max_elem_idx = max_elem_idx - 1
         nj_el = 0.0d0
 
+        ! Revive gas species already zeroed for reporting if they remain active by the
+        ! same tsize/esize threshold (and smooth_truncation gate) used elsewhere in the solve,
+        ! so trace-species screening for the transport-species list stays consistent
+        ! with the rest of the smooth-truncation machinery.
+        !
+        ! NOTE: In the typical converged path, eq_soln%nj(i) was already zeroed by
+        ! compute_reported_nj using the far more permissive log_min (~-87) floor, while
+        ! tsize/esize offsets are only ~18-32 -- so in practice this loop rarely has any
+        ! species to revive; it mainly matters in the singular-matrix fallback path,
+        ! where nj is still gated directly by tsize. A future, tighter or user-configurable
+        ! reporting floor (replacing the fixed log_min) would make this loop load-bearing
+        ! far more often.
+        ln_n = log(eq_soln%n)
         do i = 1, ng
-            ! TODO(smooth_truncation): transport species screening currently uses hard-zero semantics.
-            ! Revisit whether smooth mode should use a practical-zero cutoff instead.
+            ! Only species already reported as zero are candidates for revival here;
+            ! species still positive keep whatever value they already have.
             if (eq_soln%nj(i) <= 0.0d0) then
-                if (eq_soln%ln_nj(i) - log(eq_soln%n) + transport_log_cutoff > 0.0d0) then
-                    eq_soln%nj(i) = exp(eq_soln%ln_nj(i))
-                end if
+                ! Ions get the looser esize threshold instead of tsize, matching every
+                ! other activity check in this file
+                ion_species = eq_solver%ions .and. eq_solver%active_ions .and. ne > 0 .and. A(i, ne) /= 0.0d0
+                ! Species-amount threshold below which species i is treated as inactive:
+                ! ln_threshold = ln_n - tsize (or - esize for ions).
+                ln_threshold = gas_amount_ln_threshold(ln_n, eq_solver%tsize, eq_solver%esize, ion_species)
+                ! Hard mode: nj_eff_tmp is exp(ln_nj) if above threshold, else exactly 0.
+                !
+                ! Smooth mode: nj_eff_tmp is exp(ln_nj) scaled by a logistic gate that ramps
+                ! from 0 to 1 across truncation_width, rather than snapping on at the threshold.
+                call compute_nj_effective(eq_soln%ln_nj(i), ln_threshold, eq_solver%smooth_truncation, &
+                                          eq_solver%truncation_width, nj_eff_tmp)
+                ! Only overwrite nj(i) when the gate actually revives it; never write an
+                ! explicit 0.0 here so an already-reported 0 is left untouched.
+                if (nj_eff_tmp > 0.0d0) eq_soln%nj(i) = nj_eff_tmp
             end if
         end do
 
@@ -5328,7 +5361,7 @@ contains
                 selected_local_idx(j) = i
                 transport_to_local(idx(1)) = i
             else
-                call log_info('compute_transport_properties: Species '//eq_solver%products%species_names(idx_list(i))//&
+                call log_info('compute_transport_properties: Species '//trim(eq_solver%products%species_names(idx_list(i)))//&
                               ' not found in transport database.')
             end if
         end do

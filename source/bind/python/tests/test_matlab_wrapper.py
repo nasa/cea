@@ -1,6 +1,68 @@
 import numpy as np
 import pytest
 
+# Field names taken from the `property` blocks on each compiled solution
+# class in CEA.pyx (not from cea.matlab's own field lists), so these checks
+# don't just validate the wrapper's field lists against themselves.
+_EQ_ALL_FIELDS = (
+    "T", "P", "volume", "density", "M", "MW", "enthalpy", "energy", "entropy",
+    "gibbs_energy", "gamma_s", "cp_fr", "cp_eq", "cp", "cv_fr", "cv_eq", "cv",
+    "viscosity", "conductivity_fr", "conductivity_eq", "Pr_fr", "Pr_eq",
+    "nj", "ln_nj", "n",
+)
+
+_ROCKET_ALL_FIELDS = (
+    "T", "P", "volume", "density", "M", "MW", "enthalpy", "energy", "entropy",
+    "gibbs_energy", "gamma_s", "cp_fr", "cp_eq", "cp", "cv_fr", "cv_eq", "cv",
+    "Mach", "sonic_velocity", "ae_at", "c_star", "coefficient_of_thrust",
+    "Isp", "Isp_vacuum", "viscosity", "conductivity_fr", "conductivity_eq",
+    "Pr_fr", "Pr_eq", "nj", "ln_nj", "n",
+)
+
+# ShockSolution.nj/ln_nj/n are excluded: the compiled class's own properties
+# raise AttributeError (ShockSolution._get_weights calls a _get_size method
+# that only RocketSolution defines), so cea.matlab reconstructs them from
+# mole_fractions instead (see _reconstruct_shock_amounts) and there is no
+# working compiled-side value to compare against.
+_SHOCK_ALL_FIELDS = (
+    "T", "P", "velocity", "Mach", "sonic_velocity", "rho12", "rho52", "P21",
+    "P52", "T21", "T52", "M21", "M52", "v2", "u5_p_v2", "volume", "density",
+    "M", "MW", "enthalpy", "energy", "entropy", "gibbs_energy", "gamma_s",
+    "cp_fr", "cp_eq", "cp", "cv_fr", "cv_eq", "cv", "viscosity",
+    "conductivity_fr", "conductivity_eq", "Pr_fr", "Pr_eq",
+)
+
+_DETONATION_ALL_FIELDS = (
+    "P1", "T1", "H1", "M1", "gamma1", "sonic_velocity1", "P", "T", "density",
+    "enthalpy", "energy", "gibbs_energy", "entropy", "Mach", "velocity",
+    "sonic_velocity", "gamma_s", "P_P1", "T_T1", "M_M1", "rho_rho1", "cp_fr",
+    "cv_fr", "cp_eq", "cv_eq", "M", "MW", "viscosity", "conductivity_fr",
+    "conductivity_eq", "Pr_fr", "Pr_eq", "nj", "ln_nj", "n",
+)
+
+
+def _assert_fraction_dicts_match(wrapper_fractions, compiled_fractions):
+    assert wrapper_fractions.keys() == compiled_fractions.keys()
+    for name, compiled_value in compiled_fractions.items():
+        np.testing.assert_allclose(
+            wrapper_fractions[name],
+            compiled_value,
+            rtol=0.0,
+            atol=0.0,
+            err_msg=f"fraction {name!r} did not match the compiled solution",
+        )
+
+
+def _assert_all_fields_match(wrapper_soln, compiled_soln, field_names):
+    for name in field_names:
+        np.testing.assert_allclose(
+            getattr(wrapper_soln, name),
+            getattr(compiled_soln, name),
+            rtol=0.0,
+            atol=0.0,
+            err_msg=f"field {name!r} did not match the compiled solution",
+        )
+
 
 def _wrapper_case_inputs():
     reactants = ["H2", "O2"]
@@ -87,35 +149,49 @@ def test_matlab_eq_solve_matches_compiled_eq_solve(cea_module):
 
     assert wrapper_soln.converged == compiled_soln.converged
     assert wrapper_soln.last_error == compiled_soln.last_error
-    np.testing.assert_allclose(wrapper_soln.T, compiled_soln.T, rtol=0.0, atol=0.0)
-    np.testing.assert_allclose(wrapper_soln.P, compiled_soln.P, rtol=0.0, atol=0.0)
-    np.testing.assert_allclose(wrapper_soln.MW, compiled_soln.MW, rtol=0.0, atol=0.0)
-    np.testing.assert_allclose(
-        wrapper_soln.enthalpy,
-        compiled_soln.enthalpy,
-        rtol=0.0,
-        atol=0.0,
-    )
-    np.testing.assert_allclose(
-        wrapper_soln.cp_eq,
-        compiled_soln.cp_eq,
-        rtol=0.0,
-        atol=0.0,
-    )
-    np.testing.assert_allclose(
-        wrapper_soln.nj,
-        compiled_soln.nj,
-        rtol=0.0,
-        atol=0.0,
-    )
-    np.testing.assert_allclose(
-        wrapper_soln.ln_nj,
-        compiled_soln.ln_nj,
-        rtol=0.0,
-        atol=0.0,
-    )
+    _assert_all_fields_match(wrapper_soln, compiled_soln, _EQ_ALL_FIELDS)
     assert wrapper_soln.mass_fractions == compiled_soln.mass_fractions
     assert wrapper_soln.mole_fractions == compiled_soln.mole_fractions
+
+
+def test_eq_solve_hp_state1_divides_by_gas_constant(cea_module):
+    # eq_solve's HP/SP/UV `state1` must be in the H/R convention the Fortran
+    # core expects, both when T_reac drives the enthalpy calculation and when
+    # H is passed directly. Before the fix, both paths passed the raw
+    # (non-/R) enthalpy through and failed to converge.
+    import cea.matlab
+
+    reactants = ["H2", "O2"]
+    fuel_amounts = np.array([1.0, 0.0], dtype=np.float64)
+    oxid_amounts = np.array([0.0, 1.0], dtype=np.float64)
+
+    soln_t_reac = cea.matlab.eq_solve(
+        cea_module.HP,
+        reactants,
+        P=1.0,
+        T_reac=1000.0,
+        fuel_amounts=fuel_amounts,
+        oxid_amounts=oxid_amounts,
+        of_ratio=8.0,
+    )
+    assert soln_t_reac.converged
+    np.testing.assert_allclose(soln_t_reac.T, 3155.4878196910463, rtol=1e-9)
+
+    reactants_mix = cea_module.Mixture(reactants)
+    weights = reactants_mix.of_ratio_to_weights(oxid_amounts, fuel_amounts, 8.0)
+    h0 = reactants_mix.calc_property(cea_module.ENTHALPY, weights, 1000.0)
+
+    soln_h = cea.matlab.eq_solve(
+        cea_module.HP,
+        reactants,
+        P=1.0,
+        H=h0,
+        fuel_amounts=fuel_amounts,
+        oxid_amounts=oxid_amounts,
+        of_ratio=8.0,
+    )
+    assert soln_h.converged
+    np.testing.assert_allclose(soln_h.T, soln_t_reac.T, rtol=0.0, atol=0.0)
 
 
 def test_root_eq_solve_shim_warns_and_forwards(cea_module):
@@ -186,20 +262,9 @@ def test_matlab_rocket_solve_matches_compiled_solver(cea_module):
     assert wrapper_soln.converged == compiled_soln.converged
     assert wrapper_soln.last_error == compiled_soln.last_error
     assert wrapper_soln.num_pts == compiled_soln.num_pts
-    np.testing.assert_allclose(wrapper_soln.T, compiled_soln.T, rtol=0.0, atol=0.0)
-    np.testing.assert_allclose(wrapper_soln.P, compiled_soln.P, rtol=0.0, atol=0.0)
-    np.testing.assert_allclose(
-        wrapper_soln.c_star,
-        compiled_soln.c_star,
-        rtol=0.0,
-        atol=0.0,
-    )
-    np.testing.assert_allclose(
-        wrapper_soln.Isp_vacuum,
-        compiled_soln.Isp_vacuum,
-        rtol=0.0,
-        atol=0.0,
-    )
+    _assert_all_fields_match(wrapper_soln, compiled_soln, _ROCKET_ALL_FIELDS)
+    _assert_fraction_dicts_match(wrapper_soln.mass_fractions, compiled_soln.mass_fractions)
+    _assert_fraction_dicts_match(wrapper_soln.mole_fractions, compiled_soln.mole_fractions)
 
 
 def test_matlab_shock_solve_matches_compiled_solver(cea_module):
@@ -235,16 +300,9 @@ def test_matlab_shock_solve_matches_compiled_solver(cea_module):
     assert not hasattr(wrapper_soln, "solver")
     assert wrapper_soln.converged == compiled_soln.converged
     assert wrapper_soln.last_error == compiled_soln.last_error
-    np.testing.assert_allclose(wrapper_soln.T, compiled_soln.T, rtol=0.0, atol=0.0)
-    np.testing.assert_allclose(wrapper_soln.P, compiled_soln.P, rtol=0.0, atol=0.0)
-    np.testing.assert_allclose(
-        wrapper_soln.velocity,
-        compiled_soln.velocity,
-        rtol=0.0,
-        atol=0.0,
-    )
-    np.testing.assert_allclose(wrapper_soln.P21, compiled_soln.P21, rtol=0.0, atol=0.0)
-    np.testing.assert_allclose(wrapper_soln.P52, compiled_soln.P52, rtol=0.0, atol=0.0)
+    _assert_all_fields_match(wrapper_soln, compiled_soln, _SHOCK_ALL_FIELDS)
+    _assert_fraction_dicts_match(wrapper_soln.mass_fractions, compiled_soln.mass_fractions)
+    _assert_fraction_dicts_match(wrapper_soln.mole_fractions, compiled_soln.mole_fractions)
 
 
 def test_matlab_detonation_solve_matches_compiled_solver(cea_module):
@@ -273,17 +331,6 @@ def test_matlab_detonation_solve_matches_compiled_solver(cea_module):
     assert not hasattr(wrapper_soln, "solver")
     assert wrapper_soln.converged == compiled_soln.converged
     assert wrapper_soln.last_error == compiled_soln.last_error
-    np.testing.assert_allclose(wrapper_soln.T, compiled_soln.T, rtol=0.0, atol=0.0)
-    np.testing.assert_allclose(wrapper_soln.P, compiled_soln.P, rtol=0.0, atol=0.0)
-    np.testing.assert_allclose(
-        wrapper_soln.velocity,
-        compiled_soln.velocity,
-        rtol=0.0,
-        atol=0.0,
-    )
-    np.testing.assert_allclose(
-        wrapper_soln.P_P1,
-        compiled_soln.P_P1,
-        rtol=0.0,
-        atol=0.0,
-    )
+    _assert_all_fields_match(wrapper_soln, compiled_soln, _DETONATION_ALL_FIELDS)
+    assert wrapper_soln.mass_fractions == compiled_soln.mass_fractions
+    assert wrapper_soln.mole_fractions == compiled_soln.mole_fractions

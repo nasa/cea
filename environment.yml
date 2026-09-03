@@ -5,9 +5,11 @@ channels:
 dependencies:
   - cmake
   - cython
-  - gcc
-  - gfortran
-  - gxx
+  - gcc=16.1
+  - gfortran=16.1
+  - gxx=16.1
+  - m2-m4
+  - make
   - ninja
   - numpy
   - pytest
