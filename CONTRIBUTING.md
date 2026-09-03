@@ -31,6 +31,12 @@ Changes that improve readability, documentation, or interfaces are often welcome
    - `dev-intel` – Intel ifort with all bindings
    - `dev-ub-hunt` – GNU with undefined behavior detection (for advanced debugging)
 
+   These presets lock the Unix Makefiles generator and target GNU toolchains,
+   so they fail outright on Windows (`CMAKE_MAKE_PROGRAM is not set`). On
+   Windows, follow the explicit generator flow in the [Windows
+   Notes](https://nasa.github.io/cea/installation.html#windows-notes) section
+   of the installation guide instead of the preset commands below.
+
 3. **Configure and build**
    ```bash
    cmake --preset dev
