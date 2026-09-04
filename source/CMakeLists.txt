@@ -47,6 +47,23 @@ if(CEA_BUILD_TESTING AND PFUNIT_FOUND)
     set_tests_properties(cea_core_test PROPERTIES
         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
     )
+elseif(CEA_BUILD_TESTING)
+    message(WARNING
+        "CEA_BUILD_TESTING is ON but pFUnit was not found (PFUNIT_FOUND is "
+        "FALSE); cea_core_test will not be registered and 'ctest' will run "
+        "without the Fortran unit test suite. See CONTRIBUTING.md 'Running "
+        "Tests' for the GFE/pFUnit setup prerequisite."
+    )
+    add_test(
+        NAME cea_core_test_pfunit_missing
+        COMMAND ${CMAKE_COMMAND} -E echo
+            "pFUnit was not found at configure time; cea_core_test was not "
+            "built. See CONTRIBUTING.md 'Running Tests' for the GFE/pFUnit "
+            "setup prerequisite."
+    )
+    set_tests_properties(cea_core_test_pfunit_missing PROPERTIES
+        WILL_FAIL TRUE
+    )
 endif()
 
 
