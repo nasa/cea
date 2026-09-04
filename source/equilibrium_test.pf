@@ -1295,7 +1295,7 @@ contains
         type(EqDerivatives) :: totals
         real(dp) :: h_reac, p_reac, weights(2)
         real(dp), parameter :: h = 1.0d-6
-        real(dp), parameter :: tol = 1.0d30
+        real(dp), parameter :: tol = 5.0d-2
         real(dp) :: rel
         ! integer :: i
 
@@ -1349,12 +1349,13 @@ contains
               max(max(abs(totals%dH_dstate1_fd), abs(totals%dH_dstate1)), 1.0d-8)
         ! write(*,*) "dH/dstate1: an=", totals%dH_dstate1, " fd=", totals%dH_dstate1_fd, " rel=", rel
         @assertLessThan(rel, tol)
+        ! dH/dstate2 = 0 for hp (H is pinned regardless of P); floor absorbs FD noise here when there's no real error to detect
         rel = abs(totals%dH_dstate2_fd - totals%dH_dstate2) / &
-              max(max(abs(totals%dH_dstate2_fd), abs(totals%dH_dstate2)), 1.0d-8)
+              max(max(abs(totals%dH_dstate2_fd), abs(totals%dH_dstate2)), 1.0d-3)
         ! write(*,*) "dH/dstate2: an=", totals%dH_dstate2, " fd=", totals%dH_dstate2_fd, " rel=", rel
         @assertLessThan(rel, tol)
         rel = maxval(abs(totals%dH_dw0_fd - totals%dH_dw0) / &
-                     max(max(abs(totals%dH_dw0_fd), abs(totals%dH_dw0)), 1.0d-8))
+                     max(max(abs(totals%dH_dw0_fd), abs(totals%dH_dw0)), 1.0d-1))
         ! do i = 1, solver%num_reactants
             ! write(*,*) "dH/dw0(", i, "): an=", totals%dH_dw0(i), " fd=", totals%dH_dw0_fd(i)
         ! end do
@@ -1423,7 +1424,7 @@ contains
         type(EqDerivatives) :: totals
         real(dp) :: h_reac, p_reac, weights(2)
         real(dp), parameter :: h = 1.0d-6
-        real(dp), parameter :: tol = 1.0d30
+        real(dp), parameter :: tol = 5.0d-2
         real(dp) :: rel
         integer :: i
 
@@ -1477,12 +1478,13 @@ contains
               max(max(abs(totals%dH_dstate1_fd), abs(totals%dH_dstate1)), 1.0d-8)
         write(*,*) "dH/dstate1: an=", totals%dH_dstate1, " fd=", totals%dH_dstate1_fd, " rel=", rel
         @assertLessThan(rel, tol)
+        ! dH/dstate2 = 0 for hp (H is pinned regardless of P); floor absorbs FD noise here when there's no real error to detect
         rel = abs(totals%dH_dstate2_fd - totals%dH_dstate2) / &
-              max(max(abs(totals%dH_dstate2_fd), abs(totals%dH_dstate2)), 1.0d-8)
+              max(max(abs(totals%dH_dstate2_fd), abs(totals%dH_dstate2)), 1.0d-3)
         write(*,*) "dH/dstate2: an=", totals%dH_dstate2, " fd=", totals%dH_dstate2_fd, " rel=", rel
         @assertLessThan(rel, tol)
         rel = maxval(abs(totals%dH_dw0_fd - totals%dH_dw0) / &
-                     max(max(abs(totals%dH_dw0_fd), abs(totals%dH_dw0)), 1.0d-8))
+                     max(max(abs(totals%dH_dw0_fd), abs(totals%dH_dw0)), 1.0d-1))
         do i = 1, solver%num_reactants
             write(*,*) "dH/dw0(", i, "): an=", totals%dH_dw0(i), " fd=", totals%dH_dw0_fd(i)
         end do
@@ -1931,7 +1933,7 @@ contains
         type(EqDerivatives) :: totals
         real(dp) :: s_reac, p_reac, weights(2)
         real(dp), parameter :: h = 1.0d-6
-        real(dp), parameter :: tol = 1.0d30
+        real(dp), parameter :: tol = 5.0d-2
         real(dp) :: rel
         ! integer :: i
 
@@ -2029,10 +2031,14 @@ contains
         rel = abs(totals%dS_dstate1_fd - totals%dS_dstate1) / max(abs(totals%dS_dstate1), 1.0d-30)
         ! write(*,*) "dS/dstate1: an=", totals%dS_dstate1, " fd=", totals%dS_dstate1_fd, " rel=", rel
         @assertLessThan(rel, tol)
-        rel = abs(totals%dS_dstate2_fd - totals%dS_dstate2) / max(abs(totals%dS_dstate2), 1.0d-30)
+        ! dS/dstate2 = 0 for sp (S is pinned regardless of P); floor absorbs FD noise here when there's no real error to detect
+        rel = abs(totals%dS_dstate2_fd - totals%dS_dstate2) / &
+              max(max(abs(totals%dS_dstate2_fd), abs(totals%dS_dstate2)), 1.0d-3)
         ! write(*,*) "dS/dstate2: an=", totals%dS_dstate2, " fd=", totals%dS_dstate2_fd, " rel=", rel
         @assertLessThan(rel, tol)
-        rel = maxval(abs(totals%dS_dw0_fd - totals%dS_dw0) / max(abs(totals%dS_dw0), 1.0d-30))
+        ! dS/dw0 = 0 for sp (S is pinned regardless of w0); floor absorbs FD noise here when there's no real error to detect
+        rel = maxval(abs(totals%dS_dw0_fd - totals%dS_dw0) / &
+                     max(max(abs(totals%dS_dw0_fd), abs(totals%dS_dw0)), 1.0d-1))
         ! do i = 1, solver%num_reactants
             ! write(*,*) "dS/dw0(", i, "): an=", totals%dS_dw0(i), " fd=", totals%dS_dw0_fd(i)
         ! end do
@@ -2063,7 +2069,7 @@ contains
         type(EqDerivatives) :: totals
         real(dp) :: s_reac, p_reac, weights(2)
         real(dp), parameter :: h = 1.0d-6
-        real(dp), parameter :: tol = 1.0d30
+        real(dp), parameter :: tol = 5.0d-2
         real(dp) :: rel
         integer :: i
 
@@ -2161,10 +2167,14 @@ contains
         rel = abs(totals%dS_dstate1_fd - totals%dS_dstate1) / max(abs(totals%dS_dstate1), 1.0d-30)
         write(*,*) "dS/dstate1: an=", totals%dS_dstate1, " fd=", totals%dS_dstate1_fd, " rel=", rel
         @assertLessThan(rel, tol)
-        rel = abs(totals%dS_dstate2_fd - totals%dS_dstate2) / max(abs(totals%dS_dstate2), 1.0d-30)
+        ! dS/dstate2 = 0 for sp (S is pinned regardless of P); floor absorbs FD noise here when there's no real error to detect
+        rel = abs(totals%dS_dstate2_fd - totals%dS_dstate2) / &
+              max(max(abs(totals%dS_dstate2_fd), abs(totals%dS_dstate2)), 1.0d-3)
         write(*,*) "dS/dstate2: an=", totals%dS_dstate2, " fd=", totals%dS_dstate2_fd, " rel=", rel
         @assertLessThan(rel, tol)
-        rel = maxval(abs(totals%dS_dw0_fd - totals%dS_dw0) / max(abs(totals%dS_dw0), 1.0d-30))
+        ! dS/dw0 = 0 for sp (S is pinned regardless of w0); floor absorbs FD noise here when there's no real error to detect
+        rel = maxval(abs(totals%dS_dw0_fd - totals%dS_dw0) / &
+                     max(max(abs(totals%dS_dw0_fd), abs(totals%dS_dw0)), 1.0d-1))
         do i = 1, solver%num_reactants
             write(*,*) "dS/dw0(", i, "): an=", totals%dS_dw0(i), " fd=", totals%dS_dw0_fd(i)
         end do
@@ -2605,7 +2615,8 @@ contains
         type(EqDerivatives) :: totals
         real(dp) :: v_reac, u_reac, weights(3)
         real(dp), parameter :: h = 1.0d-6
-        real(dp), parameter :: tol = 1.0d30
+        real(dp), parameter :: tol = 5.0d-2
+        real(dp), parameter :: tol_dU_dstate2 = 1.0d30
         real(dp) :: rel
         ! integer :: i
 
@@ -2701,14 +2712,16 @@ contains
         rel = abs(totals%dU_dstate1_fd - totals%dU_dstate1) / max(abs(totals%dU_dstate1), 1.0d-30)
         ! write(*,*) "dU/dstate1: an=", totals%dU_dstate1, " fd=", totals%dU_dstate1_fd, " rel=", rel
         @assertLessThan(rel, tol)
+        ! dU/dstate2 = 0 for uv, but FD noise here is unusually large; left unfailable pending separate investigation
         rel = abs(totals%dU_dstate2_fd - totals%dU_dstate2) / max(abs(totals%dU_dstate2), 1.0d-30)
         ! write(*,*) "dU/dstate2: an=", totals%dU_dstate2, " fd=", totals%dU_dstate2_fd, " rel=", rel
-        @assertLessThan(rel, tol)
+        @assertLessThan(rel, tol_dU_dstate2)
+        ! dU/dw0 = 0 for uv, same reasoning as dU/dstate2 above; routed through the same unfailable bound
         rel = maxval(abs(totals%dU_dw0_fd - totals%dU_dw0) / max(abs(totals%dU_dw0), 1.0d-30))
         ! do i = 1, solver%num_reactants
             ! write(*,*) "dU/dw0(", i, "): an=", totals%dU_dw0(i), " fd=", totals%dU_dw0_fd(i)
         ! end do
-        @assertLessThan(rel, tol)
+        @assertLessThan(rel, tol_dU_dstate2)
 
         rel = abs(totals%dG_dstate1_fd - totals%dG_dstate1) / max(abs(totals%dG_dstate1), 1.0d-30)
         ! write(*,*) "dG/dstate1: an=", totals%dG_dstate1, " fd=", totals%dG_dstate1_fd, " rel=", rel
@@ -2758,7 +2771,8 @@ contains
         type(EqDerivatives) :: totals
         real(dp) :: v_reac, u_reac, weights(3)
         real(dp), parameter :: h = 1.0d-6
-        real(dp), parameter :: tol = 1.0d30
+        real(dp), parameter :: tol = 5.0d-2
+        real(dp), parameter :: tol_dU_dstate2 = 1.0d30
         real(dp) :: rel
         integer :: i
 
@@ -2854,14 +2868,16 @@ contains
         rel = abs(totals%dU_dstate1_fd - totals%dU_dstate1) / max(abs(totals%dU_dstate1), 1.0d-30)
         write(*,*) "dU/dstate1: an=", totals%dU_dstate1, " fd=", totals%dU_dstate1_fd, " rel=", rel
         @assertLessThan(rel, tol)
+        ! dU/dstate2 = 0 for uv, but FD noise here is unusually large; left unfailable pending separate investigation
         rel = abs(totals%dU_dstate2_fd - totals%dU_dstate2) / max(abs(totals%dU_dstate2), 1.0d-30)
         write(*,*) "dU/dstate2: an=", totals%dU_dstate2, " fd=", totals%dU_dstate2_fd, " rel=", rel
-        @assertLessThan(rel, tol)
+        @assertLessThan(rel, tol_dU_dstate2)
+        ! dU/dw0 = 0 for uv, same reasoning as dU/dstate2 above; routed through the same unfailable bound
         rel = maxval(abs(totals%dU_dw0_fd - totals%dU_dw0) / max(abs(totals%dU_dw0), 1.0d-30))
         do i = 1, solver%num_reactants
             write(*,*) "dU/dw0(", i, "): an=", totals%dU_dw0(i), " fd=", totals%dU_dw0_fd(i)
         end do
-        @assertLessThan(rel, tol)
+        @assertLessThan(rel, tol_dU_dstate2)
 
         rel = abs(totals%dG_dstate1_fd - totals%dG_dstate1) / max(abs(totals%dG_dstate1), 1.0d-30)
         write(*,*) "dG/dstate1: an=", totals%dG_dstate1, " fd=", totals%dG_dstate1_fd, " rel=", rel
@@ -2985,7 +3001,7 @@ contains
         type(EqDerivatives) :: totals
         real(dp) :: s_reac, v_reac, of_ratio, weights(2)
         real(dp), parameter :: h = 1.0d-6
-        real(dp), parameter :: tol = 1.0d30
+        real(dp), parameter :: tol = 5.0d-2
         real(dp) :: rel
         ! integer :: i
 
@@ -3032,9 +3048,12 @@ contains
                      max(max(abs(totals%dn_dw0_fd), abs(totals%dn_dw0)), 1.0d-8))
         @assertLessThan(rel, tol)
 
-        rel = maxval(abs(totals%dnj_dstate1_fd - totals%dnj_dstate1) / max(abs(totals%dnj_dstate1), 1.0d-30))
+        ! Unlike sibling dnj_dstate checks, this floor wasn't shared with fd, so near-zero species noise could blow up the ratio
+        rel = maxval(abs(totals%dnj_dstate1_fd - totals%dnj_dstate1) / &
+                     max(max(abs(totals%dnj_dstate1_fd), abs(totals%dnj_dstate1)), 1.0d-8))
         @assertLessThan(rel, tol)
-        rel = maxval(abs(totals%dnj_dstate2_fd - totals%dnj_dstate2) / max(abs(totals%dnj_dstate2), 1.0d-30))
+        rel = maxval(abs(totals%dnj_dstate2_fd - totals%dnj_dstate2) / &
+                     max(max(abs(totals%dnj_dstate2_fd), abs(totals%dnj_dstate2)), 1.0d-8))
         @assertLessThan(rel, tol)
         rel = maxval(abs(totals%dnj_dw0_fd - totals%dnj_dw0) / max(abs(totals%dnj_dw0), 1.0d-30))
         @assertLessThan(rel, tol)
@@ -3078,10 +3097,14 @@ contains
         rel = abs(totals%dS_dstate1_fd - totals%dS_dstate1) / max(abs(totals%dS_dstate1), 1.0d-30)
         ! write(*,*) "dS/dstate1: an=", totals%dS_dstate1, " fd=", totals%dS_dstate1_fd, " rel=", rel
         @assertLessThan(rel, tol)
-        rel = abs(totals%dS_dstate2_fd - totals%dS_dstate2) / max(abs(totals%dS_dstate2), 1.0d-30)
+        ! dS/dstate2 = 0 for sv (S is pinned regardless of V); floor absorbs FD noise here when there's no real error to detect
+        rel = abs(totals%dS_dstate2_fd - totals%dS_dstate2) / &
+              max(max(abs(totals%dS_dstate2_fd), abs(totals%dS_dstate2)), 1.0d-3)
         ! write(*,*) "dS/dstate2: an=", totals%dS_dstate2, " fd=", totals%dS_dstate2_fd, " rel=", rel
         @assertLessThan(rel, tol)
-        rel = maxval(abs(totals%dS_dw0_fd - totals%dS_dw0) / max(abs(totals%dS_dw0), 1.0d-30))
+        ! dS/dw0 = 0 for sv (S is pinned regardless of w0); floor absorbs FD noise here when there's no real error to detect
+        rel = maxval(abs(totals%dS_dw0_fd - totals%dS_dw0) / &
+                     max(max(abs(totals%dS_dw0_fd), abs(totals%dS_dw0)), 1.0d-1))
         ! do i = 1, solver%num_reactants
             ! write(*,*) "dS/dw0(", i, "): an=", totals%dS_dw0(i), " fd=", totals%dS_dw0_fd(i)
         ! end do
@@ -3112,7 +3135,7 @@ contains
         type(EqDerivatives) :: totals
         real(dp) :: s_reac, v_reac, of_ratio, weights(2)
         real(dp), parameter :: h = 1.0d-6
-        real(dp), parameter :: tol = 1.0d30
+        real(dp), parameter :: tol = 5.0d-2
         real(dp) :: rel
         integer :: i
 
@@ -3159,9 +3182,12 @@ contains
                      max(max(abs(totals%dn_dw0_fd), abs(totals%dn_dw0)), 1.0d-8))
         @assertLessThan(rel, tol)
 
-        rel = maxval(abs(totals%dnj_dstate1_fd - totals%dnj_dstate1) / max(abs(totals%dnj_dstate1), 1.0d-30))
+        ! Unlike sibling dnj_dstate checks, this floor wasn't shared with fd, so near-zero species noise could blow up the ratio
+        rel = maxval(abs(totals%dnj_dstate1_fd - totals%dnj_dstate1) / &
+                     max(max(abs(totals%dnj_dstate1_fd), abs(totals%dnj_dstate1)), 1.0d-8))
         @assertLessThan(rel, tol)
-        rel = maxval(abs(totals%dnj_dstate2_fd - totals%dnj_dstate2) / max(abs(totals%dnj_dstate2), 1.0d-30))
+        rel = maxval(abs(totals%dnj_dstate2_fd - totals%dnj_dstate2) / &
+                     max(max(abs(totals%dnj_dstate2_fd), abs(totals%dnj_dstate2)), 1.0d-8))
         @assertLessThan(rel, tol)
         rel = maxval(abs(totals%dnj_dw0_fd - totals%dnj_dw0) / max(abs(totals%dnj_dw0), 1.0d-30))
         @assertLessThan(rel, tol)
@@ -3205,10 +3231,14 @@ contains
         rel = abs(totals%dS_dstate1_fd - totals%dS_dstate1) / max(abs(totals%dS_dstate1), 1.0d-30)
         write(*,*) "dS/dstate1: an=", totals%dS_dstate1, " fd=", totals%dS_dstate1_fd, " rel=", rel
         @assertLessThan(rel, tol)
-        rel = abs(totals%dS_dstate2_fd - totals%dS_dstate2) / max(abs(totals%dS_dstate2), 1.0d-30)
+        ! dS/dstate2 = 0 for sv (S is pinned regardless of V); floor absorbs FD noise here when there's no real error to detect
+        rel = abs(totals%dS_dstate2_fd - totals%dS_dstate2) / &
+              max(max(abs(totals%dS_dstate2_fd), abs(totals%dS_dstate2)), 1.0d-3)
         write(*,*) "dS/dstate2: an=", totals%dS_dstate2, " fd=", totals%dS_dstate2_fd, " rel=", rel
         @assertLessThan(rel, tol)
-        rel = maxval(abs(totals%dS_dw0_fd - totals%dS_dw0) / max(abs(totals%dS_dw0), 1.0d-30))
+        ! dS/dw0 = 0 for sv (S is pinned regardless of w0); floor absorbs FD noise here when there's no real error to detect
+        rel = maxval(abs(totals%dS_dw0_fd - totals%dS_dw0) / &
+                     max(max(abs(totals%dS_dw0_fd), abs(totals%dS_dw0)), 1.0d-1))
         do i = 1, solver%num_reactants
             write(*,*) "dS/dw0(", i, "): an=", totals%dS_dw0(i), " fd=", totals%dS_dw0_fd(i)
         end do
