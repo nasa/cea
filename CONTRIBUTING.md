@@ -137,19 +137,28 @@ At minimum, contributors should verify that:
 CEA uses pFUnit (part of the Goddard Fortran Ecosystem) for unit testing. Tests are enabled via the `CEA_BUILD_TESTING` CMake option.
 
 **Prerequisites:**
-1. Clone GFE into the `extern/` directory:
+1. Clone GFE (which vendors pFUnit) into `extern/gfe`, then build and install
+   it so CMake's `find_package(PFUNIT)` can find it:
    ```bash
-   cd extern
-   git clone https://github.com/Goddard-Fortran-Ecosystem/GFE.git
-   cd GFE
-   git submodule update --init
+   git clone https://github.com/Goddard-Fortran-Ecosystem/GFE extern/gfe
+   cd extern/gfe && git submodule update --init && cd ../..
+   cmake -S extern/gfe -B build-dev/extern/gfe -G "Unix Makefiles" \
+       -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran \
+       -DCMAKE_INSTALL_PREFIX=build-dev/install -DCMAKE_BUILD_TYPE=Release \
+       -DSKIP_MPI=YES -DSKIP_OPENMP=YES -DSKIP_FHAMCREST=YES -DSKIP_ESMF=YES -DSKIP_ROBUST=YES
+   cmake --build build-dev/extern/gfe --target install
    ```
+   `scripts/develop.sh` automates these steps.
 
-2. Configure CEA with testing enabled (the `dev*` presets enable this by default):
+2. Configure CEA against that install and build (the `dev*` presets enable
+   `CEA_BUILD_TESTING` by default):
    ```bash
-   cmake --preset dev
+   cmake --preset dev -DCMAKE_PREFIX_PATH=build-dev/install
    cmake --build build-dev
    ```
+   If you already have PFUnit installed separately instead of building the
+   vendored copy above, set `PFUNIT_DIR` to its install prefix instead of
+   `CMAKE_PREFIX_PATH`.
 
 **Running all tests:**
 ```bash
