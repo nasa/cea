@@ -329,16 +329,16 @@ contains
         t = temp(1)
         @assertRelativelyEqual(-1.19532599d+07, mix%calc_enthalpy(wtfracs, t), tol)
         @assertRelativelyEqual(-1.20517040d+07, mix%calc_energy(wtfracs, t), tol)
-        !@assertRelativelyEqual(-1.48300159E+07, mix%calc_gibbs_energy(wtfracs, t, p), tol)
-        !@assertRelativelyEqual( 9.46301312d+03, mix%calc_entropy(wtfracs, t, p), tol)
+        @assertRelativelyEqual(-1.48300159E+07, mix%calc_gibbs_energy(wtfracs, t, p), tol)
+        @assertRelativelyEqual( 9.46301312d+03, mix%calc_entropy(wtfracs, t, p), tol)
 
         ! Version 2: Allow per-species temperatures and pressures
         ! This enables fuels and oxidizers to have different initial states
         ! prior to being mixed and equilibrated.
         @assertRelativelyEqual(-1.19532599d+07, mix%calc_enthalpy(wtfracs, temp), tol)
         @assertRelativelyEqual(-1.20517040d+07, mix%calc_energy(wtfracs, temp), tol)
-        !@assertRelativelyEqual(-1.48300159E+07, mix%calc_gibbs_energy(wtfracs, temp, pres), tol)
-        !@assertRelativelyEqual( 9.46301312d+03, mix%calc_entropy(wtfracs, temp, pres), tol)
+        @assertRelativelyEqual(-1.48300159E+07, mix%calc_gibbs_energy(wtfracs, temp, pres), tol)
+        @assertRelativelyEqual( 9.46301312d+03, mix%calc_entropy(wtfracs, temp, pres), tol)
 
     end subroutine
 

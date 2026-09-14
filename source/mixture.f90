@@ -752,13 +752,14 @@ contains
 
         ! Locals
         integer :: j
-        real(dp) :: hj, nj
+        real(dp) :: hj, nj, total_weight
 
         call check_array_len(size(weights), self%num_species, 'mixture_calc_enthalpy_single weights')
 
+        total_weight = sum(weights)
         h = 0.0d0
         do j = 1, self%num_species
-            nj = weights(j)/self%species(j)%molecular_weight/sum(weights)
+            nj = weights(j)/self%species(j)%molecular_weight/total_weight
             hj = self%species(j)%calc_enthalpy(temperature)
             h = h + nj*hj
         end do
@@ -778,14 +779,15 @@ contains
 
         ! Locals
         integer :: j
-        real(dp) :: hj, nj
+        real(dp) :: hj, nj, total_weight
 
         call check_array_len(size(weights), self%num_species, 'mixture_calc_enthalpy_multi weights')
         call check_array_len(size(temperatures), self%num_species, 'mixture_calc_enthalpy_multi temperatures')
 
+        total_weight = sum(weights)
         h = 0.0d0
         do j = 1, self%num_species
-            nj = weights(j)/self%species(j)%molecular_weight/sum(weights)
+            nj = weights(j)/self%species(j)%molecular_weight/total_weight
             hj = self%species(j)%calc_enthalpy(temperatures(j))
             h = h + nj*hj
         end do
@@ -841,14 +843,15 @@ contains
 
         ! Locals
         integer :: j
-        real(dp) :: sj, nj, n
+        real(dp) :: sj, nj, n, total_weight
 
         call check_array_len(size(weights), self%num_species, 'mixture_calc_entropy_single weights')
 
+        total_weight = sum(weights)
         n = 0.0d0
         s = 0.0d0
         do j = 1, self%num_species
-            nj = weights(j)/self%species(j)%molecular_weight/sum(weights)
+            nj = weights(j)/self%species(j)%molecular_weight/total_weight
             if (nj < 1e-35) cycle
             sj = self%species(j)%calc_entropy(temperature)
             if (self%is_condensed(j)) then
@@ -858,8 +861,8 @@ contains
                 s = s + nj*(sj - log(nj))
             end if
         end do
-        s = s - n*log(pressure/n)
-        s = s * gas_constant !/ 1.d3
+        s = s - n*log(pressure/std_pressure/n)
+        s = s * gas_constant
 
     end function
 
@@ -876,27 +879,28 @@ contains
 
         ! Locals
         integer :: j
-        real(dp) :: sj, nj, n
+        real(dp) :: sj, nj, n, total_weight
 
         call check_array_len(size(weights), self%num_species, 'mixture_calc_entropy_multi weights')
         call check_array_len(size(temperatures), self%num_species, 'mixture_calc_entropy_multi temperatures')
         call check_array_len(size(pressures), self%num_species, 'mixture_calc_entropy_multi pressures')
 
+        total_weight = sum(weights)
         n = 0.0d0
         s = 0.0d0
         do j = 1, self%num_species
-            nj = weights(j)/self%species(j)%molecular_weight/sum(weights)
+            nj = weights(j)/self%species(j)%molecular_weight/total_weight
             if (nj < 1e-35) cycle
             sj = self%species(j)%calc_entropy(temperatures(j))
             if (self%is_condensed(j)) then
                 s = s + nj*sj
             else
                 n = n + nj
-                s = s + nj*(sj - log(nj*pressures(j)))
+                s = s + nj*(sj - log(nj*pressures(j)/std_pressure))
             end if
         end do
         s = s + n*log(n)
-        s = s * gas_constant / 1.d3
+        s = s * gas_constant
 
     end function
 
@@ -931,24 +935,26 @@ contains
 
         ! Locals
         integer :: j
-        real(dp) :: gj, nj, n, nr, pr
+        real(dp) :: gj, nj, n, nr, pr, total_weight
 
         call check_array_len(size(weights), self%num_species, 'mixture_calc_gibbs_energy_multi weights')
         call check_array_len(size(temperatures), self%num_species, 'mixture_calc_gibbs_energy_multi temperatures')
         call check_array_len(size(pressures), self%num_species, 'mixture_calc_gibbs_energy_multi pressures')
+
+        total_weight = sum(weights)
 
         ! Must pre-compute because cannot factor out of the
         ! sum when consitituent temperatures can vary.
         n = 0.0d0
         do j = 1, self%num_species
             if (self%is_condensed(j)) cycle
-            nj = weights(j)/self%species(j)%molecular_weight
+            nj = weights(j)/self%species(j)%molecular_weight/total_weight
             n = n + nj
         end do
 
         g = 0.0d0
         do j = 1, self%num_species
-            nj = weights(j)/self%species(j)%molecular_weight
+            nj = weights(j)/self%species(j)%molecular_weight/total_weight
             gj = self%species(j)%calc_gibbs_energy(temperatures(j))
             if (self%is_condensed(j)) then
                 g = g + nj*gj
@@ -974,13 +980,14 @@ contains
 
         ! Locals
         integer :: j
-        real(dp) :: cpj, nj
+        real(dp) :: cpj, nj, total_weight
 
         call check_array_len(size(weights), self%num_species, 'mixture_calc_frozen_cp_single weights')
 
+        total_weight = sum(weights)
         cp = 0.0d0
         do j = 1, self%num_species
-            nj  = weights(j)/self%species(j)%molecular_weight/sum(weights)
+            nj  = weights(j)/self%species(j)%molecular_weight/total_weight
             cpj = self%species(j)%calc_cp(temperature)
             cp  = cp + nj*cpj
         end do
@@ -1000,14 +1007,15 @@ contains
 
         ! Locals
         integer :: j
-        real(dp) :: cpj, nj
+        real(dp) :: cpj, nj, total_weight
 
         call check_array_len(size(weights), self%num_species, 'mixture_calc_frozen_cp_multi weights')
         call check_array_len(size(temperatures), self%num_species, 'mixture_calc_frozen_cp_multi temperatures')
 
+        total_weight = sum(weights)
         cp = 0.0d0
         do j = 1, self%num_species
-            nj  = weights(j)/self%species(j)%molecular_weight/sum(weights)
+            nj  = weights(j)/self%species(j)%molecular_weight/total_weight
             cpj = self%species(j)%calc_cp(temperatures(j))
             cp  = cp + nj*cpj
         end do
@@ -1027,13 +1035,14 @@ contains
 
         ! Locals
         integer :: j
-        real(dp) :: cvj, nj
+        real(dp) :: cvj, nj, total_weight
 
         call check_array_len(size(weights), self%num_species, 'mixture_calc_frozen_cv_single weights')
 
+        total_weight = sum(weights)
         cv = 0.0d0
         do j = 1, self%num_species
-            nj  = weights(j)/self%species(j)%molecular_weight/sum(weights)
+            nj  = weights(j)/self%species(j)%molecular_weight/total_weight
             cvj = self%species(j)%calc_cv(temperature)
             cv  = cv + nj*cvj
         end do
@@ -1053,14 +1062,15 @@ contains
 
         ! Locals
         integer :: j
-        real(dp) :: cvj, nj
+        real(dp) :: cvj, nj, total_weight
 
         call check_array_len(size(weights), self%num_species, 'mixture_calc_frozen_cv_multi weights')
         call check_array_len(size(temperatures), self%num_species, 'mixture_calc_frozen_cv_multi temperatures')
 
+        total_weight = sum(weights)
         cv = 0.0d0
         do j = 1, self%num_species
-            nj  = weights(j)/self%species(j)%molecular_weight/sum(weights)
+            nj  = weights(j)/self%species(j)%molecular_weight/total_weight
             cvj = self%species(j)%calc_cv(temperatures(j))
             cv  = cv + nj*cvj
         end do

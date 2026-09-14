@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from typing import Optional, Sequence, SupportsFloat
+from typing import Callable, Optional, Sequence, SupportsFloat
 
 import numpy as np
 import numpy.typing as npt
@@ -25,6 +25,10 @@ VectorLike = Sequence[SupportsFloat] | FloatArray
 ScalarOrArray = SupportsFloat | VectorLike
 
 __all__ = ["eq_solve", "rocket_solve", "shock_solve", "detonation_solve"]
+
+
+def _copy_array(value: object) -> FloatArray:
+    return np.array(value, copy=True)
 
 
 def _copy_scalar_or_array(value: object) -> float | bool | int | FloatArray:
@@ -226,35 +230,47 @@ def _build_detonation_solver(
     return DetonationSolver(products_mix, **kwargs)
 
 
+_FieldSpec = str | tuple[str, Callable[[object], object]]
+
+
+def _flatten_fields(
+    soln: object,
+    fields: Sequence[_FieldSpec],
+    wrapper: Callable[[object], object],
+    *,
+    overrides: Optional[dict[str, object]] = None,
+) -> dict[str, object]:
+    values: dict[str, object] = {}
+    for field in fields:
+        name, field_wrapper = field if isinstance(field, tuple) else (field, wrapper)
+        if overrides is not None and name in overrides:
+            values[name] = overrides[name]
+        else:
+            values[name] = field_wrapper(getattr(soln, name))
+    return values
+
+
+_EQ_FIELDS: tuple[_FieldSpec, ...] = (
+    "T", "P", "volume", "density", "M", "MW", "enthalpy", "energy", "entropy",
+    "gibbs_energy", "gamma_s", "cp_fr", "cp_eq", "cp", "cv_fr", "cv_eq", "cv",
+    "viscosity", "conductivity_fr", "conductivity_eq", "Pr_fr", "Pr_eq",
+    ("nj", _copy_array), ("ln_nj", _copy_array), "n",
+)
+
+_ROCKET_FIELDS: tuple[_FieldSpec, ...] = (
+    "T", "P", "volume", "density", "M", "MW", "enthalpy", "energy", "entropy",
+    "gibbs_energy", "gamma_s", "cp_fr", "cp_eq", "cp", "cv_fr", "cv_eq", "cv",
+    "Mach", "sonic_velocity", "ae_at", "c_star", "coefficient_of_thrust",
+    "Isp", "Isp_vacuum", "viscosity", "conductivity_fr", "conductivity_eq",
+    "Pr_fr", "Pr_eq", "nj", "ln_nj", "n",
+)
+
+
 def _flatten_eq_solution(soln: EqSolution) -> SimpleNamespace:
     return SimpleNamespace(
         last_error=int(soln.last_error),
         converged=bool(soln.converged),
-        T=float(soln.T),
-        P=float(soln.P),
-        volume=float(soln.volume),
-        density=float(soln.density),
-        M=float(soln.M),
-        MW=float(soln.MW),
-        enthalpy=float(soln.enthalpy),
-        energy=float(soln.energy),
-        entropy=float(soln.entropy),
-        gibbs_energy=float(soln.gibbs_energy),
-        gamma_s=float(soln.gamma_s),
-        cp_fr=float(soln.cp_fr),
-        cp_eq=float(soln.cp_eq),
-        cp=float(soln.cp),
-        cv_fr=float(soln.cv_fr),
-        cv_eq=float(soln.cv_eq),
-        cv=float(soln.cv),
-        viscosity=float(soln.viscosity),
-        conductivity_fr=float(soln.conductivity_fr),
-        conductivity_eq=float(soln.conductivity_eq),
-        Pr_fr=float(soln.Pr_fr),
-        Pr_eq=float(soln.Pr_eq),
-        nj=np.array(soln.nj, copy=True),
-        ln_nj=np.array(soln.ln_nj, copy=True),
-        n=float(soln.n),
+        **_flatten_fields(soln, _EQ_FIELDS, float),
         mass_fractions=dict(soln.mass_fractions),
         mole_fractions=dict(soln.mole_fractions),
     )
@@ -265,38 +281,7 @@ def _flatten_rocket_solution(soln: RocketSolution) -> SimpleNamespace:
         last_error=int(soln.last_error),
         converged=bool(soln.converged),
         num_pts=int(soln.num_pts),
-        T=np.array(soln.T, copy=True),
-        P=np.array(soln.P, copy=True),
-        volume=np.array(soln.volume, copy=True),
-        density=np.array(soln.density, copy=True),
-        M=np.array(soln.M, copy=True),
-        MW=np.array(soln.MW, copy=True),
-        enthalpy=np.array(soln.enthalpy, copy=True),
-        energy=np.array(soln.energy, copy=True),
-        entropy=np.array(soln.entropy, copy=True),
-        gibbs_energy=np.array(soln.gibbs_energy, copy=True),
-        gamma_s=np.array(soln.gamma_s, copy=True),
-        cp_fr=np.array(soln.cp_fr, copy=True),
-        cp_eq=np.array(soln.cp_eq, copy=True),
-        cp=np.array(soln.cp, copy=True),
-        cv_fr=np.array(soln.cv_fr, copy=True),
-        cv_eq=np.array(soln.cv_eq, copy=True),
-        cv=np.array(soln.cv, copy=True),
-        Mach=np.array(soln.Mach, copy=True),
-        sonic_velocity=np.array(soln.sonic_velocity, copy=True),
-        ae_at=np.array(soln.ae_at, copy=True),
-        c_star=np.array(soln.c_star, copy=True),
-        coefficient_of_thrust=np.array(soln.coefficient_of_thrust, copy=True),
-        Isp=np.array(soln.Isp, copy=True),
-        Isp_vacuum=np.array(soln.Isp_vacuum, copy=True),
-        viscosity=np.array(soln.viscosity, copy=True),
-        conductivity_fr=np.array(soln.conductivity_fr, copy=True),
-        conductivity_eq=np.array(soln.conductivity_eq, copy=True),
-        Pr_fr=np.array(soln.Pr_fr, copy=True),
-        Pr_eq=np.array(soln.Pr_eq, copy=True),
-        nj=np.array(soln.nj, copy=True),
-        ln_nj=np.array(soln.ln_nj, copy=True),
-        n=np.array(soln.n, copy=True),
+        **_flatten_fields(soln, _ROCKET_FIELDS, _copy_array),
         mass_fractions=_copy_fraction_dict(soln.mass_fractions),
         mole_fractions=_copy_fraction_dict(soln.mole_fractions),
     )
@@ -317,49 +302,35 @@ def _reconstruct_shock_amounts(soln: ShockSolution) -> tuple[FloatArray, FloatAr
     return total_moles, nj, ln_nj
 
 
+_SHOCK_FIELDS: tuple[_FieldSpec, ...] = (
+    "T", "P", "velocity", "Mach", "sonic_velocity", "rho12", "rho52", "P21",
+    "P52", "T21", "T52", "M21", "M52", "v2", "u5_p_v2", "volume", "density",
+    "M", "MW", "enthalpy", "energy", "entropy", "gibbs_energy", "gamma_s",
+    "cp_fr", "cp_eq", "cp", "cv_fr", "cv_eq", "cv", "viscosity",
+    "conductivity_fr", "conductivity_eq", "Pr_fr", "Pr_eq", "nj", "ln_nj", "n",
+)
+
+_DETONATION_FIELDS: tuple[_FieldSpec, ...] = (
+    "P1", "T1", "H1", "M1", "gamma1", "sonic_velocity1", "P", "T", "density",
+    "enthalpy", "energy", "gibbs_energy", "entropy", "Mach", "velocity",
+    "sonic_velocity", "gamma_s", "P_P1", "T_T1", "M_M1", "rho_rho1", "cp_fr",
+    "cv_fr", "cp_eq", "cv_eq", "M", "MW", "viscosity", "conductivity_fr",
+    "conductivity_eq", "Pr_fr", "Pr_eq",
+    ("nj", _copy_array), ("ln_nj", _copy_array), "n",
+)
+
+
 def _flatten_shock_solution(soln: ShockSolution) -> SimpleNamespace:
     total_moles, species_amounts, log_species_amounts = _reconstruct_shock_amounts(soln)
     return SimpleNamespace(
         last_error=int(soln.last_error),
         converged=bool(soln.converged),
-        T=_copy_scalar_or_array(soln.T),
-        P=_copy_scalar_or_array(soln.P),
-        velocity=_copy_scalar_or_array(soln.velocity),
-        Mach=_copy_scalar_or_array(soln.Mach),
-        sonic_velocity=_copy_scalar_or_array(soln.sonic_velocity),
-        rho12=_copy_scalar_or_array(soln.rho12),
-        rho52=_copy_scalar_or_array(soln.rho52),
-        P21=_copy_scalar_or_array(soln.P21),
-        P52=_copy_scalar_or_array(soln.P52),
-        T21=_copy_scalar_or_array(soln.T21),
-        T52=_copy_scalar_or_array(soln.T52),
-        M21=_copy_scalar_or_array(soln.M21),
-        M52=_copy_scalar_or_array(soln.M52),
-        v2=_copy_scalar_or_array(soln.v2),
-        u5_p_v2=_copy_scalar_or_array(soln.u5_p_v2),
-        volume=_copy_scalar_or_array(soln.volume),
-        density=_copy_scalar_or_array(soln.density),
-        M=_copy_scalar_or_array(soln.M),
-        MW=_copy_scalar_or_array(soln.MW),
-        enthalpy=_copy_scalar_or_array(soln.enthalpy),
-        energy=_copy_scalar_or_array(soln.energy),
-        entropy=_copy_scalar_or_array(soln.entropy),
-        gibbs_energy=_copy_scalar_or_array(soln.gibbs_energy),
-        gamma_s=_copy_scalar_or_array(soln.gamma_s),
-        cp_fr=_copy_scalar_or_array(soln.cp_fr),
-        cp_eq=_copy_scalar_or_array(soln.cp_eq),
-        cp=_copy_scalar_or_array(soln.cp),
-        cv_fr=_copy_scalar_or_array(soln.cv_fr),
-        cv_eq=_copy_scalar_or_array(soln.cv_eq),
-        cv=_copy_scalar_or_array(soln.cv),
-        viscosity=_copy_scalar_or_array(soln.viscosity),
-        conductivity_fr=_copy_scalar_or_array(soln.conductivity_fr),
-        conductivity_eq=_copy_scalar_or_array(soln.conductivity_eq),
-        Pr_fr=_copy_scalar_or_array(soln.Pr_fr),
-        Pr_eq=_copy_scalar_or_array(soln.Pr_eq),
-        nj=species_amounts,
-        ln_nj=log_species_amounts,
-        n=total_moles,
+        **_flatten_fields(
+            soln,
+            _SHOCK_FIELDS,
+            _copy_scalar_or_array,
+            overrides={"nj": species_amounts, "ln_nj": log_species_amounts, "n": total_moles},
+        ),
         mass_fractions=_copy_fraction_dict(soln.mass_fractions),
         mole_fractions=_copy_fraction_dict(soln.mole_fractions),
     )
@@ -369,41 +340,7 @@ def _flatten_detonation_solution(soln: DetonationSolution) -> SimpleNamespace:
     return SimpleNamespace(
         last_error=int(soln.last_error),
         converged=bool(soln.converged),
-        P1=float(soln.P1),
-        T1=float(soln.T1),
-        H1=float(soln.H1),
-        M1=float(soln.M1),
-        gamma1=float(soln.gamma1),
-        sonic_velocity1=float(soln.sonic_velocity1),
-        P=float(soln.P),
-        T=float(soln.T),
-        density=float(soln.density),
-        enthalpy=float(soln.enthalpy),
-        energy=float(soln.energy),
-        gibbs_energy=float(soln.gibbs_energy),
-        entropy=float(soln.entropy),
-        Mach=float(soln.Mach),
-        velocity=float(soln.velocity),
-        sonic_velocity=float(soln.sonic_velocity),
-        gamma_s=float(soln.gamma_s),
-        P_P1=float(soln.P_P1),
-        T_T1=float(soln.T_T1),
-        M_M1=float(soln.M_M1),
-        rho_rho1=float(soln.rho_rho1),
-        cp_fr=float(soln.cp_fr),
-        cv_fr=float(soln.cv_fr),
-        cp_eq=float(soln.cp_eq),
-        cv_eq=float(soln.cv_eq),
-        M=float(soln.M),
-        MW=float(soln.MW),
-        viscosity=float(soln.viscosity),
-        conductivity_fr=float(soln.conductivity_fr),
-        conductivity_eq=float(soln.conductivity_eq),
-        Pr_fr=float(soln.Pr_fr),
-        Pr_eq=float(soln.Pr_eq),
-        nj=np.array(soln.nj, copy=True),
-        ln_nj=np.array(soln.ln_nj, copy=True),
-        n=float(soln.n),
+        **_flatten_fields(soln, _DETONATION_FIELDS, float),
         mass_fractions=dict(soln.mass_fractions),
         mole_fractions=dict(soln.mole_fractions),
     )

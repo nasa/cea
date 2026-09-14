@@ -4095,6 +4095,11 @@ contains
 
     @test
     subroutine test_equilibrium_transport_ch4_o2_smooth_truncation
+        ! Exercises the transport-species screening in compute_transport_properties under
+        ! smooth_truncation: trace species are revived via compute_nj_effective's smooth gate
+        ! (consistent with the rest of the smooth-truncation machinery) instead of always being
+        ! screened with a hard-zero check, so this confirms that path still yields physically
+        ! sane transport properties.
         type(Mixture) :: products
         type(Mixture) :: reactants
         type(EqSolver) :: solver
@@ -4117,6 +4122,102 @@ contains
 
         @assertTrue(solution%converged)
         @assertTrue(solution%T > 0.0d0)
+        @assertTrue(solution%viscosity > 0.0d0)
+        @assertTrue(solution%conductivity_fr > 0.0d0)
+        @assertTrue(solution%conductivity_eq > 0.0d0)
+        @assertTrue(solution%pr_fr > 0.0d0)
+        @assertTrue(solution%pr_eq > 0.0d0)
+    end subroutine
+
+    @test
+    subroutine test_transport_screening_smooth_gate_at_threshold
+        ! Isolated regression test for the equilibrium.f90 fix to the transport-species
+        ! screening loop in compute_transport_properties (issue djkees/cea#11).
+        !
+        ! A full second solve with smooth_truncation on would follow a different Newton
+        ! path than the hard-mode solve (smooth_truncation affects many other call sites
+        ! in the solve, not just this loop), so comparing two independent end-to-end
+        ! solves cannot isolate this one loop's behavior -- confirmed by checking that
+        ! such a comparison still passed against the pre-fix code. Instead, solve once,
+        ! then call compute_transport_properties directly on the same converged solution
+        ! with one species' ln_nj forced exactly to its activity threshold and nj forced
+        ! to zero -- first with smooth_truncation off, then on. The only thing that
+        ! differs between the two direct calls is the gate itself.
+        type(Mixture) :: products
+        type(Mixture) :: reactants
+        type(EqSolver) :: solver
+        type(EqSolution) :: soln
+        character(:), allocatable :: product_names(:)
+        real(dp) :: h_reac, p_reac, weights(2)
+        real(dp) :: ln_threshold
+        integer :: idx(1), i
+
+        reactants = Mixture(all_thermo, ['CH4', 'O2 '])
+        product_names = reactants%get_products(all_thermo)
+        products = Mixture(all_thermo, product_names)
+
+        solver = EqSolver(products, reactants, all_transport=all_transport)
+        soln = EqSolution(solver)
+
+        weights = reactants%weights_from_of([0.0d0, 1.0d0], [1.0d0, 0.0d0], 2.6d0)
+        h_reac = reactants%calc_enthalpy(weights, [298.15d0, 298.15d0])/R
+        p_reac = psi_to_bar(1000.0d0)
+
+        call solver%solve(soln, 'hp', h_reac, p_reac, weights)
+        @assertTrue(soln%converged)
+
+        ! Perturb the smallest-amount gas species so overwriting it doesn't disturb
+        ! the dominant-species mass balance used elsewhere in the routine.
+        idx = minloc(soln%nj(:solver%num_gas))
+        i = idx(1)
+
+        ln_threshold = log(soln%n) - solver%tsize
+        soln%nj(i) = 0.0d0
+        soln%ln_nj(i) = ln_threshold
+
+        solver%smooth_truncation = .false.
+        call compute_transport_properties(solver, soln)
+        @assertEqual(0.0d0, soln%nj(i))
+
+        solver%smooth_truncation = .true.
+        call compute_transport_properties(solver, soln)
+        @assertTrue(soln%nj(i) > 0.0d0)
+    end subroutine
+
+    @test
+    subroutine test_equilibrium_transport_ionized_smooth_truncation
+        ! Exercises the ion-aware branch (esize threshold instead of tsize) of the
+        ! transport-species screening loop, combined with smooth_truncation. This
+        ! combination -- ions + transport + smooth_truncation together -- was not
+        ! otherwise covered: test_ionized_smooth_truncation exercises ions with
+        ! smooth_truncation but without transport enabled, so it never reaches
+        ! compute_transport_properties at all.
+        type(Mixture) :: products
+        type(Mixture) :: reactants
+        type(EqSolver) :: solver
+        type(EqSolution) :: soln
+        character(snl), allocatable :: product_names(:)
+        real(dp) :: p_reac, t_reac, weights(1)
+
+        reactants = Mixture(all_thermo, ['Air'], ions=.true.)
+        product_names = reactants%get_products(all_thermo, omit=["C(gr)"])
+        products = Mixture(all_thermo, product_names, ions=.true.)
+
+        solver = EqSolver(products, reactants, ions=.true., all_transport=all_transport, smooth_truncation=.true.)
+        soln = EqSolution(solver)
+
+        weights = [1.0d0]
+        t_reac = 5000.0d0
+        p_reac = 0.0101325d0
+
+        call solver%solve(soln, 'tp', t_reac, p_reac, weights)
+
+        @assertTrue(soln%converged)
+        @assertTrue(soln%viscosity > 0.0d0)
+        @assertTrue(soln%conductivity_fr > 0.0d0)
+        @assertTrue(soln%conductivity_eq > 0.0d0)
+        @assertTrue(soln%pr_fr > 0.0d0)
+        @assertTrue(soln%pr_eq > 0.0d0)
     end subroutine
 
     @test

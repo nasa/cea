@@ -298,8 +298,7 @@ contains
 
         ! Call the solver
         if (frozen_) then
-            call log_info('DetonSolver: frozen composition not supported yet')
-            ! call self%solve_frozen(soln, reactant_weights, t1, p1)
+            call abort('DetonSolver: frozen composition not supported yet')
         else
             call self%solve_eq(soln, reactant_weights, t1, p1)
         end if
