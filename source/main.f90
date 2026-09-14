@@ -1483,11 +1483,11 @@ contains
                         (solutions(i, 1, k)%eq_soln(idx)%conductivity_eq, i=1,m)
                 else
                     write(ioout, '(A, *(1X, ES23.15E3))') " Cp, cal/(g-K)   ", &
-                        (merge(solutions(i, 1, k)%eq_soln(idx)%cp_eq_transport, &
+                        (joules_to_cal(merge(solutions(i, 1, k)%eq_soln(idx)%cp_eq_transport, &
                                solutions(i, 1, k)%eq_soln(idx)%cp_eq, &
-                               solutions(i, 1, k)%eq_soln(idx)%cp_eq_transport > 0.0d0)/4.184d0, i=1,m)
+                               solutions(i, 1, k)%eq_soln(idx)%cp_eq_transport > 0.0d0)), i=1,m)
                     write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
-                        (solutions(i, 1, k)%eq_soln(idx)%conductivity_eq/4.184d0, i=1,m)
+                        (joules_to_cal(solutions(i, 1, k)%eq_soln(idx)%conductivity_eq), i=1,m)
                 end if
                 write(ioout, '(A, *(1X, ES23.15E3))') " Prandtl Number  ", &
                     (solutions(i, 1, k)%eq_soln(idx)%Pr_eq, i=1,m)
@@ -1499,10 +1499,11 @@ contains
                     write(ioout, '(A, 14F9.4)') " Conductivity    ", (solutions(i, 1, k)%eq_soln(idx)%conductivity_eq, i=1,m)
                 else
                     write(ioout, '(A, 14F9.4)') " Cp, cal/(g-K)   ", &
-                        (merge(solutions(i, 1, k)%eq_soln(idx)%cp_eq_transport, solutions(i, 1, k)%eq_soln(idx)%cp_eq, &
-                               solutions(i, 1, k)%eq_soln(idx)%cp_eq_transport > 0.0d0)/4.184d0, i=1,m)
+                        (joules_to_cal(merge(solutions(i, 1, k)%eq_soln(idx)%cp_eq_transport, &
+                               solutions(i, 1, k)%eq_soln(idx)%cp_eq, &
+                               solutions(i, 1, k)%eq_soln(idx)%cp_eq_transport > 0.0d0)), i=1,m)
                     write(ioout, '(A, 14F9.4)') " Conductivity    ", &
-                        (solutions(i, 1, k)%eq_soln(idx)%conductivity_eq/4.184d0, i=1,m)
+                        (joules_to_cal(solutions(i, 1, k)%eq_soln(idx)%conductivity_eq), i=1,m)
                 end if
                 write(ioout, '(A, 14F9.4)') " Prandtl Number  ", (solutions(i, 1, k)%eq_soln(idx)%Pr_eq, i=1,m)
             end if
@@ -1515,9 +1516,10 @@ contains
                 write(ioout, '(A, *(1X, ES23.15E3))') " Cp, kJ/(kg-K)   ", (solutions(i, 1, k)%eq_soln(idx)%cp_fr, i=1,m)
                 write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", (solutions(i, 1, k)%eq_soln(idx)%conductivity_fr, i=1,m)
             else
-                write(ioout, '(A, *(1X, ES23.15E3))') " Cp, cal/(g-K)   ", (solutions(i, 1, k)%eq_soln(idx)%cp_fr/4.184d0, i=1,m)
+                write(ioout, '(A, *(1X, ES23.15E3))') " Cp, cal/(g-K)   ", &
+                    (joules_to_cal(solutions(i, 1, k)%eq_soln(idx)%cp_fr), i=1,m)
                 write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
-                    (solutions(i, 1, k)%eq_soln(idx)%conductivity_fr/4.184d0, i=1,m)
+                    (joules_to_cal(solutions(i, 1, k)%eq_soln(idx)%conductivity_fr), i=1,m)
             end if
             write(ioout, '(A, *(1X, ES23.15E3))') " Prandtl Number  ", (solutions(i, 1, k)%eq_soln(idx)%Pr_fr, i=1,m)
         else
@@ -1525,9 +1527,9 @@ contains
                 write(ioout, '(A, 14F9.4)') " Cp, kJ/(kg-K)   ", (solutions(i, 1, k)%eq_soln(idx)%cp_fr, i=1,m)
                 write(ioout, '(A, 14F9.4)') " Conductivity    ", (solutions(i, 1, k)%eq_soln(idx)%conductivity_fr, i=1,m)
             else
-                write(ioout, '(A, 14F9.4)') " Cp, cal/(g-K)   ", (solutions(i, 1, k)%eq_soln(idx)%cp_fr/4.184d0, i=1,m)
+                write(ioout, '(A, 14F9.4)') " Cp, cal/(g-K)   ", (joules_to_cal(solutions(i, 1, k)%eq_soln(idx)%cp_fr), i=1,m)
                 write(ioout, '(A, 14F9.4)') " Conductivity    ", &
-                    (solutions(i, 1, k)%eq_soln(idx)%conductivity_fr/4.184d0, i=1,m)
+                    (joules_to_cal(solutions(i, 1, k)%eq_soln(idx)%conductivity_fr), i=1,m)
             end if
             write(ioout, '(A, 14F9.4)') " Prandtl Number  ", (solutions(i, 1, k)%eq_soln(idx)%Pr_fr, i=1,m)
         end if
@@ -1606,13 +1608,13 @@ contains
                     write(ioout, '(A, *(1X, ES23.15E3))') ' Density, g/cc   ', &
                         ((solutions(i, j, k)%eq_soln%density/1.d3, j=1,n), i=1,m)
                     write(ioout, '(A, *(1X, ES23.15E3))') ' H, cal/g        ', &
-                        ((solutions(i, j, k)%eq_soln%enthalpy/4.184d0, j=1,n), i=1,m)
+                        ((joules_to_cal(solutions(i, j, k)%eq_soln%enthalpy), j=1,n), i=1,m)
                     write(ioout, '(A, *(1X, ES23.15E3))') ' U, cal/g        ', &
-                        ((solutions(i, j, k)%eq_soln%energy/4.184d0, j=1,n), i=1,m)
+                        ((joules_to_cal(solutions(i, j, k)%eq_soln%energy), j=1,n), i=1,m)
                     write(ioout, '(A, *(1X, ES23.15E3))') ' G, cal/g        ', &
-                        ((solutions(i, j, k)%eq_soln%gibbs_energy/4.184d0, j=1,n), i=1,m)
+                        ((joules_to_cal(solutions(i, j, k)%eq_soln%gibbs_energy), j=1,n), i=1,m)
                     write(ioout, '(A, *(1X, ES23.15E3))') ' S, cal/g-K      ', &
-                        ((solutions(i, j, k)%eq_soln%entropy/4.184d0, j=1,n), i=1,m)
+                        ((joules_to_cal(solutions(i, j, k)%eq_soln%entropy), j=1,n), i=1,m)
                     write(ioout, *) ""
                     write(ioout, '(A, *(1X, ES23.15E3))') ' M, (1/n)        ', &
                         ((1.0d0/solutions(i, j, k)%eq_soln%n, j=1,n), i=1,m)
@@ -1621,7 +1623,7 @@ contains
                     write(ioout, '(A, *(1X, ES23.15E3))') ' (dln(V)/dln(T))p', &
                         ((solutions(i, j, k)%eq_partials%dlnV_dlnT, j=1,n), i=1,m)
                     write(ioout, '(A, *(1X, ES23.15E3))') ' Cp, cal/g-K     ', &
-                        ((solutions(i, j, k)%eq_soln%cp_eq/4.184d0, j=1,n), i=1,m)
+                        ((joules_to_cal(solutions(i, j, k)%eq_soln%cp_eq), j=1,n), i=1,m)
                     write(ioout, '(A, *(1X, ES23.15E3))') ' Gamma_s         ', &
                         ((solutions(i, j, k)%eq_partials%gamma_s, j=1,n), i=1,m)
                     write(ioout, '(A, *(1X, ES23.15E3))') ' Son. Vel., m/s  ', &
@@ -1644,7 +1646,7 @@ contains
                 ! Print the values of each variable in the required format
                 write(ioout, '(A, 14F9.4)') ' P1, atm          ', ((solutions(i, j, k)%P1/1.01325d0, j=1,n), i=1,m)
                 write(ioout, '(A, 14F9.2)') ' T1, K            ', ((solutions(i, j, k)%T1,           j=1,n), i=1,m)
-                write(ioout, '(A, 14F9.3)') ' H1, cal/g        ', ((solutions(i, j, k)%H1/4.184d0,   j=1,n), i=1,m)
+                write(ioout, '(A, 14F9.3)') ' H1, cal/g        ', ((joules_to_cal(solutions(i, j, k)%H1),   j=1,n), i=1,m)
                 write(ioout, '(A, 14F9.3)') ' M1, (1/n)        ', ((solutions(i, j, k)%M1,           j=1,n), i=1,m)
                 write(ioout, '(A, 14F9.4)') ' Gamma1           ', ((solutions(i, j, k)%gamma1,       j=1,n), i=1,m)
                 write(ioout, '(A, 14F9.3)') ' Son. Vel.1, m/s  ', ((solutions(i, j, k)%v_sonic1,     j=1,n), i=1,m)
@@ -1681,15 +1683,19 @@ contains
                 write(ioout, '(A, 14F9.4)') ' P, atm          ', ((solutions(i, j, k)%pressure/1.01325d0,   j=1,n), i=1,m)
                 write(ioout, '(A, 14F9.2)') ' T, K            ', ((solutions(i, j, k)%eq_soln%T,                    j=1,n), i=1,m)
                 write(ioout, '(A, 14E9.3e1)') ' Density, g/cc   ', ((solutions(i, j, k)%eq_soln%density/1.d3,       j=1,n), i=1,m)
-                write(ioout, '(A, 14F9.3)') ' H, cal/g        ', ((solutions(i, j, k)%eq_soln%enthalpy/4.184d0,     j=1,n), i=1,m)
-                write(ioout, '(A, 14F9.3)') ' U, cal/g        ', ((solutions(i, j, k)%eq_soln%energy/4.184d0,       j=1,n), i=1,m)
-                write(ioout, '(A, 14F9.1)') ' G, cal/g        ', ((solutions(i, j, k)%eq_soln%gibbs_energy/4.184d0, j=1,n), i=1,m)
-                write(ioout, '(A, 14F9.4)') ' S, cal/g-K      ', ((solutions(i, j, k)%eq_soln%entropy/4.184d0,      j=1,n), i=1,m)
+                write(ioout, '(A, 14F9.3)') ' H, cal/g        ', &
+                    ((joules_to_cal(solutions(i, j, k)%eq_soln%enthalpy),     j=1,n), i=1,m)
+                write(ioout, '(A, 14F9.3)') ' U, cal/g        ', &
+                    ((joules_to_cal(solutions(i, j, k)%eq_soln%energy),       j=1,n), i=1,m)
+                write(ioout, '(A, 14F9.1)') ' G, cal/g        ', &
+                    ((joules_to_cal(solutions(i, j, k)%eq_soln%gibbs_energy), j=1,n), i=1,m)
+                write(ioout, '(A, 14F9.4)') ' S, cal/g-K      ', &
+                    ((joules_to_cal(solutions(i, j, k)%eq_soln%entropy),      j=1,n), i=1,m)
                 write(ioout, *) ""
                 write(ioout, '(A, 14F9.3)') ' M, (1/n)        ', ((1.0/solutions(i, j, k)%eq_soln%n,         j=1,n), i=1,m)
                 write(ioout, '(A, 14F9.3)') ' (dln(V)/dln(P))t', ((solutions(i, j, k)%eq_partials%dlnV_dlnP, j=1,n), i=1,m)
                 write(ioout, '(A, 14F9.3)') ' (dln(V)/dln(T))p', ((solutions(i, j, k)%eq_partials%dlnV_dlnT, j=1,n), i=1,m)
-                write(ioout, '(A, 14F9.4)') ' Cp, cal/g-K     ', ((solutions(i, j, k)%eq_soln%cp_eq/4.184d0, j=1,n), i=1,m)
+                write(ioout, '(A, 14F9.4)') ' Cp, cal/g-K     ', ((joules_to_cal(solutions(i, j, k)%eq_soln%cp_eq), j=1,n), i=1,m)
                 write(ioout, '(A, 14F9.4)') ' Gamma_s         ', ((solutions(i, j, k)%eq_partials%gamma_s,   j=1,n), i=1,m)
                 write(ioout, '(A, 14F9.3)') ' Son. Vel., m/s  ', &
                     ((sqrt(solutions(i, j, k)%eq_soln%n*R*solutions(i, j, k)%eq_partials%gamma_s*solutions(i, j, k)%eq_soln%T),&
@@ -1727,9 +1733,9 @@ contains
                             ((solutions(i, j, k)%eq_soln%conductivity_eq, j=1,n), i=1,m)
                     else
                         write(ioout, '(A, *(1X, ES23.15E3))') " Cp, cal/g-K     ", &
-                            ((solutions(i, j, k)%eq_soln%cp_eq/4.184d0, j=1,n), i=1,m)
+                            ((joules_to_cal(solutions(i, j, k)%eq_soln%cp_eq), j=1,n), i=1,m)
                         write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
-                            ((solutions(i, j, k)%eq_soln%conductivity_eq/4.184d0, j=1,n), i=1,m)
+                            ((joules_to_cal(solutions(i, j, k)%eq_soln%conductivity_eq), j=1,n), i=1,m)
                     end if
                     write(ioout, '(A, *(1X, ES23.15E3))') " Prandtl Number  ", &
                         ((solutions(i, j, k)%eq_soln%Pr_eq, j=1,n), i=1,m)
@@ -1739,9 +1745,10 @@ contains
                         write(ioout, '(A, 14F9.4)') " Conductivity    ", &
                             ((solutions(i, j, k)%eq_soln%conductivity_eq, j=1,n), i=1,m)
                     else
-                        write(ioout, '(A, 14F9.4)') " Cp, cal/g-K     ", ((solutions(i, j, k)%eq_soln%cp_eq/4.184d0, j=1,n), i=1,m)
+                        write(ioout, '(A, 14F9.4)') " Cp, cal/g-K     ", &
+                            ((joules_to_cal(solutions(i, j, k)%eq_soln%cp_eq), j=1,n), i=1,m)
                         write(ioout, '(A, 14F9.4)') " Conductivity    ", &
-                            ((solutions(i, j, k)%eq_soln%conductivity_eq/4.184d0, j=1,n), i=1,m)
+                            ((joules_to_cal(solutions(i, j, k)%eq_soln%conductivity_eq), j=1,n), i=1,m)
                     end if
                     write(ioout, '(A, 14F9.4)') " Prandtl Number  ", ((solutions(i, j, k)%eq_soln%Pr_eq, j=1,n), i=1,m)
                 end if
@@ -1757,9 +1764,9 @@ contains
                             ((solutions(i, j, k)%eq_soln%conductivity_fr, j=1,n), i=1,m)
                     else
                         write(ioout, '(A, *(1X, ES23.15E3))') " Cp, cal/g-K     ", &
-                            ((solutions(i, j, k)%eq_soln%cp_fr/4.184d0, j=1,n), i=1,m)
+                            ((joules_to_cal(solutions(i, j, k)%eq_soln%cp_fr), j=1,n), i=1,m)
                         write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
-                            ((solutions(i, j, k)%eq_soln%conductivity_fr/4.184d0, j=1,n), i=1,m)
+                            ((joules_to_cal(solutions(i, j, k)%eq_soln%conductivity_fr), j=1,n), i=1,m)
                     end if
                     write(ioout, '(A, *(1X, ES23.15E3))') " Prandtl Number  ", &
                         ((solutions(i, j, k)%eq_soln%Pr_fr, j=1,n), i=1,m)
@@ -1769,9 +1776,10 @@ contains
                         write(ioout, '(A, 14F9.4)') " Conductivity    ", &
                             ((solutions(i, j, k)%eq_soln%conductivity_fr, j=1,n), i=1,m)
                     else
-                        write(ioout, '(A, 14F9.4)') " Cp, cal/g-K     ", ((solutions(i, j, k)%eq_soln%cp_fr/4.184d0, j=1,n), i=1,m)
+                        write(ioout, '(A, 14F9.4)') " Cp, cal/g-K     ", &
+                            ((joules_to_cal(solutions(i, j, k)%eq_soln%cp_fr), j=1,n), i=1,m)
                         write(ioout, '(A, 14F9.4)') " Conductivity    ", &
-                            ((solutions(i, j, k)%eq_soln%conductivity_fr/4.184d0, j=1,n), i=1,m)
+                            ((joules_to_cal(solutions(i, j, k)%eq_soln%conductivity_fr), j=1,n), i=1,m)
                     end if
                     write(ioout, '(A, 14F9.4)') " Prandtl Number  ", ((solutions(i, j, k)%eq_soln%Pr_fr, j=1,n), i=1,m)
                 end if
@@ -2272,13 +2280,13 @@ contains
                     write(ioout, '(A, *(1X, ES23.15E3))') ' Density, g/cc   ', &
                         ((solutions(i, j, k)%density/1.d3, i=1,m), j=1,n)
                     write(ioout, '(A, *(1X, ES23.15E3))') ' H, cal/g        ', &
-                        ((solutions(i, j, k)%enthalpy/4.184d0, i=1,m), j=1,n)
+                        ((joules_to_cal(solutions(i, j, k)%enthalpy), i=1,m), j=1,n)
                     write(ioout, '(A, *(1X, ES23.15E3))') ' U, cal/g        ', &
-                        ((solutions(i, j, k)%energy/4.184d0, i=1,m), j=1,n)
+                        ((joules_to_cal(solutions(i, j, k)%energy), i=1,m), j=1,n)
                     write(ioout, '(A, *(1X, ES23.15E3))') ' G, cal/g        ', &
-                        ((solutions(i, j, k)%gibbs_energy/4.184d0, i=1,m), j=1,n)
+                        ((joules_to_cal(solutions(i, j, k)%gibbs_energy), i=1,m), j=1,n)
                     write(ioout, '(A, *(1X, ES23.15E3))') ' S, cal/g-K      ', &
-                        ((solutions(i, j, k)%entropy/4.184d0, i=1,m), j=1,n)
+                        ((joules_to_cal(solutions(i, j, k)%entropy), i=1,m), j=1,n)
                     write(ioout, *) ""
                     write(ioout, '(A, *(1X, ES23.15E3))') ' M, (1/n)        ', &
                         ((1.0d0/solutions(i, j, k)%n, i=1,m), j=1,n)
@@ -2287,7 +2295,7 @@ contains
                     write(ioout, '(A, *(1X, ES23.15E3))') ' (dln(V)/dln(T))p', &
                         ((partials(i, j, k)%dlnV_dlnT, i=1,m), j=1,n)
                     write(ioout, '(A, *(1X, ES23.15E3))') ' Cp, cal/g-K     ', &
-                        ((solutions(i, j, k)%cp_eq/4.184d0, i=1,m), j=1,n)
+                        ((joules_to_cal(solutions(i, j, k)%cp_eq), i=1,m), j=1,n)
                     write(ioout, '(A, *(1X, ES23.15E3))') ' Gamma_s         ', &
                         ((partials(i, j, k)%gamma_s, i=1,m), j=1,n)
                     write(ioout, '(A, *(1X, ES23.15E3))') ' Son. Vel., m/s  ', &
@@ -2319,15 +2327,15 @@ contains
                 write(ioout, '(A, 18F14.5)') ' P, atm          ', ((solutions(i, j, k)%pressure/1.01325d0,   i=1,m), j=1,n)
                 write(ioout, '(A, 18F14.2)') ' T, K            ', ((solutions(i, j, k)%T,                    i=1,m), j=1,n)
                 write(ioout, '(A, 18E14.4e1)') ' Density, g/cc   ', ((solutions(i, j, k)%density/1.d3,       i=1,m), j=1,n)
-                write(ioout, '(A, 18F14.3)') ' H, cal/g        ', ((solutions(i, j, k)%enthalpy/4.184d0,     i=1,m), j=1,n)
-                write(ioout, '(A, 18F14.3)') ' U, cal/g        ', ((solutions(i, j, k)%energy/4.184d0,       i=1,m), j=1,n)
-                write(ioout, '(A, 18F14.3)') ' G, cal/g        ', ((solutions(i, j, k)%gibbs_energy/4.184d0, i=1,m), j=1,n)
-                write(ioout, '(A, 18F14.4)') ' S, cal/g-K      ', ((solutions(i, j, k)%entropy/4.184d0,      i=1,m), j=1,n)
+                write(ioout, '(A, 18F14.3)') ' H, cal/g        ', ((joules_to_cal(solutions(i, j, k)%enthalpy),     i=1,m), j=1,n)
+                write(ioout, '(A, 18F14.3)') ' U, cal/g        ', ((joules_to_cal(solutions(i, j, k)%energy),       i=1,m), j=1,n)
+                write(ioout, '(A, 18F14.3)') ' G, cal/g        ', ((joules_to_cal(solutions(i, j, k)%gibbs_energy), i=1,m), j=1,n)
+                write(ioout, '(A, 18F14.4)') ' S, cal/g-K      ', ((joules_to_cal(solutions(i, j, k)%entropy),      i=1,m), j=1,n)
                 write(ioout, *) ""
                 write(ioout, '(A, 18F14.5)') ' M, (1/n)        ', ((1.0/solutions(i, j, k)%n,         i=1,m), j=1,n)
                 write(ioout, '(A, 18F14.5)') ' (dln(V)/dln(P))t', ((partials(i, j, k)%dlnV_dlnP,      i=1,m), j=1,n)
                 write(ioout, '(A, 18F14.5)') ' (dln(V)/dln(T))p', ((partials(i, j, k)%dlnV_dlnT,      i=1,m), j=1,n)
-                write(ioout, '(A, 18F14.5)') ' Cp, cal/g-K     ', ((solutions(i, j, k)%cp_eq/4.184d0, i=1,m), j=1,n)
+                write(ioout, '(A, 18F14.5)') ' Cp, cal/g-K     ', ((joules_to_cal(solutions(i, j, k)%cp_eq), i=1,m), j=1,n)
                 write(ioout, '(A, 18F14.5)') ' Gamma_s         ', ((partials(i, j, k)%gamma_s,        i=1,m), j=1,n)
                 write(ioout, '(A, 18F14.3)') ' Son. Vel., m/s  ', &
                     ((sqrt(solutions(i, j, k)%n * R * partials(i, j, k)%gamma_s * solutions(i, j, k)%T), i=1,m), j=1,n)
@@ -2364,9 +2372,9 @@ contains
                             ((solutions(i, j, k)%conductivity_eq, i=1,m), j=1,n)
                     else
                         write(ioout, '(A, *(1X, ES23.15E3))') " Cp, cal/g-K     ", &
-                            ((solutions(i, j, k)%cp_eq/4.184d0, i=1,m), j=1,n)
+                            ((joules_to_cal(solutions(i, j, k)%cp_eq), i=1,m), j=1,n)
                         write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
-                            ((solutions(i, j, k)%conductivity_eq/4.184d0, i=1,m), j=1,n)
+                            ((joules_to_cal(solutions(i, j, k)%conductivity_eq), i=1,m), j=1,n)
                     end if
                     write(ioout, '(A, *(1X, ES23.15E3))') " Prandtl Number  ", &
                         ((solutions(i, j, k)%Pr_eq, i=1,m), j=1,n)
@@ -2375,9 +2383,9 @@ contains
                         write(ioout, '(A, 18F14.4)') " Cp, kJ/kg-K     ", ((solutions(i, j, k)%cp_eq, i=1,m), j=1,n)
                         write(ioout, '(A, 18F14.4)') " Conductivity    ", ((solutions(i, j, k)%conductivity_eq, i=1,m), j=1,n)
                     else
-                        write(ioout, '(A, 18F14.4)') " Cp, cal/g-K     ", ((solutions(i, j, k)%cp_eq/4.184d0, i=1,m), j=1,n)
+                        write(ioout, '(A, 18F14.4)') " Cp, cal/g-K     ", ((joules_to_cal(solutions(i, j, k)%cp_eq), i=1,m), j=1,n)
                         write(ioout, '(A, 18F14.4)') " Conductivity    ", &
-                            ((solutions(i, j, k)%conductivity_eq/4.184d0, i=1,m), j=1,n)
+                            ((joules_to_cal(solutions(i, j, k)%conductivity_eq), i=1,m), j=1,n)
                     end if
                     write(ioout, '(A, 18F14.4)') " Prandtl Number  ", ((solutions(i, j, k)%Pr_eq, i=1,m), j=1,n)
                 end if
@@ -2393,9 +2401,9 @@ contains
                             ((solutions(i, j, k)%conductivity_fr, i=1,m), j=1,n)
                     else
                         write(ioout, '(A, *(1X, ES23.15E3))') " Cp, cal/g-K     ", &
-                            ((solutions(i, j, k)%cp_fr/4.184d0, i=1,m), j=1,n)
+                            ((joules_to_cal(solutions(i, j, k)%cp_fr), i=1,m), j=1,n)
                         write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
-                            ((solutions(i, j, k)%conductivity_fr/4.184d0, i=1,m), j=1,n)
+                            ((joules_to_cal(solutions(i, j, k)%conductivity_fr), i=1,m), j=1,n)
                     end if
                     write(ioout, '(A, *(1X, ES23.15E3))') " Prandtl Number  ", &
                         ((solutions(i, j, k)%Pr_fr, i=1,m), j=1,n)
@@ -2404,9 +2412,9 @@ contains
                         write(ioout, '(A, 18F14.4)') " Cp, kJ/kg-K     ", ((solutions(i, j, k)%cp_fr, i=1,m), j=1,n)
                         write(ioout, '(A, 18F14.4)') " Conductivity    ", ((solutions(i, j, k)%conductivity_fr, i=1,m), j=1,n)
                     else
-                        write(ioout, '(A, 18F14.4)') " Cp, cal/g-K     ", ((solutions(i, j, k)%cp_fr/4.184d0, i=1,m), j=1,n)
+                        write(ioout, '(A, 18F14.4)') " Cp, cal/g-K     ", ((joules_to_cal(solutions(i, j, k)%cp_fr), i=1,m), j=1,n)
                         write(ioout, '(A, 18F14.4)') " Conductivity    ", &
-                            ((solutions(i, j, k)%conductivity_fr/4.184d0, i=1,m), j=1,n)
+                            ((joules_to_cal(solutions(i, j, k)%conductivity_fr), i=1,m), j=1,n)
                     end if
                     write(ioout, '(A, 18F14.4)') " Prandtl Number  ", ((solutions(i, j, k)%Pr_fr, i=1,m), j=1,n)
                 end if
@@ -2812,13 +2820,13 @@ contains
                             write(ioout, '(A, *(1X, ES23.15E3))') ' Density, g/cc    ', &
                                 (solutions(i,j,k)%eq_soln(idx)%density/1.d3, idx=1,np)
                             write(ioout, '(A, *(1X, ES23.15E3))') ' H, cal/g         ', &
-                                (solutions(i,j,k)%eq_soln(idx)%enthalpy/4.184d0, idx=1,np)
+                                (joules_to_cal(solutions(i,j,k)%eq_soln(idx)%enthalpy), idx=1,np)
                             write(ioout, '(A, *(1X, ES23.15E3))') ' U, cal/g         ', &
-                                (solutions(i,j,k)%eq_soln(idx)%energy/4.184d0, idx=1,np)
+                                (joules_to_cal(solutions(i,j,k)%eq_soln(idx)%energy), idx=1,np)
                             write(ioout, '(A, *(1X, ES23.15E3))') ' G, cal/g         ', &
-                                (solutions(i,j,k)%eq_soln(idx)%gibbs_energy/4.184d0, idx=1,np)
+                                (joules_to_cal(solutions(i,j,k)%eq_soln(idx)%gibbs_energy), idx=1,np)
                             write(ioout, '(A, *(1X, ES23.15E3))') ' S, cal/g-K       ', &
-                                (solutions(i,j,k)%eq_soln(idx)%entropy/4.184d0, idx=1,np)
+                                (joules_to_cal(solutions(i,j,k)%eq_soln(idx)%entropy), idx=1,np)
                             write(ioout, *) ""
                             write(ioout, '(A, *(1X, ES23.15E3))') 'M, (1/n)        ', &
                                 (1.0d0/solutions(i, j, k)%eq_soln(idx)%n, idx=1,np)
@@ -2829,7 +2837,7 @@ contains
                                     (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnT, idx=1,np)
                             end if
                             write(ioout, '(A, *(1X, ES23.15E3))') 'Cp, cal/(g-K)   ', &
-                                (solutions(i, j, k)%eq_soln(idx)%cp_eq/4.184d0, idx=1,np)
+                                (joules_to_cal(solutions(i, j, k)%eq_soln(idx)%cp_eq), idx=1,np)
                         end if
                         write(ioout, '(A, *(1X, ES23.15E3))') 'Gamma_s         ', &
                             (solutions(i, j, k)%eq_partials(idx)%gamma_s, idx=1,np)
@@ -2861,17 +2869,18 @@ contains
                             write(ioout, p_fmt) (solutions(i,j,k)%pressure(idx)/1.01325d0, idx=1,np)
                             write(ioout, t_fmt) (solutions(i,j,k)%eq_soln(idx)%T, idx=1,np)
                             write(ioout, rho_fmt) (solutions(i,j,k)%eq_soln(idx)%density/1.d3, idx=1,np)
-                            write(ioout, h_fmt) (solutions(i,j,k)%eq_soln(idx)%enthalpy/4.184d0, idx=1,np)
-                        write(ioout, u_fmt) (solutions(i,j,k)%eq_soln(idx)%energy/4.184d0, idx=1,np)
-                        write(ioout, g_fmt) (solutions(i,j,k)%eq_soln(idx)%gibbs_energy/4.184d0, idx=1,np)
-                        write(ioout, s_fmt) (solutions(i,j,k)%eq_soln(idx)%entropy/4.184d0, idx=1,np)
+                            write(ioout, h_fmt) (joules_to_cal(solutions(i,j,k)%eq_soln(idx)%enthalpy), idx=1,np)
+                        write(ioout, u_fmt) (joules_to_cal(solutions(i,j,k)%eq_soln(idx)%energy), idx=1,np)
+                        write(ioout, g_fmt) (joules_to_cal(solutions(i,j,k)%eq_soln(idx)%gibbs_energy), idx=1,np)
+                        write(ioout, s_fmt) (joules_to_cal(solutions(i,j,k)%eq_soln(idx)%entropy), idx=1,np)
                         write(ioout, *) ""
                         write(ioout, thermo_fmt) 'M, (1/n)        ', (1.0/solutions(i, j, k)%eq_soln(idx)%n         , idx=1,np)
                         if (frozen .eqv. .false.) then
                             write(ioout, thermo_fmt) '(dln(V)/dln(P))t', (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnP , idx=1,np)
                             write(ioout, thermo_fmt) '(dln(V)/dln(T))p', (solutions(i, j, k)%eq_partials(idx)%dlnV_dlnT , idx=1,np)
                         end if
-                        write(ioout, thermo_fmt) 'Cp, cal/(g-K)   ', (solutions(i, j, k)%eq_soln(idx)%cp_eq/4.184d0, idx=1,np)
+                        write(ioout, thermo_fmt) 'Cp, cal/(g-K)   ', &
+                            (joules_to_cal(solutions(i, j, k)%eq_soln(idx)%cp_eq), idx=1,np)
                         write(ioout, thermo_fmt) 'Gamma_s         ', (solutions(i, j, k)%eq_partials(idx)%gamma_s, idx=1,np)
                         write(ioout, vsonic_fmt) 'Son. Vel., m/s  ', (solutions(i, j, k)%v_sonic(idx), idx=1,np)
                             write(ioout, thermo_fmt) 'Mach            ', (solutions(i, j, k)%mach(idx), idx=1,np)
@@ -2908,9 +2917,9 @@ contains
                                         (solutions(i, j, k)%eq_soln(idx)%conductivity_eq, idx=1,np)
                                 else
                                     write(ioout, '(A, *(1X, ES23.15E3))') " Cp, cal/(g-K)   ", &
-                                        (solutions(i, j, k)%eq_soln(idx)%cp_eq/4.184d0, idx=1,np)
+                                        (joules_to_cal(solutions(i, j, k)%eq_soln(idx)%cp_eq), idx=1,np)
                                     write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
-                                        (solutions(i, j, k)%eq_soln(idx)%conductivity_eq/4.184d0, idx=1,np)
+                                        (joules_to_cal(solutions(i, j, k)%eq_soln(idx)%conductivity_eq), idx=1,np)
                                 end if
                                 write(ioout, '(A, *(1X, ES23.15E3))') " Prandtl Number  ", &
                                     (solutions(i, j, k)%eq_soln(idx)%Pr_eq, idx=1,np)
@@ -2921,9 +2930,9 @@ contains
                                         (solutions(i, j, k)%eq_soln(idx)%conductivity_eq, idx=1,np)
                                 else
                                     write(ioout, thermo_fmt) " Cp, cal/(g-K)   ", &
-                                        (solutions(i, j, k)%eq_soln(idx)%cp_eq/4.184d0, idx=1,np)
+                                        (joules_to_cal(solutions(i, j, k)%eq_soln(idx)%cp_eq), idx=1,np)
                                     write(ioout, thermo_fmt) " Conductivity    ", &
-                                        (solutions(i, j, k)%eq_soln(idx)%conductivity_eq/4.184d0, idx=1,np)
+                                        (joules_to_cal(solutions(i, j, k)%eq_soln(idx)%conductivity_eq), idx=1,np)
                                 end if
                                 write(ioout, thermo_fmt) " Prandtl Number  ", (solutions(i, j, k)%eq_soln(idx)%Pr_eq, idx=1,np)
                             end if
@@ -2939,9 +2948,9 @@ contains
                                     (solutions(i, j, k)%eq_soln(idx)%conductivity_fr, idx=1,np)
                             else
                                 write(ioout, '(A, *(1X, ES23.15E3))') " Cp, cal/(g-K)   ", &
-                                    (solutions(i, j, k)%eq_soln(idx)%cp_fr/4.184d0, idx=1,np)
+                                    (joules_to_cal(solutions(i, j, k)%eq_soln(idx)%cp_fr), idx=1,np)
                                 write(ioout, '(A, *(1X, ES23.15E3))') " Conductivity    ", &
-                                    (solutions(i, j, k)%eq_soln(idx)%conductivity_fr/4.184d0, idx=1,np)
+                                    (joules_to_cal(solutions(i, j, k)%eq_soln(idx)%conductivity_fr), idx=1,np)
                             end if
                             write(ioout, '(A, *(1X, ES23.15E3))') " Prandtl Number  ", &
                                 (solutions(i, j, k)%eq_soln(idx)%Pr_fr, idx=1,np)
@@ -2952,9 +2961,9 @@ contains
                                     (solutions(i, j, k)%eq_soln(idx)%conductivity_fr, idx=1,np)
                             else
                                 write(ioout, thermo_fmt) " Cp, cal/(g-K)   ", &
-                                    (solutions(i, j, k)%eq_soln(idx)%cp_fr/4.184d0, idx=1,np)
+                                    (joules_to_cal(solutions(i, j, k)%eq_soln(idx)%cp_fr), idx=1,np)
                                 write(ioout, thermo_fmt) " Conductivity    ", &
-                                    (solutions(i, j, k)%eq_soln(idx)%conductivity_fr/4.184d0, idx=1,np)
+                                    (joules_to_cal(solutions(i, j, k)%eq_soln(idx)%conductivity_fr), idx=1,np)
                             end if
                             write(ioout, thermo_fmt) " Prandtl Number  ", (solutions(i, j, k)%eq_soln(idx)%Pr_fr, idx=1,np)
                         end if
@@ -3195,17 +3204,17 @@ contains
                                     [ (solutions(i,j,k)%eq_soln(idx)%density/1.d3, idx=1,nc), &
                                       (solutions(i,j,k)%eq_soln(idx)%density/1.d3, idx=x,y) ]
                                 write(ioout, '(A, *(1X, ES23.15E3))') ' H, cal/g         ', &
-                                    [ (solutions(i,j,k)%eq_soln(idx)%enthalpy/4.184d0, idx=1,nc), &
-                                      (solutions(i,j,k)%eq_soln(idx)%enthalpy/4.184d0, idx=x,y) ]
+                                    [ (joules_to_cal(solutions(i,j,k)%eq_soln(idx)%enthalpy), idx=1,nc), &
+                                      (joules_to_cal(solutions(i,j,k)%eq_soln(idx)%enthalpy), idx=x,y) ]
                                 write(ioout, '(A, *(1X, ES23.15E3))') ' U, cal/g         ', &
-                                    [ (solutions(i,j,k)%eq_soln(idx)%energy/4.184d0, idx=1,nc), &
-                                      (solutions(i,j,k)%eq_soln(idx)%energy/4.184d0, idx=x,y) ]
+                                    [ (joules_to_cal(solutions(i,j,k)%eq_soln(idx)%energy), idx=1,nc), &
+                                      (joules_to_cal(solutions(i,j,k)%eq_soln(idx)%energy), idx=x,y) ]
                                 write(ioout, '(A, *(1X, ES23.15E3))') ' G, cal/g         ', &
-                                    [ (solutions(i,j,k)%eq_soln(idx)%gibbs_energy/4.184d0, idx=1,nc), &
-                                      (solutions(i,j,k)%eq_soln(idx)%gibbs_energy/4.184d0, idx=x,y) ]
+                                    [ (joules_to_cal(solutions(i,j,k)%eq_soln(idx)%gibbs_energy), idx=1,nc), &
+                                      (joules_to_cal(solutions(i,j,k)%eq_soln(idx)%gibbs_energy), idx=x,y) ]
                                 write(ioout, '(A, *(1X, ES23.15E3))') ' S, cal/g-K       ', &
-                                    [ (solutions(i,j,k)%eq_soln(idx)%entropy/4.184d0, idx=1,nc), &
-                                      (solutions(i,j,k)%eq_soln(idx)%entropy/4.184d0, idx=x,y) ]
+                                    [ (joules_to_cal(solutions(i,j,k)%eq_soln(idx)%entropy), idx=1,nc), &
+                                      (joules_to_cal(solutions(i,j,k)%eq_soln(idx)%entropy), idx=x,y) ]
                                 write(ioout, *) ""
                                 write(ioout, '(A, *(1X, ES23.15E3))') 'M, (1/n)        ', &
                                     [ (1.0d0/solutions(i,j,k)%eq_soln(idx)%n, idx=1,nc), &
@@ -3219,8 +3228,8 @@ contains
                                           (solutions(i,j,k)%eq_partials(idx)%dlnV_dlnT, idx=x,y) ]
                                 end if
                                 write(ioout, '(A, *(1X, ES23.15E3))') 'Cp, cal/(g-K)   ', &
-                                    [ (solutions(i,j,k)%eq_soln(idx)%cp_eq/4.184d0, idx=1,nc), &
-                                      (solutions(i,j,k)%eq_soln(idx)%cp_eq/4.184d0, idx=x,y) ]
+                                    [ (joules_to_cal(solutions(i,j,k)%eq_soln(idx)%cp_eq), idx=1,nc), &
+                                      (joules_to_cal(solutions(i,j,k)%eq_soln(idx)%cp_eq), idx=x,y) ]
                             end if
                             write(ioout, '(A, *(1X, ES23.15E3))') 'Gamma_s         ', &
                                 [ (solutions(i,j,k)%eq_partials(idx)%gamma_s, idx=1,nc), &
@@ -3285,16 +3294,17 @@ contains
                                 write(ioout, rho_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%density/1.d3, idx=1,nc)
                                 write(ioout, "(6(E13.4e1))") (solutions(i,j,k)%eq_soln(idx)%density, idx=x,y)
 
-                                write(ioout, h_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%enthalpy/4.184d0, idx=1,nc)
+                                write(ioout, h_fmt, advance="no") (joules_to_cal(solutions(i,j,k)%eq_soln(idx)%enthalpy), idx=1,nc)
                                 write(ioout, ffmt) (solutions(i,j,k)%eq_soln(idx)%enthalpy, idx=x,y)
 
-                                write(ioout, u_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%energy/4.184d0, idx=1,nc)
+                                write(ioout, u_fmt, advance="no") (joules_to_cal(solutions(i,j,k)%eq_soln(idx)%energy), idx=1,nc)
                                 write(ioout, ffmt) (solutions(i,j,k)%eq_soln(idx)%energy, idx=x,y)
 
-                                write(ioout, g_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%gibbs_energy/4.184d0, idx=1,nc)
+                                write(ioout, g_fmt, advance="no") &
+                                    (joules_to_cal(solutions(i,j,k)%eq_soln(idx)%gibbs_energy), idx=1,nc)
                                 write(ioout, "(6(F13.2))") (solutions(i,j,k)%eq_soln(idx)%gibbs_energy, idx=x,y)
 
-                                write(ioout, s_fmt, advance="no") (solutions(i,j,k)%eq_soln(idx)%entropy/4.184d0, idx=1,nc)
+                                write(ioout, s_fmt, advance="no") (joules_to_cal(solutions(i,j,k)%eq_soln(idx)%entropy), idx=1,nc)
                                 write(ioout, ffmt) (solutions(i,j,k)%eq_soln(idx)%entropy, idx=x,y)
 
                                 write(ioout, *) ""
@@ -3313,8 +3323,8 @@ contains
                                 end if
 
                                 write(ioout, thermo_fmt, advance="no") 'Cp, cal/(g-K)   ', &
-                                    (solutions(i, j, k)%eq_soln(idx)%cp_eq/4.184d0, idx=1,nc)
-                                write(ioout, ffmt) (solutions(i, j, k)%eq_soln(idx)%cp_eq/4.184d0, idx=x,y)
+                                    (joules_to_cal(solutions(i, j, k)%eq_soln(idx)%cp_eq), idx=1,nc)
+                                write(ioout, ffmt) (joules_to_cal(solutions(i, j, k)%eq_soln(idx)%cp_eq), idx=x,y)
                             end if
 
                             write(ioout, thermo_fmt, advance="no") 'Gamma_s         ', &
@@ -3359,12 +3369,13 @@ contains
                                     write(ioout, '(F13.3)') (solutions(i, j, k)%eq_soln(idx)%conductivity_eq, idx=x,y)
                                 else
                                     write(ioout, '(A, F13.4)', advance="no") " Cp, cal/(g-K)   ", &
-                                        (solutions(i, j, k)%eq_soln(idx)%cp_eq/4.184d0, idx=1,nc)
-                                    write(ioout, '(F13.4)') (solutions(i, j, k)%eq_soln(idx)%cp_eq/4.184d0, idx=x,y)
+                                        (joules_to_cal(solutions(i, j, k)%eq_soln(idx)%cp_eq), idx=1,nc)
+                                    write(ioout, '(F13.4)') (joules_to_cal(solutions(i, j, k)%eq_soln(idx)%cp_eq), idx=x,y)
 
                                     write(ioout, '(A, F13.3)', advance="no") " Conductivity    ", &
-                                        (solutions(i, j, k)%eq_soln(idx)%conductivity_eq/4.184d0, idx=1,nc)
-                                    write(ioout, '(F13.3)') (solutions(i, j, k)%eq_soln(idx)%conductivity_eq/4.184d0, idx=x,y)
+                                        (joules_to_cal(solutions(i, j, k)%eq_soln(idx)%conductivity_eq), idx=1,nc)
+                                    write(ioout, '(F13.3)') &
+                                        (joules_to_cal(solutions(i, j, k)%eq_soln(idx)%conductivity_eq), idx=x,y)
                                 end if
                                 write(ioout, '(A, F13.4)', advance="no") " Prandtl Number  ", &
                                     (solutions(i, j, k)%eq_soln(idx)%Pr_eq, idx=1,nc)
@@ -3383,12 +3394,12 @@ contains
                                 write(ioout, '(F13.3)') (solutions(i, j, k)%eq_soln(idx)%conductivity_fr, idx=x,y)
                             else
                                 write(ioout, '(A, F13.4)', advance="no") " Cp, cal/(g-K)   ", &
-                                    (solutions(i, j, k)%eq_soln(idx)%cp_fr/4.184d0, idx=1,nc)
-                                write(ioout, '(F13.4)') (solutions(i, j, k)%eq_soln(idx)%cp_fr/4.184d0, idx=x,y)
+                                    (joules_to_cal(solutions(i, j, k)%eq_soln(idx)%cp_fr), idx=1,nc)
+                                write(ioout, '(F13.4)') (joules_to_cal(solutions(i, j, k)%eq_soln(idx)%cp_fr), idx=x,y)
 
                                 write(ioout, '(A, F13.3)', advance="no") " Conductivity    ", &
-                                    (solutions(i, j, k)%eq_soln(idx)%conductivity_fr/4.184d0, idx=1,nc)
-                                write(ioout, '(F13.3)') (solutions(i, j, k)%eq_soln(idx)%conductivity_fr/4.184d0, idx=x,y)
+                                    (joules_to_cal(solutions(i, j, k)%eq_soln(idx)%conductivity_fr), idx=1,nc)
+                                write(ioout, '(F13.3)') (joules_to_cal(solutions(i, j, k)%eq_soln(idx)%conductivity_fr), idx=x,y)
                             end if
                             write(ioout, '(A, F13.4)', advance="no") " Prandtl Number  ", &
                                 (solutions(i, j, k)%eq_soln(idx)%Pr_fr, idx=1,nc)

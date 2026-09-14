@@ -70,6 +70,12 @@ contains
         joules = cal*4.184d0
     end function
 
+    function joules_to_cal(joules) result(cal)
+        real(dp), intent(in) :: joules
+        real(dp) :: cal
+        cal = joules/4.184d0
+    end function
+
     ! Density conversions
     ! -------------------
 
