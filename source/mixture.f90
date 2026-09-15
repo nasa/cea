@@ -858,8 +858,8 @@ contains
                 s = s + nj*(sj - log(nj))
             end if
         end do
-        s = s - n*log(pressure/n)
-        s = s * gas_constant !/ 1.d3
+        s = s - n*log(pressure/std_pressure/n)
+        s = s * gas_constant
 
     end function
 
@@ -892,11 +892,11 @@ contains
                 s = s + nj*sj
             else
                 n = n + nj
-                s = s + nj*(sj - log(nj*pressures(j)))
+                s = s + nj*(sj - log(nj*pressures(j)/std_pressure))
             end if
         end do
         s = s + n*log(n)
-        s = s * gas_constant / 1.d3
+        s = s * gas_constant
 
     end function
 
@@ -931,24 +931,26 @@ contains
 
         ! Locals
         integer :: j
-        real(dp) :: gj, nj, n, nr, pr
+        real(dp) :: gj, nj, n, nr, pr, total_weight
 
         call check_array_len(size(weights), self%num_species, 'mixture_calc_gibbs_energy_multi weights')
         call check_array_len(size(temperatures), self%num_species, 'mixture_calc_gibbs_energy_multi temperatures')
         call check_array_len(size(pressures), self%num_species, 'mixture_calc_gibbs_energy_multi pressures')
+
+        total_weight = sum(weights)
 
         ! Must pre-compute because cannot factor out of the
         ! sum when consitituent temperatures can vary.
         n = 0.0d0
         do j = 1, self%num_species
             if (self%is_condensed(j)) cycle
-            nj = weights(j)/self%species(j)%molecular_weight
+            nj = weights(j)/self%species(j)%molecular_weight/total_weight
             n = n + nj
         end do
 
         g = 0.0d0
         do j = 1, self%num_species
-            nj = weights(j)/self%species(j)%molecular_weight
+            nj = weights(j)/self%species(j)%molecular_weight/total_weight
             gj = self%species(j)%calc_gibbs_energy(temperatures(j))
             if (self%is_condensed(j)) then
                 g = g + nj*gj
