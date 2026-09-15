@@ -27,11 +27,12 @@ def test_calc_property_requires_pressure(cea_module):
         mix.calc_property(cea_module.ENTROPY, weights, temperature=3000.0)
 
 
-def test_calc_property_rejects_unknown_type(cea_module):
+@pytest.mark.parametrize("prop_type", [999999, -5])
+def test_calc_property_rejects_unknown_type(cea_module, prop_type):
     mix = cea_module.Mixture(["H2", "O2"])
     weights = np.array([0.4, 0.6], dtype=np.float64)
     with pytest.raises(ValueError):
-        mix.calc_property(999999, weights, temperature=3000.0)
+        mix.calc_property(prop_type, weights, temperature=3000.0)
 
 
 @pytest.mark.parametrize(

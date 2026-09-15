@@ -1224,7 +1224,7 @@ cdef class Mixture:
 
         return weights
 
-    def calc_property(self, cea_property_type prop_type, np.ndarray weights,
+    def calc_property(self, int prop_type, np.ndarray weights,
                       temperature: float | list | np.ndarray, pressure: Optional[float] = None):
         """
         Calculate thermodynamic property for mixture at specified conditions.
@@ -1276,20 +1276,20 @@ cdef class Mixture:
         try:
             if prop_type in [ENTROPY, GIBBS_ENERGY, VOLUME, DENSITY]:
                 if isinstance(temperature, float):
-                    ierr = cea_mixture_calc_property_tp(self.ptr, prop_type, nspecies, reac_weights, temperature, pressure, &value)
+                    ierr = cea_mixture_calc_property_tp(self.ptr, <cea_property_type>prop_type, nspecies, reac_weights, temperature, pressure, &value)
                 elif type(temperature) in [list, np.ndarray]:
                     for i in range(nspecies):
                         reac_temps[i] = temperature[i]
-                    ierr = cea_mixture_calc_property_tp_multitemp(self.ptr, prop_type, nspecies, reac_weights, nspecies, reac_temps, pressure, &value)
+                    ierr = cea_mixture_calc_property_tp_multitemp(self.ptr, <cea_property_type>prop_type, nspecies, reac_weights, nspecies, reac_temps, pressure, &value)
                 else:
                     raise ValueError("Mixiture.calc_property: temperature must be a float, list, or np.ndarray")
             else:
                 if isinstance(temperature, float):
-                    ierr = cea_mixture_calc_property(self.ptr, prop_type, nspecies, reac_weights, temperature, &value)
+                    ierr = cea_mixture_calc_property(self.ptr, <cea_property_type>prop_type, nspecies, reac_weights, temperature, &value)
                 elif type(temperature) in [list, np.ndarray]:
                     for i in range(nspecies):
                         reac_temps[i] = temperature[i]
-                    ierr = cea_mixture_calc_property_multitemp(self.ptr, prop_type, nspecies, reac_weights, nspecies, reac_temps, &value)
+                    ierr = cea_mixture_calc_property_multitemp(self.ptr, <cea_property_type>prop_type, nspecies, reac_weights, nspecies, reac_temps, &value)
                 else:
                     raise ValueError("Mixiture.calc_property: temperature must be a float, list, or np.ndarray")
             _check_ierr(ierr, "Mixture.calc_property")
