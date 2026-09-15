@@ -498,10 +498,19 @@ jobs:
             cmake_fortran_flags+=(-DCMAKE_Fortran_FLAGS="-ffree-line-length-none")
           fi
 
+          # GFE/pFUnit is not built on Windows (see "Configure and Build GFE"
+          # above), so the Fortran unit test suite (cea_core_test) can't be
+          # registered there. The suite still runs on Linux/macOS; these
+          # Windows legs only exercise the C bindings.
+          cea_build_testing="ON"
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cea_build_testing="OFF"
+          fi
+
           cmake -S . -B build -G Ninja \
             -DCMAKE_PREFIX_PATH=build/install \
             -DCMAKE_BUILD_TYPE=Debug \
-            -DCEA_BUILD_TESTING=ON \
+            -DCEA_BUILD_TESTING="${cea_build_testing}" \
             -DCEA_ENABLE_BIND_C=ON \
             -DCEA_ENABLE_BIND_CXX=OFF \
             -DCEA_ENABLE_BIND_PYTHON=OFF \
@@ -512,9 +521,11 @@ jobs:
       - name: Configure (msvc)
         if: ${{runner.os == 'Windows' && matrix.toolchain.ccompiler == 'msvc'}}
         run: |
+          # GFE/pFUnit is not built on Windows, so cea_core_test can't be
+          # registered here either; see the "Configure (Ninja)" step above.
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCEA_BUILD_TESTING=ON \
+            -DCEA_BUILD_TESTING=OFF \
             -DCEA_ENABLE_BIND_C=ON \
             -DCEA_ENABLE_BIND_CXX=OFF \
             -DCEA_ENABLE_BIND_PYTHON=OFF \
