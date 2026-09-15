@@ -76,3 +76,53 @@ def test_multitemperature_density_matches_single_temperature(cea_module):
     )
 
     assert density_multi == pytest.approx(density_single)
+
+
+@pytest.mark.parametrize("temperature_dtype", [np.float32, np.float64])
+def test_calc_property_accepts_numpy_scalar_temperature(cea_module, temperature_dtype):
+    mix = cea_module.Mixture(["O2(L)"])
+    weights = np.array([1.0])
+
+    density_python_float = mix.calc_property(
+        cea_module.DENSITY, weights, temperature=90.0, pressure=68.0
+    )
+    numpy_scalar_temperature = np.array([90.0], dtype=temperature_dtype)[0]
+    density_numpy_scalar = mix.calc_property(
+        cea_module.DENSITY, weights, temperature=numpy_scalar_temperature, pressure=68.0
+    )
+
+    assert density_numpy_scalar == pytest.approx(density_python_float)
+
+
+def test_calc_property_rejects_invalid_temperature_type(cea_module):
+    mix = cea_module.Mixture(["O2(L)"])
+    weights = np.array([1.0])
+
+    with pytest.raises(ValueError):
+        mix.calc_property(
+            cea_module.DENSITY, weights, temperature="not a number", pressure=68.0
+        )
+
+
+def test_calc_property_accepts_plain_int_temperature(cea_module):
+    mix = cea_module.Mixture(["O2(L)"])
+    weights = np.array([1.0])
+
+    density_python_float = mix.calc_property(
+        cea_module.DENSITY, weights, temperature=90.0, pressure=68.0
+    )
+    density_python_int = mix.calc_property(
+        cea_module.DENSITY, weights, temperature=90, pressure=68.0
+    )
+
+    assert density_python_int == pytest.approx(density_python_float)
+
+
+def test_calc_property_rejects_numpy_integer_temperature(cea_module):
+    mix = cea_module.Mixture(["O2(L)"])
+    weights = np.array([1.0])
+
+    with pytest.raises(ValueError):
+        mix.calc_property(
+            cea_module.DENSITY, weights, temperature=np.int64(90), pressure=68.0
+        )

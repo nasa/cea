@@ -1275,7 +1275,7 @@ cdef class Mixture:
 
         try:
             if prop_type in [ENTROPY, GIBBS_ENERGY, VOLUME, DENSITY]:
-                if isinstance(temperature, float):
+                if isinstance(temperature, (float, int, np.floating)):
                     ierr = cea_mixture_calc_property_tp(self.ptr, prop_type, nspecies, reac_weights, temperature, pressure, &value)
                 elif type(temperature) in [list, np.ndarray]:
                     for i in range(nspecies):
@@ -1284,7 +1284,7 @@ cdef class Mixture:
                 else:
                     raise ValueError("Mixiture.calc_property: temperature must be a float, list, or np.ndarray")
             else:
-                if isinstance(temperature, float):
+                if isinstance(temperature, (float, int, np.floating)):
                     ierr = cea_mixture_calc_property(self.ptr, prop_type, nspecies, reac_weights, temperature, &value)
                 elif type(temperature) in [list, np.ndarray]:
                     for i in range(nspecies):
