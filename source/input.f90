@@ -517,7 +517,7 @@ contains
                 cycle
             end if
             if (is_formula_element_token(token)) then
-                reac(n)%formula = parse_formula(scanner, token)
+                reac(n)%formula = parse_formula(scanner, token, reac(n)%name)
                 cycle
             end if
             select case(token_lower(1:1))
@@ -787,12 +787,25 @@ contains
             end if
         end do
 
+        ! If the loop above filled every slot without running out of input,
+        ! check whether another value follows: if so, the schedule has more
+        ! values than max_values allows and was silently truncated above.
+        if (i > max_values) then
+            val = scanner%peek_real(ierr)
+            if (ierr == 0) then
+                call abort('parse_schedule: too many values for '//trim(sched%name)// &
+                    '; accepts at most '//to_str(max_values)//' values')
+            end if
+        end if
+
         return
     end function
 
-    function parse_formula(scanner, token) result(f)
+    function parse_formula(scanner, token, context) result(f)
         type(string_scanner), intent(inout) :: scanner
         character(*), intent(in) :: token
+        character(*), intent(in), optional :: context
+            !! Name of the reactant this formula belongs to, for error messages
 
         type(Formula) :: f
         integer, parameter :: max_values = 16
@@ -829,6 +842,23 @@ contains
             if (ierr == 0) f%coefficients(i) = scanner%read_real(ierr)
             n = i
         end do
+
+        ! If the loop above filled every slot without hitting the end of the
+        ! formula, check whether another element token follows: if so, the
+        ! formula has more terms than max_values allows and was silently
+        ! truncated above.
+        if (i > max_values) then
+            word = scanner%peek_word(ierr)
+            if (ierr == 0 .and. is_formula_element_token(word)) then
+                if (present(context)) then
+                    call abort('parse_formula: too many elements in formula for '//trim(context)// &
+                        '; accepts at most '//to_str(max_values)//' elements')
+                else
+                    call abort('parse_formula: too many elements in formula; accepts at most '// &
+                        to_str(max_values)//' elements')
+                end if
+            end if
+        end if
 
         f%elements = f%elements(:n)
         f%coefficients = f%coefficients(:n)
