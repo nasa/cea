@@ -27,11 +27,12 @@ def test_calc_property_requires_pressure(cea_module):
         mix.calc_property(cea_module.ENTROPY, weights, temperature=3000.0)
 
 
-def test_calc_property_rejects_unknown_type(cea_module):
+@pytest.mark.parametrize("prop_type", [999999, -5])
+def test_calc_property_rejects_unknown_type(cea_module, prop_type):
     mix = cea_module.Mixture(["H2", "O2"])
     weights = np.array([0.4, 0.6], dtype=np.float64)
     with pytest.raises(ValueError):
-        mix.calc_property(999999, weights, temperature=3000.0)
+        mix.calc_property(prop_type, weights, temperature=3000.0)
 
 
 @pytest.mark.parametrize(
@@ -76,3 +77,136 @@ def test_multitemperature_density_matches_single_temperature(cea_module):
     )
 
     assert density_multi == pytest.approx(density_single)
+
+
+def test_multitemperature_density_matches_single_temperature_list(cea_module):
+    """Same as above, but passing temperature as a plain Python list instead of an ndarray."""
+    mix = cea_module.Mixture(["O2(L)"])
+    weights = np.array([1.0])
+
+    density_single = mix.calc_property(
+        cea_module.DENSITY, weights, temperature=90.0, pressure=68.0
+    )
+    density_multi = mix.calc_property(
+        cea_module.DENSITY, weights, temperature=[90.0], pressure=68.0
+    )
+
+    assert density_multi == pytest.approx(density_single)
+
+
+@pytest.mark.parametrize("temperature_dtype", [np.float32, np.float64])
+def test_calc_property_accepts_numpy_scalar_temperature(cea_module, temperature_dtype):
+    mix = cea_module.Mixture(["O2(L)"])
+    weights = np.array([1.0])
+
+    density_python_float = mix.calc_property(
+        cea_module.DENSITY, weights, temperature=90.0, pressure=68.0
+    )
+    numpy_scalar_temperature = np.array([90.0], dtype=temperature_dtype)[0]
+    density_numpy_scalar = mix.calc_property(
+        cea_module.DENSITY, weights, temperature=numpy_scalar_temperature, pressure=68.0
+    )
+
+    assert density_numpy_scalar == pytest.approx(density_python_float)
+
+
+def test_calc_property_rejects_invalid_temperature_type(cea_module):
+    mix = cea_module.Mixture(["O2(L)"])
+    weights = np.array([1.0])
+
+    with pytest.raises(ValueError):
+        mix.calc_property(
+            cea_module.DENSITY, weights, temperature="not a number", pressure=68.0
+        )
+
+
+def test_calc_property_accepts_plain_int_temperature(cea_module):
+    mix = cea_module.Mixture(["O2(L)"])
+    weights = np.array([1.0])
+
+    density_python_float = mix.calc_property(
+        cea_module.DENSITY, weights, temperature=90.0, pressure=68.0
+    )
+    density_python_int = mix.calc_property(
+        cea_module.DENSITY, weights, temperature=90, pressure=68.0
+    )
+
+    assert density_python_int == pytest.approx(density_python_float)
+
+
+def test_calc_property_rejects_numpy_integer_temperature(cea_module):
+    mix = cea_module.Mixture(["O2(L)"])
+    weights = np.array([1.0])
+
+    with pytest.raises(ValueError):
+        mix.calc_property(
+            cea_module.DENSITY, weights, temperature=np.int64(90), pressure=68.0
+        )
+
+
+@pytest.mark.parametrize(
+    "temperatures",
+    [np.array([90.0]), [90.0]],
+    ids=["ndarray", "list"],
+)
+def test_calc_property_rejects_too_few_multitemperatures_pressure_dependent(
+    cea_module, temperatures
+):
+    """2 species but only 1 temperature given (DENSITY, which needs pressure) -> should error, not crash or guess."""
+    mix = cea_module.Mixture(["O2(L)", "CH4(L)"])
+    weights = np.array([0.5, 0.5])
+
+    with pytest.raises(ValueError):
+        mix.calc_property(
+            cea_module.DENSITY, weights, temperature=temperatures, pressure=68.0
+        )
+
+
+@pytest.mark.parametrize(
+    "temperatures",
+    [np.array([90.0, 200.0, 300.0]), [90.0, 200.0, 300.0]],
+    ids=["ndarray", "list"],
+)
+def test_calc_property_rejects_too_many_multitemperatures_pressure_dependent(
+    cea_module, temperatures
+):
+    """1 species but 3 temperatures given (DENSITY, which needs pressure) -> should error, not silently ignore the extras."""
+    mix = cea_module.Mixture(["O2(L)"])
+    weights = np.array([1.0])
+
+    with pytest.raises(ValueError):
+        mix.calc_property(
+            cea_module.DENSITY, weights, temperature=temperatures, pressure=68.0
+        )
+
+
+@pytest.mark.parametrize(
+    "temperatures",
+    [np.array([90.0]), [90.0]],
+    ids=["ndarray", "list"],
+)
+def test_calc_property_rejects_too_few_multitemperatures_pressure_independent(
+    cea_module, temperatures
+):
+    """Same too-few-temperatures check, but for FROZEN_CP (a property type that does NOT need pressure) -> should also error."""
+    mix = cea_module.Mixture(["O2(L)", "CH4(L)"])
+    weights = np.array([0.5, 0.5])
+
+    with pytest.raises(ValueError):
+        mix.calc_property(cea_module.FROZEN_CP, weights, temperature=temperatures)
+
+
+@pytest.mark.parametrize(
+    "temperatures",
+    [np.array([90.0, 200.0, 300.0]), [90.0, 200.0, 300.0]],
+    ids=["ndarray", "list"],
+)
+def test_calc_property_rejects_too_many_multitemperatures_pressure_independent(
+    cea_module, temperatures
+):
+    """Same too-many-temperatures check, but for FROZEN_CP (a property type that does NOT need pressure) -> should also error."""
+    mix = cea_module.Mixture(["O2(L)"])
+    weights = np.array([1.0])
+
+    with pytest.raises(ValueError):
+        mix.calc_property(cea_module.FROZEN_CP, weights, temperature=temperatures)
