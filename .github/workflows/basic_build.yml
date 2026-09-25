@@ -391,16 +391,17 @@ jobs:
               fversion: "2021.9"
           - os: windows-latest
             toolchain:
+              # Uses cl instead of icx: oneAPI's Windows package for the
+              # "intel" fcompiler has no working C/C++ compiler backend, and
+              # icx's Windows ABI (Itanium/GCC-style) wouldn't interoperate
+              # with ifx's MSVC ABI even if it did. Matches CEA's own
+              # documented scripts/install_windows_oneapi.ps1.
               ccompiler: msvc
               cversion: latest
+              # fversion must stay >= 2025.3.0 -- see "Enforce ifx version
+              # floor" step below.
               fcompiler: intel
-              fversion: "2025.2"
-          - os: windows-latest
-            toolchain:
-              ccompiler: intel
-              cversion: "2025.2"
-              fcompiler: intel
-              fversion: "2025.2"
+              fversion: "2025.3.2"
     defaults:
       run:
         shell: bash
@@ -409,12 +410,31 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Check out GFE
-        if: ${{ runner.os != 'Windows' }}
         uses: actions/checkout@v6
         with:
           repository: Goddard-Fortran-Ecosystem/GFE
           path: extern/gfe
           submodules: true
+
+      - name: Install m4 (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        run: choco install gnuwin32-m4 -y
+
+      - name: Enforce ifx version floor (Windows Intel)
+        if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
+        run: |
+          # Below ifx 2025.3.0 (confirmed on 2025.2.1), a real Intel compiler
+          # bug in ifx's Windows response-file handling mangles backslash
+          # paths passed to an external preprocessor -- not fixable from
+          # this repo, so enforce the floor here rather than just
+          # documenting it.
+          fver="${{ matrix.toolchain.fversion }}"
+          floor="2025.3.0"
+          lowest="$(printf '%s\n%s\n' "$fver" "$floor" | sort -V | head -1)"
+          if [ "$lowest" = "$fver" ] && [ "$fver" != "$floor" ]; then
+            echo "::error::fversion=$fver is below the required floor of $floor for this leg (see the comment on fversion in the matrix definition for why)." >&2
+            exit 1
+          fi
 
       - name: Set up Fortran compiler
         if: ${{ runner.os == 'Linux' || (runner.os == 'Windows' && matrix.toolchain.fcompiler != 'gcc') }}
@@ -455,14 +475,6 @@ jobs:
         if: ${{ runner.os == 'Windows' && (matrix.toolchain.ccompiler == 'msvc' || matrix.toolchain.fcompiler == 'intel') }}
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Remove MinGW/MSYS paths for Windows Intel builds
-        if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
-        shell: pwsh
-        run: |
-          $parts = $env:PATH -split ';'
-          $clean = $parts | Where-Object { $_ -and ($_ -notmatch 'mingw') -and ($_ -notmatch 'msys') -and ($_ -notmatch 'strawberry') }
-          "PATH=$($clean -join ';')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
       - name: Install build tools
         run: |
           python -m pip install --upgrade pip
@@ -477,8 +489,25 @@ jobs:
           if [ -n "${FC}" ]; then "${FC}" --version; fi
 
       - name: Configure and Build GFE
-        if: ${{ runner.os != 'Windows' }}
         run: |
+          gfe_cmake_flags=()
+          if [ "${{ runner.os }}" = "Windows" ] && [ "${{ matrix.toolchain.fcompiler }}" = "gcc" ]; then
+            # gfortran's -cpp preprocessor does not predefine _WIN32 the way a
+            # C/C++ compiler does, but pFUnit's FUnit.F90 guards its
+            # `use pf_RegexFilter` on `#ifndef _WIN32`; see scripts/develop.sh
+            # for the same workaround used there.
+            gfe_cmake_flags+=(-DCMAKE_Fortran_FLAGS=-D_WIN32)
+          fi
+
+          if [ "${{ runner.os }}" = "Windows" ] && [ "${{ matrix.toolchain.fcompiler }}" = "intel" ]; then
+            # pFUnit's own CMakeLists.txt enables C language directly, but
+            # this oneAPI package is Fortran-only (no clang.exe for
+            # icx-cc.exe to drive). Point GFE's own C need at cl instead,
+            # already on PATH from "Set up MSVC toolchain"; this doesn't
+            # affect CEA's own C compiler choice below.
+            gfe_cmake_flags+=(-DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl)
+          fi
+
           cmake -S extern/gfe -B build/extern/gfe -GNinja \
             -DCMAKE_INSTALL_PREFIX=build/install \
             -DCMAKE_BUILD_TYPE=Release \
@@ -486,7 +515,8 @@ jobs:
             -DSKIP_OPENMP=YES \
             -DSKIP_FHAMCREST=YES \
             -DSKIP_ESMF=YES \
-            -DSKIP_ROBUST=YES
+            -DSKIP_ROBUST=YES \
+            "${gfe_cmake_flags[@]}"
           cmake --build build/extern/gfe --target install
 
       - name: Configure (Ninja)
@@ -513,6 +543,7 @@ jobs:
         if: ${{runner.os == 'Windows' && matrix.toolchain.ccompiler == 'msvc'}}
         run: |
           cmake -S . -B build -G Ninja \
+            -DCMAKE_PREFIX_PATH=build/install \
             -DCMAKE_BUILD_TYPE=Release \
             -DCEA_BUILD_TESTING=ON \
             -DCEA_ENABLE_BIND_C=ON \
