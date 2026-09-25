@@ -53,6 +53,49 @@ contains
         @assertEqual('t', name)
         @assertEqual('k', units)
 
+        ! A unit name that contains a shorter unit's key ("kcal" contains "c",
+        ! "kg" contains "g") must still be read as the longer unit
+        call parse_embedded('h(kcal)', name, units)
+        @assertEqual('h', name)
+        @assertEqual('kcal/mole', units)
+
+        call parse_embedded('h,kcal', name, units)
+        @assertEqual('h', name)
+        @assertEqual('kcal/mole', units)
+
+        call parse_embedded('u(kcal)', name, units)
+        @assertEqual('u', name)
+        @assertEqual('kcal/mole', units)
+
+        call parse_embedded('v(m**3/kg)', name, units)
+        @assertEqual('v', name)
+        @assertEqual('m**3/kg', units)
+
+        call parse_embedded('rho(kg/m**3)', name, units)
+        @assertEqual('rho', name)
+        @assertEqual('kg/m**3', units)
+
+        call parse_embedded('rho,kg/m**3', name, units)
+        @assertEqual('rho', name)
+        @assertEqual('kg/m**3', units)
+
+        ! Shorter unit names must still be read as before
+        call parse_embedded('h,cal', name, units)
+        @assertEqual('h', name)
+        @assertEqual('cal/mole', units)
+
+        call parse_embedded('h,kj', name, units)
+        @assertEqual('h', name)
+        @assertEqual('kj/mole', units)
+
+        call parse_embedded('v(cm**3/g)', name, units)
+        @assertEqual('v', name)
+        @assertEqual('cm**3/g', units)
+
+        call parse_embedded('rho(g/cc)', name, units)
+        @assertEqual('rho', name)
+        @assertEqual('g/cm**3', units)
+
     end subroutine
 
     @test

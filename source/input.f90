@@ -888,8 +888,8 @@ contains
             select case (token(:3))
                 case ('rho')
                     name = 'rho'
-                    if (substring(txt, 'kg')) units = 'kg/m**3'
                     if (substring(txt,  'g')) units = 'g/cm**3'
+                    if (substring(txt, 'kg')) units = 'kg/m**3'
                     return
                 case ('f/o','f/a','h/r','o/f','phi','sub','sup','u/r')
                     return
@@ -932,16 +932,16 @@ contains
                 case ('h')
                     units = 'j/mole'
                     if (substring(txt,'kj')) units = 'kj/mole'
-                    if (substring(txt,'kc')) units = 'kcal/mole'
                     if (substring(txt, 'c')) units = 'cal/mole'
+                    if (substring(txt,'kc')) units = 'kcal/mole'
                 case ('u')
                     units = 'j/mole'
                     if (substring(txt,'kj')) units = 'kj/mole'
-                    if (substring(txt,'kc')) units = 'kcal/mole'
                     if (substring(txt, 'c')) units = 'cal/mole'
+                    if (substring(txt,'kc')) units = 'kcal/mole'
                 case ('v')
-                    if (substring(txt, 'kg')) units = 'm**3/kg'
                     if (substring(txt,  'g')) units = 'cm**3/g'
+                    if (substring(txt, 'kg')) units = 'm**3/kg'
             end select
         end if
 
