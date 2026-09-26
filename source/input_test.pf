@@ -96,6 +96,26 @@ contains
     end subroutine
 
     @test
+    subroutine test_parse_schedule_at_max_values
+        ! Exactly 64 values (the schedule limit) should parse without
+        ! error, guarding against an off-by-one in the too-many-values check.
+        character(:), allocatable :: token
+        type(string_scanner) :: scanner
+        type(Schedule) :: sch
+
+        scanner = string_scanner(replace_delimiters( &
+            't(k)=300,301,302,303,304,305,306,307,308,309,310,311,312,313,314,315,316,317,318,319,' // &
+            '320,321,322,323,324,325,326,327,328,329,330,331,332,333,334,335,336,337,338,339,' // &
+            '340,341,342,343,344,345,346,347,348,349,350,351,352,353,354,355,356,357,358,359,' // &
+            '360,361,362,363,'))
+        token = scanner%read_word()
+        sch = parse_schedule(scanner, token)
+        @assertEqual(64,     size(sch%values))
+        @assertEqual(363d0,  sch%values(64))
+
+    end subroutine
+
+    @test
     subroutine test_parse_species
         character(32), allocatable :: species(:)
         allocate(species(0))
@@ -198,6 +218,36 @@ contains
         @assertEqual(1.0d0, reac(1)%formula%coefficients(1))
         @assertEqual(1.0d0, reac(1)%formula%coefficients(2))
         @assertEqual(1.0d0, reac(1)%formula%coefficients(3))
+    end subroutine
+
+    @test
+    subroutine test_parse_formula_at_max_values
+        ! Exactly 16 elements (the formula limit) should parse without
+        ! error, guarding against an off-by-one in the too-many-elements check.
+        type(ReactantInput), allocatable :: reac(:)
+        allocate(reac(0))
+
+        reac = parse_reac('reac name=HTPB wt%=100 H C N O F S P K B AL MG CA ZN CU AG AU')
+        @assertEqual(16, size(reac(1)%formula%elements))
+        @assertEqual('AU', reac(1)%formula%elements(16))
+    end subroutine
+
+    @test
+    subroutine test_parse_formula_without_context
+        ! parse_formula's `context` argument is optional; parse_reac is
+        ! currently its only caller and always supplies one, so exercise
+        ! the argument-omitted call directly to confirm it still works.
+        character(:), allocatable :: token
+        type(string_scanner) :: scanner
+        type(Formula) :: f
+
+        scanner = string_scanner(replace_delimiters('C 1 H 4'))
+        token = scanner%read_word()
+        f = parse_formula(scanner, token)
+        @assertEqual(2,     size(f%elements))
+        @assertEqual('C',   f%elements(1))
+        @assertEqual('H',   f%elements(2))
+        @assertEqual(4.0d0, f%coefficients(2))
     end subroutine
 
     @test
