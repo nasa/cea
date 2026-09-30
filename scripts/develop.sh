@@ -108,16 +108,30 @@ if [ "$BUILD_GFE" = true ]; then
         git clone https://github.com/Goddard-Fortran-Ecosystem/GFE "${GFE}"
         (cd "${GFE}" && git submodule update --init)
     fi
-    cmake -S "${GFE}" -B "${GFE_BUILD}" -G "${GENERATOR}" \
-        -DCMAKE_CXX_COMPILER="${CXX}" \
-        -DCMAKE_Fortran_COMPILER="${FC}" \
-        -DCMAKE_INSTALL_PREFIX="${INSTALL}" \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DSKIP_MPI=YES \
-        -DSKIP_OPENMP=YES \
-        -DSKIP_FHAMCREST=YES \
-        -DSKIP_ESMF=YES \
+    GFE_CMAKE_ARGS=(
+        -DCMAKE_CXX_COMPILER="${CXX}"
+        -DCMAKE_Fortran_COMPILER="${FC}"
+        -DCMAKE_INSTALL_PREFIX="${INSTALL}"
+        -DCMAKE_BUILD_TYPE=Release
+        -DSKIP_MPI=YES
+        -DSKIP_OPENMP=YES
+        -DSKIP_FHAMCREST=YES
+        -DSKIP_ESMF=YES
         -DSKIP_ROBUST=YES
+    )
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*)
+            # gfortran's -cpp preprocessor does not predefine _WIN32 the way a
+            # C/C++ compiler does, but pFUnit's FUnit.F90 guards its
+            # `use pf_RegexFilter` on `#ifndef _WIN32` while pFUnit's own
+            # CMakeLists excludes RegexFilter.F90 from the build via CMake's
+            # own (always-correct) WIN32 variable. Without this define,
+            # FUnit.F90 fails to compile: it tries to use a module that was
+            # never built.
+            GFE_CMAKE_ARGS+=(-DCMAKE_Fortran_FLAGS=-D_WIN32)
+            ;;
+    esac
+    cmake -S "${GFE}" -B "${GFE_BUILD}" -G "${GENERATOR}" "${GFE_CMAKE_ARGS[@]}"
     cmake --build ${GFE_BUILD} --target install -j ${JOBS}
 fi
 
