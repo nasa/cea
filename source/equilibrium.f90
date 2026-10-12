@@ -2305,6 +2305,8 @@ contains
         logical :: computed_partials_
         real(dp) :: entropy_sum
         real(dp) :: log_p_over_n
+        real(dp) :: cp_dot_nj
+        logical :: need_cp_fr, need_cp_eq
 
         computed_partials_ = .false.
         if (present(computed_partials)) computed_partials_ = computed_partials
@@ -2328,10 +2330,11 @@ contains
         soln%entropy = entropy_sum * R / 1.d3
         soln%gibbs_energy = (soln%enthalpy - soln%T*soln%entropy)
 
-        if (soln%cp_fr < 1.d-10) soln%cp_fr = dot_product(soln%thermo%cp, soln%nj) * R / 1.d3
-        if (.not. computed_partials_ .and. soln%cp_eq < 1.d-10) then
-            soln%cp_eq = dot_product(soln%thermo%cp, soln%nj) * R / 1.d3
-        end if
+        need_cp_fr = soln%cp_fr < 1.d-10
+        need_cp_eq = .not. computed_partials_ .and. soln%cp_eq < 1.d-10
+        if (need_cp_fr .or. need_cp_eq) cp_dot_nj = dot_product(soln%thermo%cp, soln%nj)
+        if (need_cp_fr) soln%cp_fr = cp_dot_nj * R / 1.d3
+        if (need_cp_eq) soln%cp_eq = cp_dot_nj * R / 1.d3
 
         ! Calculate molecular weights
         soln%M = 1.0d0/soln%n
@@ -4703,6 +4706,7 @@ contains
         ! Locals
         real(dp), allocatable :: J(:,:)
         real(dp) :: nj_solid ! Temporary variables for condensed species
+        real(dp) :: cp_dot_nj
         integer :: ng, ne, nc, na, ierr, i, idx, liq_rank
         integer, allocatable :: active_idx(:)
         real(dp), pointer :: nj(:), nj_g(:)     ! Total/gas species concentrations [kmol-per-kg]
@@ -4733,8 +4737,9 @@ contains
         self%cp_eq = 0.0d0
 
         ! Term 4: ∑_j^ns n_j*Cp_j/R
-        self%cp_eq = self%cp_eq + dot_product(soln%thermo%cp, soln%nj)
-        soln%cp_fr = dot_product(soln%thermo%cp, soln%nj)*(R/1.d3)
+        cp_dot_nj = dot_product(soln%thermo%cp, soln%nj)
+        self%cp_eq = self%cp_eq + cp_dot_nj
+        soln%cp_fr = cp_dot_nj*(R/1.d3)
 
         ! If both solid and liquid present, temporarily remove liquid to prevent singular matrix
         if (soln%j_sol /= 0) then
