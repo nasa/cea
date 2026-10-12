@@ -53,6 +53,14 @@ if (CEA_BUILD_TESTING)
         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
     )
 
+    add_executable(cea_bindc_solver_opts_validation tests/solver_opts_validation.c)
+    target_link_libraries(cea_bindc_solver_opts_validation PRIVATE cea::bindc)
+    add_test(
+        NAME cea_bindc_solver_opts_validation
+        COMMAND cea_bindc_solver_opts_validation
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+    )
+
     add_executable(cea_bindc_rp1311_ex1 samples/rp1311_example1.c)
     target_link_libraries(cea_bindc_rp1311_ex1 PRIVATE cea::bindc)
     add_test(

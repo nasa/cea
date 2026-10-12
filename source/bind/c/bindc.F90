@@ -281,6 +281,70 @@ contains
         opts%truncation_width  = -1.0d0
     end function
 
+    subroutine parse_solver_opts(mptr_prod, opts, ierr, products, reactants, ions, transport, use_trace, insert)
+        ! Shared option decoding for cea_*_solver_create_with_options: reads the C
+        ! cea_solver_opts struct into the products/reactants mixtures, insert species
+        ! names, and boolean flags common to all solver types.
+        type(c_ptr), intent(in) :: mptr_prod
+        type(cea_solver_opts), intent(in) :: opts
+        integer(c_int), intent(out) :: ierr
+        type(Mixture), pointer, intent(out) :: products
+        type(Mixture), pointer, intent(out) :: reactants
+        logical, intent(out) :: ions, transport, use_trace
+        character(snl), allocatable, intent(out) :: insert(:)
+
+        ! Locals
+        type(c_ptr), pointer :: cinsert(:)
+        character(:), allocatable :: name
+        integer :: n
+
+        ierr = CEA_SUCCESS
+        call c_f_pointer(mptr_prod, products)
+
+        if (opts%ninsert < 0) then
+            ierr = CEA_INVALID_SIZE
+            return
+        end if
+        if (opts%ninsert > 0 .and. .not. c_associated(opts%insert)) then
+            ierr = CEA_INVALID_SIZE
+            return
+        end if
+
+        allocate(cinsert(opts%ninsert), insert(opts%ninsert))
+
+        ! Handle optional reactants mixture
+        if (c_associated(opts%reactants)) then
+            call c_f_pointer(opts%reactants, reactants)
+        else
+            nullify(reactants)
+        end if
+
+        ! Handle trace option
+        if (opts%trace > 0.0d0) then
+            use_trace = .true.
+        else
+            use_trace = .false.
+        end if
+
+        ! Convert ions from C bool to Fortran logical
+        ions = logical(opts%ions)
+        transport = logical(opts%transport)
+
+        ! Convert insert species names from C strings to Fortran strings
+        if (opts%ninsert > 0 .and. c_associated(opts%insert)) then
+            call c_f_pointer(opts%insert, cinsert, [opts%ninsert])
+
+            do n = 1, opts%ninsert
+                call c_copy(cinsert(n), name)
+                if (len(name) > snl) then
+                    ierr = CEA_INVALID_SIZE
+                    return
+                end if
+                insert(n) = name
+            end do
+        end if
+    end subroutine
+
     function cea_species_name_len(name_len) result(ierr) bind(c)
         integer(c_int) :: ierr
         integer(c_int), intent(out) :: name_len
@@ -1258,57 +1322,11 @@ contains
         type(EqSolver), pointer :: solver
         type(Mixture), pointer :: products
         type(Mixture), pointer :: reactants
-        type(c_ptr), pointer :: cinsert(:)
         character(snl), allocatable :: insert(:)
-        character(:), allocatable :: name
-        integer :: n
         logical :: ions, transport, use_trace
 
-        ierr = CEA_SUCCESS
-        call c_f_pointer(mptr_prod, products)
-
-        if (opts%ninsert < 0) then
-            ierr = CEA_INVALID_SIZE
-            return
-        end if
-        if (opts%ninsert > 0 .and. .not. c_associated(opts%insert)) then
-            ierr = CEA_INVALID_SIZE
-            return
-        end if
-
-        allocate(cinsert(opts%ninsert), insert(opts%ninsert))
-
-        ! Handle optional reactants mixture
-        if (c_associated(opts%reactants)) then
-            call c_f_pointer(opts%reactants, reactants)
-        else
-            nullify(reactants)
-        end if
-
-        ! Handle trace option
-        if (opts%trace > 0.0d0) then
-            use_trace = .true.
-        else
-            use_trace = .false.
-        end if
-
-        ! Convert ions from C bool to Fortran logical
-        ions = logical(opts%ions)
-        transport = logical(opts%transport)
-
-        ! Convert insert species names from C strings to Fortran strings
-        if (opts%ninsert > 0 .and. c_associated(opts%insert)) then
-            call c_f_pointer(opts%insert, cinsert, [opts%ninsert])
-
-            do n = 1, opts%ninsert
-                call c_copy(cinsert(n), name)
-                if (len(name) > snl) then
-                    ierr = CEA_INVALID_SIZE
-                    return
-                end if
-                insert(n) = name
-            end do
-        end if
+        call parse_solver_opts(mptr_prod, opts, ierr, products, reactants, ions, transport, use_trace, insert)
+        if (ierr /= CEA_SUCCESS) return
 
         allocate(solver)
         if (associated(reactants)) then
@@ -1546,57 +1564,11 @@ contains
         type(RocketSolver), pointer :: solver
         type(Mixture), pointer :: products
         type(Mixture), pointer :: reactants
-        type(c_ptr), pointer :: cinsert(:)
         character(snl), allocatable :: insert(:)
-        character(:), allocatable :: name
-        integer :: n
         logical :: ions, transport, use_trace
 
-        ierr = CEA_SUCCESS
-        call c_f_pointer(mptr_prod, products)
-
-        if (opts%ninsert < 0) then
-            ierr = CEA_INVALID_SIZE
-            return
-        end if
-        if (opts%ninsert > 0 .and. .not. c_associated(opts%insert)) then
-            ierr = CEA_INVALID_SIZE
-            return
-        end if
-
-        allocate(cinsert(opts%ninsert), insert(opts%ninsert))
-
-        ! Handle optional reactants mixture
-        if (c_associated(opts%reactants)) then
-            call c_f_pointer(opts%reactants, reactants)
-        else
-            nullify(reactants)
-        end if
-
-        ! Handle trace option
-        if (opts%trace > 0.0d0) then
-            use_trace = .true.
-        else
-            use_trace = .false.
-        end if
-
-        ! Convert ions from C bool to Fortran logical
-        ions = logical(opts%ions)
-        transport = logical(opts%transport)
-
-        ! Convert insert species names from C strings to Fortran strings
-        if (opts%ninsert > 0 .and. c_associated(opts%insert)) then
-            call c_f_pointer(opts%insert, cinsert, [opts%ninsert])
-
-            do n = 1, opts%ninsert
-                call c_copy(cinsert(n), name)
-                if (len(name) > snl) then
-                    ierr = CEA_INVALID_SIZE
-                    return
-                end if
-                insert(n) = name
-            end do
-        end if
+        call parse_solver_opts(mptr_prod, opts, ierr, products, reactants, ions, transport, use_trace, insert)
+        if (ierr /= CEA_SUCCESS) return
 
         allocate(solver)
         if (associated(reactants)) then
@@ -2376,57 +2348,11 @@ contains
         type(ShockSolver), pointer :: solver
         type(Mixture), pointer :: products
         type(Mixture), pointer :: reactants
-        type(c_ptr), pointer :: cinsert(:)
         character(snl), allocatable :: insert(:)
-        character(:), allocatable :: name
-        integer :: n
         logical :: ions, transport, use_trace
 
-        ierr = CEA_SUCCESS
-        call c_f_pointer(mptr_prod, products)
-
-        if (opts%ninsert < 0) then
-            ierr = CEA_INVALID_SIZE
-            return
-        end if
-        if (opts%ninsert > 0 .and. .not. c_associated(opts%insert)) then
-            ierr = CEA_INVALID_SIZE
-            return
-        end if
-
-        allocate(cinsert(opts%ninsert), insert(opts%ninsert))
-
-        ! Handle optional reactants mixture
-        if (c_associated(opts%reactants)) then
-            call c_f_pointer(opts%reactants, reactants)
-        else
-            nullify(reactants)
-        end if
-
-        ! Handle trace option
-        if (opts%trace > 0.0d0) then
-            use_trace = .true.
-        else
-            use_trace = .false.
-        end if
-
-        ! Convert ions from C bool to Fortran logical
-        ions = logical(opts%ions)
-        transport = logical(opts%transport)
-
-        ! Convert insert species names from C strings to Fortran strings
-        if (opts%ninsert > 0 .and. c_associated(opts%insert)) then
-            call c_f_pointer(opts%insert, cinsert, [opts%ninsert])
-
-            do n = 1, opts%ninsert
-                call c_copy(cinsert(n), name)
-                if (len(name) > snl) then
-                    ierr = CEA_INVALID_SIZE
-                    return
-                end if
-                insert(n) = name
-            end do
-        end if
+        call parse_solver_opts(mptr_prod, opts, ierr, products, reactants, ions, transport, use_trace, insert)
+        if (ierr /= CEA_SUCCESS) return
 
         allocate(solver)
         if (associated(reactants)) then
@@ -2650,57 +2576,11 @@ contains
         type(DetonSolver), pointer :: solver
         type(Mixture), pointer :: products
         type(Mixture), pointer :: reactants
-        type(c_ptr), pointer :: cinsert(:)
         character(snl), allocatable :: insert(:)
-        character(:), allocatable :: name
-        integer :: n
         logical :: ions, transport, use_trace
 
-        ierr = CEA_SUCCESS
-        call c_f_pointer(mptr_prod, products)
-
-        if (opts%ninsert < 0) then
-            ierr = CEA_INVALID_SIZE
-            return
-        end if
-        if (opts%ninsert > 0 .and. .not. c_associated(opts%insert)) then
-            ierr = CEA_INVALID_SIZE
-            return
-        end if
-
-        allocate(cinsert(opts%ninsert), insert(opts%ninsert))
-
-        ! Handle optional reactants mixture
-        if (c_associated(opts%reactants)) then
-            call c_f_pointer(opts%reactants, reactants)
-        else
-            nullify(reactants)
-        end if
-
-        ! Handle trace option
-        if (opts%trace > 0.0d0) then
-            use_trace = .true.
-        else
-            use_trace = .false.
-        end if
-
-        ! Convert ions from C bool to Fortran logical
-        ions = logical(opts%ions)
-        transport = logical(opts%transport)
-
-        ! Convert insert species names from C strings to Fortran strings
-        if (opts%ninsert > 0 .and. c_associated(opts%insert)) then
-            call c_f_pointer(opts%insert, cinsert, [opts%ninsert])
-
-            do n = 1, opts%ninsert
-                call c_copy(cinsert(n), name)
-                if (len(name) > snl) then
-                    ierr = CEA_INVALID_SIZE
-                    return
-                end if
-                insert(n) = name
-            end do
-        end if
+        call parse_solver_opts(mptr_prod, opts, ierr, products, reactants, ions, transport, use_trace, insert)
+        if (ierr /= CEA_SUCCESS) return
 
         allocate(solver)
         if (associated(reactants)) then
