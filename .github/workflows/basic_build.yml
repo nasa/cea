@@ -491,14 +491,6 @@ jobs:
       - name: Configure and Build GFE
         run: |
           gfe_cmake_flags=()
-          if [ "${{ runner.os }}" = "Windows" ] && [ "${{ matrix.toolchain.fcompiler }}" = "gcc" ]; then
-            # gfortran's -cpp preprocessor does not predefine _WIN32 the way a
-            # C/C++ compiler does, but pFUnit's FUnit.F90 guards its
-            # `use pf_RegexFilter` on `#ifndef _WIN32`; see scripts/develop.sh
-            # for the same workaround used there.
-            gfe_cmake_flags+=(-DCMAKE_Fortran_FLAGS=-D_WIN32)
-          fi
-
           if [ "${{ runner.os }}" = "Windows" ] && [ "${{ matrix.toolchain.fcompiler }}" = "intel" ]; then
             # pFUnit's own CMakeLists.txt enables C language directly, but
             # this oneAPI package is Fortran-only (no clang.exe for
