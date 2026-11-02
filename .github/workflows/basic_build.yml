@@ -25,7 +25,7 @@ jobs:
             compiler: gcc
             fc: gfortran-14
           - label: macos-arm64-gfortran
-            runs_on: macos-14
+            runs_on: macos-15
             compiler: gcc
             fc: gfortran-14
           - label: windows-amd64-ifx
