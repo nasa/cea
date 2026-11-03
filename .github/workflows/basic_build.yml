@@ -148,7 +148,7 @@ jobs:
           cmake -S . -B build -G Ninja \
             -DCMAKE_Fortran_COMPILER="${FC_COMPILER}" \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCEA_BUILD_TESTING=OFF \
+            -DCEA_BUILD_TESTING=ON \
             -DCEA_ENABLE_BIND_C=ON \
             -DCEA_ENABLE_BIND_CXX=OFF \
             -DCEA_ENABLE_BIND_PYTHON=OFF \
@@ -163,7 +163,7 @@ jobs:
           cmake -S . -B build -G Ninja ^
             -DCMAKE_Fortran_COMPILER="%FC%" ^
             -DCMAKE_BUILD_TYPE=Release ^
-            -DCEA_BUILD_TESTING=OFF ^
+            -DCEA_BUILD_TESTING=ON ^
             -DCEA_ENABLE_BIND_C=ON ^
             -DCEA_ENABLE_BIND_CXX=OFF ^
             -DCEA_ENABLE_BIND_PYTHON=OFF ^
@@ -198,6 +198,18 @@ jobs:
         run: |
           call "C:\Program Files (x86)\Intel\oneAPI\setvars.bat" intel64 >nul
           .\build\source\cea.exe -h
+
+      - name: Run ctest (Non-Intel Windows)
+        if: runner.os != 'Windows' || matrix.compiler == 'gcc'
+        run: |
+          ctest --test-dir build --output-on-failure
+
+      - name: Run ctest (Windows Intel)
+        if: runner.os == 'Windows' && (matrix.compiler == 'intel' || matrix.compiler == 'intel-classic')
+        shell: cmd
+        run: |
+          call "C:\Program Files (x86)\Intel\oneAPI\setvars.bat" intel64 >nul
+          ctest --test-dir build --output-on-failure
 
       - name: Verify C ABI library output (Unix)
         if: runner.os != 'Windows'
