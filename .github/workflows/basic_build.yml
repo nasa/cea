@@ -391,11 +391,7 @@ jobs:
               fversion: "2021.9"
           - os: windows-latest
             toolchain:
-              # Uses cl instead of icx: oneAPI's Windows package for the
-              # "intel" fcompiler has no working C/C++ compiler backend, and
-              # icx's Windows ABI (Itanium/GCC-style) wouldn't interoperate
-              # with ifx's MSVC ABI even if it did. Matches CEA's own
-              # documented scripts/install_windows_oneapi.ps1.
+              # cl, not icx: oneAPI's Windows package has no working C/C++ backend.
               ccompiler: msvc
               cversion: latest
               # fversion must stay >= 2025.3.0 -- see "Enforce ifx version
@@ -432,7 +428,7 @@ jobs:
           floor="2025.3.0"
           lowest="$(printf '%s\n%s\n' "$fver" "$floor" | sort -V | head -1)"
           if [ "$lowest" = "$fver" ] && [ "$fver" != "$floor" ]; then
-            echo "::error::fversion=$fver is below the required floor of $floor for this leg (see the comment on fversion in the matrix definition for why)." >&2
+            echo "::error::ifx $fver is below $floor; older ifx mangles backslash paths passed to the preprocessor. Raise fversion for this leg in the matrix."
             exit 1
           fi
 
@@ -492,11 +488,8 @@ jobs:
         run: |
           gfe_cmake_flags=()
           if [ "${{ runner.os }}" = "Windows" ] && [ "${{ matrix.toolchain.fcompiler }}" = "intel" ]; then
-            # pFUnit's own CMakeLists.txt enables C language directly, but
-            # this oneAPI package is Fortran-only (no clang.exe for
-            # icx-cc.exe to drive). Point GFE's own C need at cl instead,
-            # already on PATH from "Set up MSVC toolchain"; this doesn't
-            # affect CEA's own C compiler choice below.
+            # This oneAPI package is Fortran-only, so point GFE's C/C++ needs at
+            # cl (already on PATH from "Set up MSVC toolchain").
             gfe_cmake_flags+=(-DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl)
           fi
 

@@ -48,14 +48,9 @@ if(CEA_BUILD_TESTING AND PFUNIT_FOUND)
         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
     )
     if(WIN32 AND (CMAKE_Fortran_COMPILER_ID STREQUAL "IntelLLVM" OR CMAKE_Fortran_COMPILER_ID STREQUAL "Intel"))
-        # Windows SDK 10.0.26100.0 and ifx both ship frexp/ldexp/etc
-        # (libucrt.lib vs. Intel's libmmd.lib), producing LNK2005 at link
-        # time -- a documented Intel/Windows-SDK interaction, and a
-        # duplicate-symbol bookkeeping conflict rather than a behavioral
-        # one (both implementations are IEEE754-identical). -libs:static
-        # alone doesn't avoid it; /FORCE:MULTIPLE is scoped to this target
-        # only, not CMAKE_EXE_LINKER_FLAGS, so a genuine duplicate-symbol
-        # bug elsewhere in the build still fails loudly.
+        # The Windows SDK (libucrt.lib) and ifx (libmmd.lib) both define
+        # frexp/ldexp/etc, giving LNK2005. /FORCE:MULTIPLE is scoped to this
+        # target so a real duplicate symbol elsewhere still fails the build.
         target_link_options(cea_core_test PRIVATE
             "-libs:static"
             "-Qoption,link,/FORCE:MULTIPLE"
