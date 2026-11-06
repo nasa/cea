@@ -17,6 +17,9 @@ target_link_libraries(cea PRIVATE cea_abort_support)
 if(TARGET cea_core_test)
     target_link_libraries(cea_core_test cea_abort_support)
 endif()
+if(TARGET fb_core_test)
+    target_link_libraries(fb_core_test cea_abort_support)
+endif()
 if(WIN32)
     # on windows, several dll either need to be installed on the target
     # machine, or they need to be statically linked. linking seemed easier than

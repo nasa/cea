@@ -263,6 +263,11 @@ jobs:
         run: |
           scripts/develop.sh -G Ninja
 
+      - name: Build optional fbasics tests
+        run: |
+          cmake -S . -B build-dev -DFB_BUILD_TESTING=ON
+          cmake --build build-dev --target fb_core_test --parallel 4
+
       - name: Rebuild data libraries (compiler-native)
         run: |
           pushd data
