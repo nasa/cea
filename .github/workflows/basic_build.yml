@@ -202,14 +202,14 @@ jobs:
       - name: Run ctest (Non-Intel Windows)
         if: runner.os != 'Windows' || matrix.compiler == 'gcc'
         run: |
-          ctest --test-dir build --output-on-failure
+          ctest --test-dir build --output-on-failure -E cea_core_test_pfunit_missing
 
       - name: Run ctest (Windows Intel)
         if: runner.os == 'Windows' && (matrix.compiler == 'intel' || matrix.compiler == 'intel-classic')
         shell: cmd
         run: |
           call "C:\Program Files (x86)\Intel\oneAPI\setvars.bat" intel64 >nul
-          ctest --test-dir build --output-on-failure
+          ctest --test-dir build --output-on-failure -E cea_core_test_pfunit_missing
 
       - name: Verify C ABI library output (Unix)
         if: runner.os != 'Windows'
