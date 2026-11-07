@@ -426,7 +426,14 @@ jobs:
 
       - name: Install m4 (Windows)
         if: ${{ runner.os == 'Windows' }}
-        run: choco install gnuwin32-m4 -y
+        run: |
+          # Chocolatey sometimes returns 504 and the step still exits 0, so retry and then require m4.
+          for attempt in 1 2 3; do
+            choco install gnuwin32-m4 -y && command -v m4 && break
+            echo "m4 install attempt ${attempt} did not produce m4; retrying"
+            sleep 15
+          done
+          command -v m4 || { echo "::error::m4 is not available after 3 attempts"; exit 1; }
 
       - name: Enforce ifx version floor (Windows Intel)
         if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
