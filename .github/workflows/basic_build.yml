@@ -148,7 +148,7 @@ jobs:
           cmake -S . -B build -G Ninja \
             -DCMAKE_Fortran_COMPILER="${FC_COMPILER}" \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCEA_BUILD_TESTING=OFF \
+            -DCEA_BUILD_TESTING=ON \
             -DCEA_ENABLE_BIND_C=ON \
             -DCEA_ENABLE_BIND_CXX=OFF \
             -DCEA_ENABLE_BIND_PYTHON=OFF \
@@ -163,7 +163,7 @@ jobs:
           cmake -S . -B build -G Ninja ^
             -DCMAKE_Fortran_COMPILER="%FC%" ^
             -DCMAKE_BUILD_TYPE=Release ^
-            -DCEA_BUILD_TESTING=OFF ^
+            -DCEA_BUILD_TESTING=ON ^
             -DCEA_ENABLE_BIND_C=ON ^
             -DCEA_ENABLE_BIND_CXX=OFF ^
             -DCEA_ENABLE_BIND_PYTHON=OFF ^
@@ -198,6 +198,18 @@ jobs:
         run: |
           call "C:\Program Files (x86)\Intel\oneAPI\setvars.bat" intel64 >nul
           .\build\source\cea.exe -h
+
+      - name: Run ctest (Non-Intel Windows)
+        if: runner.os != 'Windows' || matrix.compiler == 'gcc'
+        run: |
+          ctest --test-dir build --output-on-failure -E cea_core_test_pfunit_missing
+
+      - name: Run ctest (Windows Intel)
+        if: runner.os == 'Windows' && (matrix.compiler == 'intel' || matrix.compiler == 'intel-classic')
+        shell: cmd
+        run: |
+          call "C:\Program Files (x86)\Intel\oneAPI\setvars.bat" intel64 >nul
+          ctest --test-dir build --output-on-failure -E cea_core_test_pfunit_missing
 
       - name: Verify C ABI library output (Unix)
         if: runner.os != 'Windows'
@@ -391,16 +403,13 @@ jobs:
               fversion: "2021.9"
           - os: windows-latest
             toolchain:
+              # cl, not icx: oneAPI's Windows package has no working C/C++ backend.
               ccompiler: msvc
               cversion: latest
+              # fversion must stay >= 2025.3.0 -- see "Enforce ifx version
+              # floor" step below.
               fcompiler: intel
-              fversion: "2025.2"
-          - os: windows-latest
-            toolchain:
-              ccompiler: intel
-              cversion: "2025.2"
-              fcompiler: intel
-              fversion: "2025.2"
+              fversion: "2025.3.2"
     defaults:
       run:
         shell: bash
@@ -409,12 +418,38 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Check out GFE
-        if: ${{ runner.os != 'Windows' }}
         uses: actions/checkout@v7
         with:
           repository: Goddard-Fortran-Ecosystem/GFE
           path: extern/gfe
           submodules: true
+
+      - name: Install m4 (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        run: |
+          # Chocolatey sometimes returns 504 and the step still exits 0, so retry and then require m4.
+          for attempt in 1 2 3; do
+            choco install gnuwin32-m4 -y && command -v m4 && break
+            echo "m4 install attempt ${attempt} did not produce m4; retrying"
+            sleep 15
+          done
+          command -v m4 || { echo "::error::m4 is not available after 3 attempts"; exit 1; }
+
+      - name: Enforce ifx version floor (Windows Intel)
+        if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
+        run: |
+          # Below ifx 2025.3.0 (confirmed on 2025.2.1), a real Intel compiler
+          # bug in ifx's Windows response-file handling mangles backslash
+          # paths passed to an external preprocessor -- not fixable from
+          # this repo, so enforce the floor here rather than just
+          # documenting it.
+          fver="${{ matrix.toolchain.fversion }}"
+          floor="2025.3.0"
+          lowest="$(printf '%s\n%s\n' "$fver" "$floor" | sort -V | head -1)"
+          if [ "$lowest" = "$fver" ] && [ "$fver" != "$floor" ]; then
+            echo "::error::ifx $fver is below $floor; older ifx mangles backslash paths passed to the preprocessor. Raise fversion for this leg in the matrix."
+            exit 1
+          fi
 
       - name: Set up Fortran compiler
         if: ${{ runner.os == 'Linux' || (runner.os == 'Windows' && matrix.toolchain.fcompiler != 'gcc') }}
@@ -455,14 +490,6 @@ jobs:
         if: ${{ runner.os == 'Windows' && (matrix.toolchain.ccompiler == 'msvc' || matrix.toolchain.fcompiler == 'intel') }}
         uses: step-security/msvc-dev-cmd@v1
 
-      - name: Remove MinGW/MSYS paths for Windows Intel builds
-        if: ${{ runner.os == 'Windows' && matrix.toolchain.fcompiler == 'intel' }}
-        shell: pwsh
-        run: |
-          $parts = $env:PATH -split ';'
-          $clean = $parts | Where-Object { $_ -and ($_ -notmatch 'mingw') -and ($_ -notmatch 'msys') -and ($_ -notmatch 'strawberry') }
-          "PATH=$($clean -join ';')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
       - name: Install build tools
         run: |
           python -m pip install --upgrade pip
@@ -477,8 +504,16 @@ jobs:
           if [ -n "${FC}" ]; then "${FC}" --version; fi
 
       - name: Configure and Build GFE
-        if: ${{ runner.os != 'Windows' }}
         run: |
+          gfe_cmake_flags=()
+          if [ "${{ runner.os }}" = "Windows" ] && [ "${{ matrix.toolchain.fcompiler }}" = "intel" ]; then
+            # This oneAPI package is Fortran-only, so point GFE's C/C++ needs at
+            # cl (already on PATH from "Set up MSVC toolchain").
+            gfe_cmake_flags+=(-DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl)
+            # Match CEA's static runtime; a dynamic GFE/pFUnit gives LNK2005 at link.
+            gfe_cmake_flags+=(-DCMAKE_POLICY_DEFAULT_CMP0091=NEW "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded")
+          fi
+
           cmake -S extern/gfe -B build/extern/gfe -GNinja \
             -DCMAKE_INSTALL_PREFIX=build/install \
             -DCMAKE_BUILD_TYPE=Release \
@@ -486,7 +521,8 @@ jobs:
             -DSKIP_OPENMP=YES \
             -DSKIP_FHAMCREST=YES \
             -DSKIP_ESMF=YES \
-            -DSKIP_ROBUST=YES
+            -DSKIP_ROBUST=YES \
+            "${gfe_cmake_flags[@]}"
           cmake --build build/extern/gfe --target install
 
       - name: Configure (Ninja)
@@ -513,6 +549,7 @@ jobs:
         if: ${{runner.os == 'Windows' && matrix.toolchain.ccompiler == 'msvc'}}
         run: |
           cmake -S . -B build -G Ninja \
+            -DCMAKE_PREFIX_PATH=build/install \
             -DCMAKE_BUILD_TYPE=Release \
             -DCEA_BUILD_TESTING=ON \
             -DCEA_ENABLE_BIND_C=ON \
