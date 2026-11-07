@@ -48,12 +48,11 @@ if(CEA_BUILD_TESTING AND PFUNIT_FOUND)
         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
     )
     if(WIN32 AND (CMAKE_Fortran_COMPILER_ID STREQUAL "IntelLLVM" OR CMAKE_Fortran_COMPILER_ID STREQUAL "Intel"))
-        # The Windows SDK (libucrt.lib) and ifx (libmmd.lib) both define
-        # frexp/ldexp/etc, giving LNK2005. /FORCE:MULTIPLE is scoped to this
-        # target so a real duplicate symbol elsewhere still fails the build.
+        # CEA uses the static runtime (CMAKE_MSVC_RUNTIME_LIBRARY in the root
+        # CMakeLists.txt). GFE/pFUnit must be built with the same runtime, or
+        # libucrt.lib and libmmd.lib both define frexp/ldexp/etc (LNK2005).
         target_link_options(cea_core_test PRIVATE
             "-libs:static"
-            "-Qoption,link,/FORCE:MULTIPLE"
         )
     endif()
 elseif(CEA_BUILD_TESTING)

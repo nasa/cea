@@ -510,6 +510,8 @@ jobs:
             # This oneAPI package is Fortran-only, so point GFE's C/C++ needs at
             # cl (already on PATH from "Set up MSVC toolchain").
             gfe_cmake_flags+=(-DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl)
+            # Match CEA's static runtime; a dynamic GFE/pFUnit gives LNK2005 at link.
+            gfe_cmake_flags+=(-DCMAKE_POLICY_DEFAULT_CMP0091=NEW "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded")
           fi
 
           cmake -S extern/gfe -B build/extern/gfe -GNinja \
