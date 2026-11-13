@@ -199,6 +199,13 @@ jobs:
           call "C:\Program Files (x86)\Intel\oneAPI\setvars.bat" intel64 >nul
           .\build\source\cea.exe -h
 
+      - name: Run legacy CLI reference tests
+        if: matrix.label == 'linux-x86_64-gfortran'
+        env:
+          CEA_EXE: ${{ github.workspace }}/build/source/cea
+        run: |
+          python test/main_interface/test_main.py
+
       - name: Verify C ABI library output (Unix)
         if: runner.os != 'Windows'
         run: |
