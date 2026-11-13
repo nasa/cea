@@ -1294,12 +1294,14 @@ contains
                         write(ioout, '(A, 1PE13.6 ,A)') "WERE LESS THAN", trace, " FOR ALL ASSIGNED CONDITIONS"
                     end if
                     write(ioout, '(A)') ""
-                    ncols = 5
-                    nrows = (num_trace - 1)/ncols + 1
-                    do i = 1, nrows
-                        last_row_cols = merge(mod(num_trace, ncols), ncols, mod(num_trace, ncols) /= 0 .and. i == nrows)
-                        write(ioout, '(5A16)') (trace_names((i-1)*ncols + j), j=1,last_row_cols)
-                    end do
+                    if (num_trace > 0) then
+                        ncols = 5
+                        nrows = (num_trace - 1)/ncols + 1
+                        do i = 1, nrows
+                            last_row_cols = merge(mod(num_trace, ncols), ncols, mod(num_trace, ncols) /= 0 .and. i == nrows)
+                            write(ioout, '(5A16)') (trace_names((i-1)*ncols + j), j=1,last_row_cols)
+                        end do
+                    end if
                     write(ioout, '(A)') ""
                     write(ioout, '(A)') ""
                 end if
@@ -1432,12 +1434,14 @@ contains
                         write(ioout, '(A, 1PE13.6 ,A)') "WERE LESS THAN", trace, " FOR ALL ASSIGNED CONDITIONS"
                     end if
                     write(ioout, '(A)') ""
-                    ncols = 5
-                    nrows = (num_trace - 1)/ncols + 1
-                    do i = 1, nrows
-                        last_row_cols = merge(mod(num_trace, ncols), ncols, mod(num_trace, ncols) /= 0 .and. i == nrows)
-                        write(ioout, '(5A16)') (trace_names((i-1)*ncols + j), j=1,last_row_cols)
-                    end do
+                    if (num_trace > 0) then
+                        ncols = 5
+                        nrows = (num_trace - 1)/ncols + 1
+                        do i = 1, nrows
+                            last_row_cols = merge(mod(num_trace, ncols), ncols, mod(num_trace, ncols) /= 0 .and. i == nrows)
+                            write(ioout, '(5A16)') (trace_names((i-1)*ncols + j), j=1,last_row_cols)
+                        end do
+                    end if
                     write(ioout, '(A)') ""
                     write(ioout, '(A)') ""
                 end if
@@ -1856,12 +1860,14 @@ contains
                 write(ioout, '(A, 1PE13.6 ,A)') "WERE LESS THAN", trace, " FOR ALL ASSIGNED CONDITIONS"
             end if
             write(ioout, '(A)') ""
-            ncols = 5
-            nrows = (num_trace - 1)/ncols + 1
-            do i = 1, nrows
-                last_row_cols = merge(mod(num_trace, ncols), ncols, mod(num_trace, ncols) /= 0 .and. i == nrows)
-                write(ioout, '(5A16)') (trace_names((i-1)*ncols + j), j=1,last_row_cols)
-            end do
+            if (num_trace > 0) then
+                ncols = 5
+                nrows = (num_trace - 1)/ncols + 1
+                do i = 1, nrows
+                    last_row_cols = merge(mod(num_trace, ncols), ncols, mod(num_trace, ncols) /= 0 .and. i == nrows)
+                    write(ioout, '(5A16)') (trace_names((i-1)*ncols + j), j=1,last_row_cols)
+                end do
+            end if
             write(ioout, '(A)') ""
             write(ioout, '(A)') ""
 
@@ -2473,12 +2479,14 @@ contains
                 write(ioout, '(A, 1PE13.6 ,A)') "WERE LESS THAN", trace, " FOR ALL ASSIGNED CONDITIONS"
             end if
             write(ioout, '(A)') ""
-            ncols = 5
-            nrows = (num_trace - 1)/ncols + 1
-            do i = 1, nrows
-                last_row_cols = merge(mod(num_trace, ncols), ncols, mod(num_trace, ncols) /= 0 .and. i == nrows)
-                write(ioout, '(5A16)') (trace_names((i-1)*ncols + j), j=1,last_row_cols)
-            end do
+            if (num_trace > 0) then
+                ncols = 5
+                nrows = (num_trace - 1)/ncols + 1
+                do i = 1, nrows
+                    last_row_cols = merge(mod(num_trace, ncols), ncols, mod(num_trace, ncols) /= 0 .and. i == nrows)
+                    write(ioout, '(5A16)') (trace_names((i-1)*ncols + j), j=1,last_row_cols)
+                end do
+            end if
             write(ioout, '(A)') ""
             write(ioout, '(A)') ""
 
@@ -3553,12 +3561,14 @@ contains
                         write(ioout, '(A)') "PRODUCTS WHICH WERE CONSIDERED BUT WHOSE "// mass_or_mole //" FRACTIONS"
                         write(ioout, '(A, 1PE13.6 ,A)') "WERE LESS THAN", trace, " FOR ALL ASSIGNED CONDITIONS"
                         write(ioout, '(A)') ""
-                        ncols = 5
-                        nrows = (num_trace - 1)/ncols + 1
-                        do ii = 1, nrows
-                            last_row_cols = merge(mod(num_trace, ncols), ncols, mod(num_trace, ncols) /= 0 .and. ii == nrows)
-                            write(ioout, '(5A16)') (trace_names((ii-1)*ncols + jj), jj=1,last_row_cols)
-                        end do
+                        if (num_trace > 0) then
+                            ncols = 5
+                            nrows = (num_trace - 1)/ncols + 1
+                            do ii = 1, nrows
+                                last_row_cols = merge(mod(num_trace, ncols), ncols, mod(num_trace, ncols) /= 0 .and. ii == nrows)
+                                write(ioout, '(5A16)') (trace_names((ii-1)*ncols + jj), jj=1,last_row_cols)
+                            end do
+                        end if
                         write(ioout, '(A)') ""
                         write(ioout, '(A)') "NOTE. WEIGHT FRACTION OF FUEL IN TOTAL FUELS AND OF OXIDANT IN TOTAL OXIDANTS"
                         write(ioout, '(A)') ""
