@@ -307,11 +307,11 @@ Build and install:
    build::
 
       cmake --preset intel-ifx -DCMAKE_INSTALL_PREFIX=<cea_install_dir> -DCEA_BUILD_TESTING=OFF -DCEA_ENABLE_BIND_PYTHON=ON
-      cmake --build build-intel
+      cmake --build build-intel-ifx
 
 5. Install::
 
-      cmake --install build-intel
+      cmake --install build-intel-ifx
 
 6. Add ``<cea_install_dir>\\bin`` to ``PATH``.
 
@@ -331,7 +331,7 @@ Validation checks:
 
 * Core interface regression (from the CEA root)::
 
-      set "CEA_EXE=<cea_source_dir>\build-intel\source\cea.exe"
+      set "CEA_EXE=<cea_source_dir>\build-intel-ifx\source\cea.exe"
       python test\main_interface\test_main.py
 
   Expected result for this check is 14/14 passing.
