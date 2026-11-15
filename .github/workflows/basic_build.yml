@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+env:
+  # GFE release used for pFUnit. Keep in sync with GFE_TAG in scripts/develop.sh.
+  GFE_TAG: v1.31.0
 jobs:
   build:
     name: Build (${{ matrix.label }})
@@ -413,6 +416,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: Goddard-Fortran-Ecosystem/GFE
+          ref: ${{ env.GFE_TAG }}
           path: extern/gfe
           submodules: true
 
