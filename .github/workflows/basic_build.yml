@@ -2,6 +2,8 @@ name: Basic Build
 run-name: "[${{ github.actor }}]: ${{ github.event_name }} to ${{ github.ref_name }}"
 on:
   push:
+    branches: [main]
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 jobs:
