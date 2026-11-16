@@ -104,8 +104,10 @@ fi
 if [ "$BUILD_GFE" = true ]; then
     GFE="${EXTERN}/gfe"
     GFE_BUILD="${BUILD}/extern/gfe"
+    # GFE release used for pFUnit. Keep in sync with GFE_TAG in .github/workflows/basic_build.yml.
+    GFE_TAG="${GFE_TAG:-v1.31.0}"
     if [[ ! -d "${GFE}" ]]; then
-        git clone https://github.com/Goddard-Fortran-Ecosystem/GFE "${GFE}"
+        git clone --branch "${GFE_TAG}" https://github.com/Goddard-Fortran-Ecosystem/GFE "${GFE}"
         (cd "${GFE}" && git submodule update --init)
     fi
     cmake -S "${GFE}" -B "${GFE_BUILD}" -G "${GENERATOR}" \

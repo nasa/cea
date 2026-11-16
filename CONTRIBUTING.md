@@ -140,7 +140,7 @@ CEA uses pFUnit (part of the Goddard Fortran Ecosystem) for unit testing. Tests 
 1. Clone GFE (which vendors pFUnit) into `extern/gfe`, then build and install
    it so CMake's `find_package(PFUNIT)` can find it:
    ```bash
-   git clone https://github.com/Goddard-Fortran-Ecosystem/GFE extern/gfe
+   git clone --branch v1.31.0 https://github.com/Goddard-Fortran-Ecosystem/GFE extern/gfe
    cd extern/gfe && git submodule update --init && cd ../..
    cmake -S extern/gfe -B build-dev/extern/gfe -G "Unix Makefiles" \
        -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran \
@@ -148,7 +148,9 @@ CEA uses pFUnit (part of the Goddard Fortran Ecosystem) for unit testing. Tests 
        -DSKIP_MPI=YES -DSKIP_OPENMP=YES -DSKIP_FHAMCREST=YES -DSKIP_ESMF=YES -DSKIP_ROBUST=YES
    cmake --build build-dev/extern/gfe --target install
    ```
-   `scripts/develop.sh` automates these steps.
+   `scripts/develop.sh` automates these steps. The GFE release is pinned by
+   `GFE_TAG` in `scripts/develop.sh` and in `.github/workflows/basic_build.yml`;
+   update both together.
 
 2. Configure CEA against that install and build (the `dev*` presets enable
    `CEA_BUILD_TESTING` by default):
